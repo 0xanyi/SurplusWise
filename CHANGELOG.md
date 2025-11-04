@@ -2,6 +2,62 @@
 
 All notable changes to SurplusWise will be documented in this file.
 
+## [0.3.0] - 2024-11-04
+
+### Phase 2: Core Transaction Management - Complete ✅
+
+#### Added
+- **Transaction Management**
+  - Complete CRUD operations for transactions (Create, Read, Update, Delete)
+  - Transaction form dialog with validation
+  - Support for both expense and giving transaction types
+  - Real-time transaction list with search and filtering
+  - Date, category, and type filters
+  - Edit and delete functionality for transactions
+
+- **Category System**
+  - Default categories for expenses (10 categories)
+  - Default categories for givings (8 categories)
+  - Automatic category seeding on first API call
+  - Category API routes for future management
+  - Color-coded categories
+
+- **Dashboard Enhancements**
+  - Real statistics from database
+  - Monthly expense and giving totals
+  - Net balance calculation (surplus/deficit)
+  - Transaction count display
+  - Recent transactions preview (last 5)
+  - Quick action buttons for adding transactions
+  - Dedicated transactions page
+
+- **API Routes**
+  - `/api/transactions` - GET (with filters), POST
+  - `/api/transactions/[id]` - GET, PUT, DELETE
+  - `/api/categories` - GET (with auto-seeding), POST
+  - Server-side authentication checks on all routes
+  - Comprehensive error handling
+
+- **UI Components**
+  - Select dropdown component
+  - Dialog modal component
+  - Textarea component
+  - Transaction form with date picker
+  - Transaction list with icons and color coding
+  - Filter controls for search and filtering
+
+#### Changed
+- Dashboard now shows real data from database instead of placeholders
+- Updated navigation to include transactions page
+- Modified layout to use system fonts instead of Google Fonts
+
+#### Technical Details
+- All API routes use Supabase RLS for security
+- Client and server components properly separated
+- TypeScript types aligned across components
+- Build successful with zero errors
+- Production-ready code
+
 ## [0.2.0] - 2024-11-04
 
 ### Updated to Next.js 16 and React 19 🚀
