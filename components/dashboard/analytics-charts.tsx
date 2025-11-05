@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,8 +19,10 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
-import { Download, Calendar, TrendingUp, TrendingDown } from "lucide-react";
+import { Download, Calendar, TrendingUp, TrendingDown, FileText } from "lucide-react";
 import { Select } from "@/components/ui/select";
+import { jsPDF } from "jspdf";
+import html2canvas from "html2canvas";
 
 const COLORS = [
   "#3b82f6", // blue
@@ -53,6 +55,8 @@ export function AnalyticsCharts() {
   const [endDate, setEndDate] = useState("");
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchAnalytics();
@@ -103,6 +107,113 @@ export function AnalyticsCharts() {
     window.URL.revokeObjectURL(url);
   };
 
+  const exportToPDF = async () => {
+    if (!analytics || !reportRef.current) return;
+
+    setExporting(true);
+    try {
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Add header
+      pdf.setFontSize(20);
+      pdf.setTextColor(59, 130, 246);
+      pdf.text("SurplusWise Financial Report", pageWidth / 2, 15, { align: "center" });
+
+      // Add date and period
+      pdf.setFontSize(10);
+      pdf.setTextColor(100, 100, 100);
+      const dateStr = new Date().toLocaleDateString();
+      pdf.text(`Generated: ${dateStr}`, pageWidth / 2, 22, { align: "center" });
+      pdf.text(`Period: ${period.charAt(0).toUpperCase() + period.slice(1)}`, pageWidth / 2, 27, { align: "center" });
+
+      // Add summary section
+      pdf.setFontSize(14);
+      pdf.setTextColor(0, 0, 0);
+      pdf.text("Financial Summary", 14, 40);
+
+      pdf.setFontSize(11);
+      const netBalance = analytics.totalGivings - analytics.totalExpenses;
+      const summaryY = 48;
+
+      pdf.setTextColor(239, 68, 68);
+      pdf.text(`Total Expenses: £${analytics.totalExpenses.toFixed(2)}`, 14, summaryY);
+
+      pdf.setTextColor(16, 185, 129);
+      pdf.text(`Total Givings: £${analytics.totalGivings.toFixed(2)}`, 14, summaryY + 7);
+
+      pdf.setTextColor(netBalance >= 0 ? 16 : 239, netBalance >= 0 ? 185 : 68, netBalance >= 0 ? 129 : 68);
+      pdf.text(`Net Balance: £${Math.abs(netBalance).toFixed(2)} (${netBalance >= 0 ? 'Surplus' : 'Deficit'})`, 14, summaryY + 14);
+
+      pdf.setTextColor(0, 0, 0);
+      pdf.text(`Transactions: ${analytics.transactionCount}`, 14, summaryY + 21);
+
+      // Add expense categories
+      if (analytics.expensesByCategoryArray.length > 0) {
+        pdf.setFontSize(14);
+        pdf.text("Expense Categories", 14, summaryY + 35);
+
+        pdf.setFontSize(10);
+        let yPos = summaryY + 43;
+        analytics.expensesByCategoryArray.forEach((item, index) => {
+          const percentage = (item.value / analytics.totalExpenses * 100).toFixed(1);
+          pdf.text(`${item.name}: £${item.value.toFixed(2)} (${percentage}%)`, 14, yPos);
+          yPos += 6;
+
+          // Add new page if needed
+          if (yPos > pageHeight - 30) {
+            pdf.addPage();
+            yPos = 20;
+          }
+        });
+
+        yPos += 8;
+
+        // Add giving categories
+        if (analytics.givingsByCategoryArray.length > 0) {
+          pdf.setFontSize(14);
+          pdf.text("Giving Categories", 14, yPos);
+
+          pdf.setFontSize(10);
+          yPos += 8;
+          analytics.givingsByCategoryArray.forEach((item) => {
+            const percentage = (item.value / analytics.totalGivings * 100).toFixed(1);
+            pdf.text(`${item.name}: £${item.value.toFixed(2)} (${percentage}%)`, 14, yPos);
+            yPos += 6;
+
+            // Add new page if needed
+            if (yPos > pageHeight - 30) {
+              pdf.addPage();
+              yPos = 20;
+            }
+          });
+        }
+      }
+
+      // Add footer
+      const totalPages = pdf.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(
+          `Page ${i} of ${totalPages} | SurplusWise © ${new Date().getFullYear()}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: "center" }
+        );
+      }
+
+      // Save the PDF
+      pdf.save(`surpluswise-report-${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -125,7 +236,7 @@ export function AnalyticsCharts() {
     : analytics.dailyTrends;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" ref={reportRef}>
       {/* Period Selector and Export */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
@@ -163,10 +274,16 @@ export function AnalyticsCharts() {
           )}
         </div>
 
-        <Button onClick={exportToCSV} variant="outline">
-          <Download className="h-4 w-4 mr-2" />
-          Export CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={exportToCSV} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button onClick={exportToPDF} variant="outline" disabled={exporting}>
+            <FileText className="h-4 w-4 mr-2" />
+            {exporting ? "Generating..." : "Export PDF"}
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}

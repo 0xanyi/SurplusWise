@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Bell, Palette, Globe, Shield, Database } from "lucide-react";
+import { User, Bell, Palette, Globe, Shield, Database, Target } from "lucide-react";
 import { CategoryManagement } from "@/components/dashboard/category-management";
+import { BudgetManagement } from "@/components/dashboard/budget-management";
 
 export default function SettingsPage() {
   return (
@@ -45,6 +46,15 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Budget Management - Now Active */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Target className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">Budget Management</h2>
+          </div>
+          <BudgetManagement />
+        </div>
 
         {/* Categories Management - Now Active */}
         <div>

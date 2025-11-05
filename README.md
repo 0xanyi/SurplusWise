@@ -4,7 +4,7 @@ A modern personal finance management application designed to help users track th
 
 ## Features
 
-### Current Features (Phase 1 ✅, Phase 2 ✅, Phase 3 ✅)
+### Current Features (Phase 1 ✅, Phase 2 ✅, Phase 3 ✅, Phase 4 ✅)
 
 **Authentication & Security**
 - ✅ User authentication (signup, login, logout)

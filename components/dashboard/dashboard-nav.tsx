@@ -12,6 +12,7 @@ import {
   Wallet
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 import type { User } from "@supabase/supabase-js"
@@ -44,7 +45,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
   ]
 
   return (
-    <nav className="bg-white border-b sticky top-0 z-50 shadow-sm">
+    <nav className="bg-background border-b sticky top-0 z-50 shadow-sm">
       <div className="container mx-auto px-4 max-w-7xl">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-8">
@@ -64,7 +65,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
                     className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isActive
                         ? "bg-primary text-primary-foreground"
-                        : "text-gray-600 hover:bg-gray-100"
+                        : "text-muted-foreground hover:bg-accent"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -75,18 +76,19 @@ export default function DashboardNav({ user }: DashboardNavProps) {
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 text-sm text-muted-foreground">
               <span className="hidden sm:inline">{user.email}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleLogout}
-                className="flex items-center space-x-1"
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
             </div>
+            <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="flex items-center space-x-1"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
 
@@ -102,7 +104,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
                 className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-colors ${
                   isActive
                     ? "bg-primary text-primary-foreground"
-                    : "text-gray-600 hover:bg-gray-100"
+                    : "text-muted-foreground hover:bg-accent"
                 }`}
               >
                 <Icon className="h-4 w-4" />
