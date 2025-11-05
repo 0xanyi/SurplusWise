@@ -2,6 +2,64 @@
 
 All notable changes to SurplusWise will be documented in this file.
 
+## [0.4.0] - 2024-11-05
+
+### Phase 3: Analytics & Reports - Complete ✅
+
+#### Added
+- **Analytics & Reports Page**
+  - Interactive charts and visualizations using Recharts
+  - Spending trends chart with line graphs
+  - Category breakdown with pie charts
+  - Period-based filtering (weekly, monthly, quarterly, yearly, custom)
+  - Custom date range selection
+  - Real-time analytics data
+  - Expense and giving comparison charts
+  - CSV export functionality for reports
+
+- **Receipt Scanning with AI**
+  - OpenAI Vision API integration for receipt scanning
+  - Automatic data extraction from receipt photos
+  - Support for JPG and PNG images (up to 5MB)
+  - Receipt upload to Supabase Storage
+  - Receipt preview and confirmation
+  - Auto-populate transaction form from scanned data
+
+- **Category Management**
+  - Full CRUD operations for custom categories
+  - Create new expense and giving categories
+  - Edit category names and colors (custom categories)
+  - Delete unused custom categories
+  - Color picker for category customization
+  - Protection for default categories
+  - Prevention of deletion for categories in use
+
+- **API Routes**
+  - `/api/analytics` - GET analytics data with period filtering
+  - `/api/receipts/scan` - POST receipt image for AI scanning
+  - `/api/categories/[id]` - PUT, DELETE for category management
+
+- **UI Components**
+  - ReceiptScanner component with image preview
+  - AnalyticsCharts component with interactive visualizations
+  - CategoryManagement component with CRUD interface
+  - Tab interface for manual entry vs receipt scanning
+  - Period selector with multiple time ranges
+
+#### Enhanced
+- Transaction form now supports receipt scanning mode
+- Settings page now includes category management
+- Reports page fully functional with real data
+- Improved transaction workflow with AI assistance
+
+#### Technical Details
+- Lazy-loaded OpenAI client to avoid build-time errors
+- Recharts integration for data visualization
+- Optimized analytics API with aggregated data
+- Base64 image encoding for OpenAI Vision API
+- Supabase Storage integration for receipt files
+- Production build successful with all features
+
 ## [0.3.0] - 2024-11-04
 
 ### Phase 2: Core Transaction Management - Complete ✅

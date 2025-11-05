@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Camera, Edit3 } from "lucide-react";
+import { ReceiptScanner } from "./receipt-scanner";
 
 interface Category {
   id: string;
@@ -45,6 +46,8 @@ export function TransactionForm({
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [mode, setMode] = useState<'manual' | 'scan'>('manual');
+  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     amount: transaction?.amount?.toString() || '',
     date: transaction?.date || new Date().toISOString().split('T')[0],
@@ -65,6 +68,8 @@ export function TransactionForm({
           category: transaction.category,
           notes: transaction.notes || '',
         });
+        setReceiptUrl(transaction.receipt_url || null);
+        setMode('manual');
       } else {
         setFormData({
           amount: '',
@@ -73,6 +78,8 @@ export function TransactionForm({
           category: '',
           notes: '',
         });
+        setReceiptUrl(null);
+        setMode('manual');
       }
     }
   }, [open, transaction, defaultType]);
@@ -91,6 +98,18 @@ export function TransactionForm({
 
   const filteredCategories = categories.filter(cat => cat.type === formData.type);
 
+  const handleReceiptScan = (data: any) => {
+    setFormData({
+      amount: data.amount?.toString() || '',
+      date: data.date || new Date().toISOString().split('T')[0],
+      type: 'expense',
+      category: data.category || '',
+      notes: data.vendor ? `Vendor: ${data.vendor}` : '',
+    });
+    setReceiptUrl(data.receiptUrl);
+    setMode('manual'); // Switch to manual mode to review/edit
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -108,6 +127,7 @@ export function TransactionForm({
         body: JSON.stringify({
           ...formData,
           amount: parseFloat(formData.amount),
+          receipt_url: receiptUrl,
         }),
       });
 
@@ -136,7 +156,7 @@ export function TransactionForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {transaction?.id ? 'Edit Transaction' : 'Add Transaction'}
@@ -144,11 +164,40 @@ export function TransactionForm({
           <DialogDescription>
             {transaction?.id
               ? 'Update the transaction details below'
-              : 'Fill in the details to add a new transaction'}
+              : 'Fill in the details to add a new transaction or scan a receipt'}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        {!transaction?.id && (
+          <div className="flex gap-2 border-b pb-4">
+            <Button
+              type="button"
+              variant={mode === 'manual' ? 'default' : 'outline'}
+              onClick={() => setMode('manual')}
+              className="flex-1"
+            >
+              <Edit3 className="h-4 w-4 mr-2" />
+              Manual Entry
+            </Button>
+            <Button
+              type="button"
+              variant={mode === 'scan' ? 'default' : 'outline'}
+              onClick={() => setMode('scan')}
+              className="flex-1"
+            >
+              <Camera className="h-4 w-4 mr-2" />
+              Scan Receipt
+            </Button>
+          </div>
+        )}
+
+        {mode === 'scan' && !transaction?.id ? (
+          <ReceiptScanner
+            onScanComplete={handleReceiptScan}
+            onCancel={() => setMode('manual')}
+          />
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="type">Type</Label>
             <Select
@@ -222,6 +271,12 @@ export function TransactionForm({
             />
           </div>
 
+          {receiptUrl && (
+            <div className="text-sm text-muted-foreground">
+              ✓ Receipt attached
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-4">
             <Button
               type="button"
@@ -237,6 +292,7 @@ export function TransactionForm({
             </Button>
           </div>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );
