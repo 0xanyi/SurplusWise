@@ -2,6 +2,130 @@
 
 All notable changes to SurplusWise will be documented in this file.
 
+## [0.5.0] - 2024-11-05
+
+### Phase 4: Polish & Enhancements - Complete ✅
+
+#### Added
+- **PDF Report Generation**
+  - Export financial reports as PDF with formatted data
+  - Professional PDF layout with headers and footers
+  - Automatic pagination for large reports
+  - Category breakdowns with percentages in PDF
+  - Period-based report generation
+  - Branded PDF reports with SurplusWise branding
+
+- **Dark Mode Support**
+  - System-aware theme detection
+  - Manual theme toggle between light and dark modes
+  - Smooth theme transitions without flash
+  - Dark mode optimized color scheme
+  - Theme toggle button in navigation bar
+  - Persistent theme preference across sessions
+
+- **Budget Tracking System**
+  - Create budgets for expense and giving categories
+  - Monthly, quarterly, and yearly budget periods
+  - Real-time budget vs actual spending tracking
+  - Budget progress indicators with color coding
+  - Budget status alerts (ok, warning, exceeded)
+  - Visual progress bars for each budget
+  - Edit and delete budget functionality
+  - Budget overview widget on dashboard
+
+- **Budget Management Features**
+  - Full CRUD operations for budgets
+  - Automatic date range calculation by period
+  - Spent vs remaining calculations
+  - Percentage-based progress tracking
+  - Status indicators (green for ok, amber for warning, red for exceeded)
+  - Budget-to-actual comparisons
+  - Category-specific budget allocation
+  - Prevent duplicate budgets for same category/period
+
+#### Enhanced
+- Navigation bar now includes theme toggle
+- Settings page enhanced with budget management section
+- Improved color scheme for dark mode compatibility
+- Better accessibility with theme support
+- Dashboard includes budget overview widget
+
+#### API Routes
+- `/api/budgets` - GET (with period/type filters), POST
+- `/api/budgets/[id]` - GET, PUT, DELETE
+
+#### UI Components
+- ThemeProvider wrapper for theme management
+- ThemeToggle button component
+- BudgetManagement component with CRUD interface
+- BudgetOverview dashboard widget
+
+#### Technical Details
+- next-themes integration for seamless theme management
+- jsPDF library for PDF generation
+- Optimized budget calculations with transaction aggregation
+- Real-time budget status updates
+- Production build successful with all features
+- Zero TypeScript errors
+
+## [0.4.0] - 2024-11-05
+
+### Phase 3: Analytics & Reports - Complete ✅
+
+#### Added
+- **Analytics & Reports Page**
+  - Interactive charts and visualizations using Recharts
+  - Spending trends chart with line graphs
+  - Category breakdown with pie charts
+  - Period-based filtering (weekly, monthly, quarterly, yearly, custom)
+  - Custom date range selection
+  - Real-time analytics data
+  - Expense and giving comparison charts
+  - CSV export functionality for reports
+
+- **Receipt Scanning with AI**
+  - OpenAI Vision API integration for receipt scanning
+  - Automatic data extraction from receipt photos
+  - Support for JPG and PNG images (up to 5MB)
+  - Receipt upload to Supabase Storage
+  - Receipt preview and confirmation
+  - Auto-populate transaction form from scanned data
+
+- **Category Management**
+  - Full CRUD operations for custom categories
+  - Create new expense and giving categories
+  - Edit category names and colors (custom categories)
+  - Delete unused custom categories
+  - Color picker for category customization
+  - Protection for default categories
+  - Prevention of deletion for categories in use
+
+- **API Routes**
+  - `/api/analytics` - GET analytics data with period filtering
+  - `/api/receipts/scan` - POST receipt image for AI scanning
+  - `/api/categories/[id]` - PUT, DELETE for category management
+
+- **UI Components**
+  - ReceiptScanner component with image preview
+  - AnalyticsCharts component with interactive visualizations
+  - CategoryManagement component with CRUD interface
+  - Tab interface for manual entry vs receipt scanning
+  - Period selector with multiple time ranges
+
+#### Enhanced
+- Transaction form now supports receipt scanning mode
+- Settings page now includes category management
+- Reports page fully functional with real data
+- Improved transaction workflow with AI assistance
+
+#### Technical Details
+- Lazy-loaded OpenAI client to avoid build-time errors
+- Recharts integration for data visualization
+- Optimized analytics API with aggregated data
+- Base64 image encoding for OpenAI Vision API
+- Supabase Storage integration for receipt files
+- Production build successful with all features
+
 ## [0.3.0] - 2024-11-04
 
 ### Phase 2: Core Transaction Management - Complete ✅

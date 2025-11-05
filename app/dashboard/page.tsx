@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DollarSign, TrendingUp, TrendingDown, Receipt } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
+import { BudgetOverview } from "@/components/dashboard/budget-overview";
 
 export default async function DashboardPage() {
   const supabase = await createServerSupabaseClient();
@@ -115,6 +116,9 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Budget Overview */}
+      <BudgetOverview />
 
       {/* Recent Transactions */}
       <Card>

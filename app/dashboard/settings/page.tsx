@@ -1,5 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { User, Bell, Palette, Globe, Shield, Database } from "lucide-react";
+import { User, Bell, Palette, Globe, Shield, Database, Target } from "lucide-react";
+import { CategoryManagement } from "@/components/dashboard/category-management";
+import { BudgetManagement } from "@/components/dashboard/budget-management";
 
 export default function SettingsPage() {
   return (
@@ -12,24 +14,6 @@ export default function SettingsPage() {
       </div>
 
       <div className="grid gap-6">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" />
-              <CardTitle>Profile Settings</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center py-8 text-muted-foreground">
-              <User className="h-12 w-12 mx-auto mb-4 opacity-30" />
-              <p className="font-medium">Coming Soon</p>
-              <p className="text-sm mt-2">
-                Update your profile information and preferences
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
@@ -63,19 +47,37 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Budget Management - Now Active */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Target className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">Budget Management</h2>
+          </div>
+          <BudgetManagement />
+        </div>
+
+        {/* Categories Management - Now Active */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <Palette className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">Categories Management</h2>
+          </div>
+          <CategoryManagement />
+        </div>
+
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <Palette className="h-5 w-5 text-primary" />
-              <CardTitle>Categories Management</CardTitle>
+              <User className="h-5 w-5 text-primary" />
+              <CardTitle>Profile Settings</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <div className="text-center py-8 text-muted-foreground">
-              <Palette className="h-12 w-12 mx-auto mb-4 opacity-30" />
+              <User className="h-12 w-12 mx-auto mb-4 opacity-30" />
               <p className="font-medium">Coming Soon</p>
               <p className="text-sm mt-2">
-                Create, edit, and manage custom categories
+                Update your profile information and preferences
               </p>
             </div>
           </CardContent>

@@ -4,21 +4,51 @@ A modern personal finance management application designed to help users track th
 
 ## Features
 
-### Current Features (Phase 1)
+### Current Features (Phase 1 ✅, Phase 2 ✅, Phase 3 ✅, Phase 4 ✅)
+
+**Authentication & Security**
 - ✅ User authentication (signup, login, logout)
 - ✅ Secure session management with Supabase
+- ✅ Row-level security policies
+
+**Transaction Management**
+- ✅ Manual transaction entry (expenses and givings)
+- ✅ CRUD operations for all transactions
+- ✅ Search and filter transactions
+- ✅ Date range filtering
+- 🤖 AI-powered receipt scanning with OpenAI Vision
+- ✅ Receipt upload and storage
+
+**Analytics & Reports**
+- 📊 Interactive analytics dashboard with charts
+- 📈 Spending trends visualization (line charts)
+- 🥧 Category breakdown (pie charts)
+- 📅 Period-based filtering (weekly, monthly, quarterly, yearly, custom)
+- 💾 CSV data export
+- ✅ Real-time financial summaries
+
+**Category Management**
+- ✅ Default expense categories (10 categories)
+- ✅ Default giving categories (8 categories)
+- ✅ Create custom categories
+- ✅ Edit and delete custom categories
+- ✅ Color-coded categories
+
+**User Interface**
 - ✅ Responsive dashboard layout
 - ✅ Modern UI with Tailwind CSS and shadcn/ui
+- ✅ Toast notifications
 - ✅ PWA-ready configuration
+- ✅ Mobile-friendly design
 
 ### Upcoming Features
-- 📝 Manual transaction entry (expenses and givings)
-- 🤖 AI-powered receipt scanning with OpenAI Vision
-- 📊 Analytics dashboard with charts
-- 📈 Financial reports and insights
-- 📱 Category management
-- 💾 Data export (CSV, PDF)
-- 🔔 Toast notifications
+- 💾 PDF report generation
+- 🔔 Push notifications
+- 🌙 Dark mode support
+- 📱 Advanced filtering options
+- 🏦 Bank integration
+- 💰 Budget tracking
+- 🔮 Spending predictions
 
 ## Tech Stack
 
@@ -214,17 +244,19 @@ SurplusWise/
 - [x] Basic UI components
 - [x] Dashboard layout
 
-### Phase 2: Core Features (In Progress)
-- [ ] Transaction management (CRUD)
-- [ ] Category management
-- [ ] Receipt scanning with AI
-- [ ] Dashboard statistics
+### Phase 2: Core Features ✅
+- [x] Transaction management (CRUD)
+- [x] Category management
+- [x] Receipt scanning with AI
+- [x] Dashboard statistics
 
-### Phase 3: Analytics & Reports
-- [ ] Visual charts and graphs
-- [ ] Period-based filtering
-- [ ] Report generation
-- [ ] Data export (CSV, PDF)
+### Phase 3: Analytics & Reports ✅
+- [x] Visual charts and graphs
+- [x] Period-based filtering (weekly, monthly, quarterly, yearly, custom)
+- [x] Interactive spending trends
+- [x] Category breakdown visualizations
+- [x] Data export (CSV)
+- [x] Custom category management (CRUD)
 
 ### Phase 4: Polish & Enhancements
 - [ ] Dark mode
