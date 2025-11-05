@@ -76,13 +76,6 @@ export default function DashboardNav({ user }: DashboardNavProps) {
           </div>
 
           <div className="flex items-center space-x-4">
-            <Link href="/dashboard/transactions/new">
-              <Button size="sm" className="flex items-center space-x-2">
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Add Transaction</span>
-              </Button>
-            </Link>
-
             <div className="flex items-center space-x-2 text-sm text-gray-600">
               <span className="hidden sm:inline">{user.email}</span>
               <Button
