@@ -46,6 +46,49 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
+      }
+      budgets: {
+        Row: {
+          id: string
+          user_id: string
+          category: string
+          amount: number
+          period: 'monthly' | 'quarterly' | 'yearly'
+          start_date: string
+          end_date: string
+          type: 'expense' | 'giving'
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          category: string
+          amount: number
+          period?: 'monthly' | 'quarterly' | 'yearly'
+          start_date: string
+          end_date: string
+          type?: 'expense' | 'giving'
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          category?: string
+          amount?: number
+          period?: 'monthly' | 'quarterly' | 'yearly'
+          start_date?: string
+          end_date?: string
+          type?: 'expense' | 'giving'
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       categories: {
         Row: {
@@ -78,6 +121,7 @@ export interface Database {
           is_default?: boolean
           created_at?: string
         }
+        Relationships: []
       }
     }
     Views: {

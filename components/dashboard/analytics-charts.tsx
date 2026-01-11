@@ -355,7 +355,7 @@ export function AnalyticsCharts() {
                 />
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip
-                  formatter={(value: number) => formatCurrency(value)}
+                  formatter={(value) => formatCurrency(Number(value ?? 0))}
                   labelStyle={{ color: "#000" }}
                 />
                 <Legend />
@@ -400,9 +400,10 @@ export function AnalyticsCharts() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) =>
-                        `${name}: ${(percent * 100).toFixed(0)}%`
-                      }
+                      label={({ name, percent }) => {
+                        const safePercent = typeof percent === "number" ? percent : 0;
+                        return `${name}: ${(safePercent * 100).toFixed(0)}%`;
+                      }}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
@@ -414,7 +415,7 @@ export function AnalyticsCharts() {
                         />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="mt-4 space-y-2">
@@ -460,9 +461,10 @@ export function AnalyticsCharts() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) =>
-                        `${name}: ${(percent * 100).toFixed(0)}%`
-                      }
+                      label={({ name, percent }) => {
+                        const safePercent = typeof percent === "number" ? percent : 0;
+                        return `${name}: ${(safePercent * 100).toFixed(0)}%`;
+                      }}
                       outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
@@ -474,7 +476,7 @@ export function AnalyticsCharts() {
                         />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="mt-4 space-y-2">
@@ -532,7 +534,7 @@ export function AnalyticsCharts() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="category" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
+                <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
                 <Legend />
                 <Bar dataKey="Expenses" fill="#ef4444" />
                 <Bar dataKey="Givings" fill="#10b981" />

@@ -1,5 +1,6 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import type { Database } from "@/types/database";
 
 export async function GET(request: Request) {
   try {
@@ -57,7 +58,7 @@ export async function GET(request: Request) {
     }
 
     // Fetch all transactions for the period
-    const { data: transactions, error } = await supabase
+    const { data, error } = await supabase
       .from("transactions")
       .select("*")
       .eq("user_id", user.id)
@@ -68,6 +69,9 @@ export async function GET(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    type Transaction = Database["public"]["Tables"]["transactions"]["Row"];
+    const transactions = (data ?? []) as Transaction[];
 
     // Calculate analytics
     const analytics = {

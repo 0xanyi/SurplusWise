@@ -6,8 +6,18 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = await createServerSupabaseClient();
     const { searchParams } = new URL(request.url);
-    const period = searchParams.get('period');
-    const type = searchParams.get('type');
+    const periodParam = searchParams.get('period');
+    const typeParam = searchParams.get('type');
+
+    type BudgetPeriod = "monthly" | "quarterly" | "yearly";
+    type BudgetType = "expense" | "giving";
+
+    const period = (periodParam === "monthly" || periodParam === "quarterly" || periodParam === "yearly")
+      ? periodParam
+      : null;
+    const type = (typeParam === "expense" || typeParam === "giving")
+      ? typeParam
+      : null;
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 

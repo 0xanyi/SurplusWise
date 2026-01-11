@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
 
     // Get query parameters for filtering
     const searchParams = request.nextUrl.searchParams;
-    const type = searchParams.get("type"); // 'expense' or 'giving'
+    const typeParam = searchParams.get("type"); // 'expense' or 'giving'
+    const type = (typeParam === "expense" || typeParam === "giving") ? typeParam : null;
     const category = searchParams.get("category");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
