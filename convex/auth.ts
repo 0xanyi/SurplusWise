@@ -29,3 +29,12 @@ export const getCurrentUser = query({
     return authComponent.getAuthUser(ctx);
   },
 });
+
+export const getAuthUserId = async (ctx: GenericCtx<DataModel>) => {
+  const user = await authComponent.getAuthUser(ctx);
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  return user._id;
+};

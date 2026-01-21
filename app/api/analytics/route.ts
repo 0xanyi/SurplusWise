@@ -61,7 +61,6 @@ export async function GET(request: NextRequest) {
     }
 
     const transactions = await fetchAuthQuery(api.transactions.list, {
-      userId: user._id,
       startDate,
       endDate,
     });

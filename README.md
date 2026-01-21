@@ -32,6 +32,7 @@ A modern personal finance management application designed to help users track th
 - 🥧 Category breakdown (pie charts)
 - 📅 Period-based filtering (weekly, monthly, quarterly, yearly, custom)
 - 💾 CSV data export
+- 📄 PDF report generation
 - ✅ Real-time financial summaries
 
 **Category Management**
@@ -58,9 +59,9 @@ A modern personal finance management application designed to help users track th
 
 ## Tech Stack
 
-- **Framework**: Next.js 16.0.1 (App Router with Turbopack)
+- **Framework**: Next.js 16.1.1 (App Router with Turbopack)
 - **Language**: TypeScript
-- **Runtime**: React 19.0.0
+- **Runtime**: React 19.2.3
 - **Database**: Convex (real-time document database)
 - **Authentication**: Better Auth with Convex adapter
 - **AI/OCR**: OpenAI Vision API
@@ -98,6 +99,7 @@ Create a `.env.local` file in the root directory:
 # Convex Configuration
 CONVEX_DEPLOYMENT=your_convex_deployment
 NEXT_PUBLIC_CONVEX_URL=your_convex_url
+NEXT_PUBLIC_CONVEX_SITE_URL=your_convex_site_url
 
 # Better Auth Configuration
 SITE_URL=http://localhost:3000
@@ -200,7 +202,6 @@ The app uses a hybrid approach:
 - [ ] Bank integration
 - [ ] Spending predictions
 - [ ] Multi-user support
-- [ ] PDF reports
 
 ## Contributing
 

@@ -22,7 +22,6 @@
      api.transactions.list,
      userId
        ? {
-           userId,
            startDate: startOfMonth.toISOString().split("T")[0],
            endDate: endOfMonth.toISOString().split("T")[0],
          }
@@ -31,7 +30,7 @@
 
    const recentTransactions = useQuery(
      api.transactions.listRecent,
-     userId ? { userId, limit: 5 } : "skip"
+    userId ? { limit: 5 } : "skip"
    );
 
    if (!userId || transactions === undefined) {

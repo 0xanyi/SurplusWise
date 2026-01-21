@@ -59,6 +59,19 @@ export function AnalyticsCharts() {
   const [exporting, setExporting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
+  const escapeCsvValue = (value: string | number) => {
+    const stringValue = String(value);
+    const trimmed = stringValue.trimStart();
+    const sanitized = /^[=+\-@]/.test(trimmed) ? `'${stringValue}` : stringValue;
+    const escaped = sanitized.replace(/"/g, '""');
+
+    if (/[",\n]/.test(escaped)) {
+      return `"${escaped}"`;
+    }
+
+    return escaped;
+  };
+
   useEffect(() => {
     fetchAnalytics();
   }, [period, startDate, endDate]);
@@ -103,7 +116,9 @@ export function AnalyticsCharts() {
       ]),
     ];
 
-    const csv = csvData.map((row) => row.join(",")).join("\n");
+    const csv = csvData
+      .map((row) => row.map((cell) => escapeCsvValue(cell)).join(","))
+      .join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -162,8 +177,11 @@ export function AnalyticsCharts() {
 
         pdf.setFontSize(10);
         let yPos = summaryY + 43;
-        analytics.expensesByCategoryArray.forEach((item, index) => {
-          const percentage = (item.value / analytics.totalExpenses * 100).toFixed(1);
+        analytics.expensesByCategoryArray.forEach((item) => {
+          const percentage =
+            analytics.totalExpenses > 0
+              ? ((item.value / analytics.totalExpenses) * 100).toFixed(1)
+              : "0.0";
           pdf.text(`${item.name}: ${formatCurrency(item.value)} (${percentage}%)`, 14, yPos);
           yPos += 6;
 
@@ -184,7 +202,10 @@ export function AnalyticsCharts() {
           pdf.setFontSize(10);
           yPos += 8;
           analytics.givingsByCategoryArray.forEach((item) => {
-            const percentage = (item.value / analytics.totalGivings * 100).toFixed(1);
+            const percentage =
+              analytics.totalGivings > 0
+                ? ((item.value / analytics.totalGivings) * 100).toFixed(1)
+                : "0.0";
             pdf.text(`${item.name}: ${formatCurrency(item.value)} (${percentage}%)`, 14, yPos);
             yPos += 6;
 

@@ -22,7 +22,6 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
 
     const transactions = await fetchAuthQuery(api.transactions.list, {
-      userId: user._id,
       type: type || undefined,
       category: category || undefined,
       startDate: startDate || undefined,
@@ -52,7 +51,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const id = await fetchAuthMutation(api.transactions.create, {
-      userId: user._id,
       amount: body.amount,
       date: body.date,
       type: body.type,

@@ -23,7 +23,6 @@ export async function PATCH(
 
     await fetchAuthMutation(api.transactions.update, {
       id: id as Id<"transactions">,
-      userId: user._id,
       ...body,
     });
 
@@ -53,7 +52,6 @@ export async function DELETE(
 
     await fetchAuthMutation(api.transactions.remove, {
       id: id as Id<"transactions">,
-      userId: user._id,
     });
 
     return NextResponse.json({ success: true });
