@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, TrendingDown, TrendingUp, Plus } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
@@ -19,6 +20,22 @@ interface Budget {
   status: "ok" | "warning" | "exceeded";
 }
 
+function BudgetSkeleton() {
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-4 w-4 rounded" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <Skeleton className="h-4 w-20" />
+      </div>
+      <Skeleton className="h-2 w-full rounded-full" />
+      <Skeleton className="h-3 w-28" />
+    </div>
+  );
+}
+
 export function BudgetOverview() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +48,6 @@ export function BudgetOverview() {
     try {
       const response = await fetch("/api/budgets?period=monthly");
       const data = await response.json();
-      // Show only top 3 budgets
       setBudgets((data.budgets || []).slice(0, 3));
     } catch (error) {
       console.error("Failed to fetch budgets:", error);
@@ -46,8 +62,10 @@ export function BudgetOverview() {
         <CardHeader>
           <CardTitle>Budget Overview</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">Loading budgets...</p>
+        <CardContent className="space-y-4">
+          <BudgetSkeleton />
+          <BudgetSkeleton />
+          <BudgetSkeleton />
         </CardContent>
       </Card>
     );

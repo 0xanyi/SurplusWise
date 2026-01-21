@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionForm } from "./transaction-form";
 import { TransactionList } from "./transaction-list";
-import { Plus, Upload, Camera } from "lucide-react";
+import { Plus, Camera, TrendingDown, TrendingUp } from "lucide-react";
 
 export function DashboardClient() {
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
@@ -12,13 +12,11 @@ export function DashboardClient() {
   const [transactionListKey, setTransactionListKey] = useState(0);
 
   const handleTransactionSuccess = () => {
-    // Force refresh of transaction list
     setTransactionListKey(prev => prev + 1);
   };
 
   return (
     <>
-      {/* Quick Actions */}
       <Card>
         <CardHeader>
           <CardTitle>Quick Actions</CardTitle>
@@ -27,50 +25,60 @@ export function DashboardClient() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <button
               onClick={() => setIsExpenseFormOpen(true)}
-              className="p-4 border rounded-lg hover:bg-gray-50 transition-colors text-left group"
+              className="p-5 border border-border rounded-xl hover:bg-accent hover:border-primary/30 transition-all duration-200 text-left group"
             >
-              <div className="flex items-center gap-2 font-medium">
-                <Plus className="h-5 w-5 text-red-600 group-hover:scale-110 transition-transform" />
-                Add Expense
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Track your spending
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
+                  <TrendingDown className="h-5 w-5 text-red-500" />
+                </div>
+                <div>
+                  <div className="font-semibold">Add Expense</div>
+                  <div className="text-sm text-muted-foreground">
+                    Track your spending
+                  </div>
+                </div>
               </div>
             </button>
 
             <button
               onClick={() => setIsGivingFormOpen(true)}
-              className="p-4 border rounded-lg hover:bg-gray-50 transition-colors text-left group"
+              className="p-5 border border-border rounded-xl hover:bg-accent hover:border-primary/30 transition-all duration-200 text-left group"
             >
-              <div className="flex items-center gap-2 font-medium">
-                <Plus className="h-5 w-5 text-green-600 group-hover:scale-110 transition-transform" />
-                Add Giving
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Record tithes & offerings
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
+                  <TrendingUp className="h-5 w-5 text-green-500" />
+                </div>
+                <div>
+                  <div className="font-semibold">Add Giving</div>
+                  <div className="text-sm text-muted-foreground">
+                    Record tithes & offerings
+                  </div>
+                </div>
               </div>
             </button>
 
             <button
-              className="p-4 border rounded-lg hover:bg-gray-50 transition-colors text-left group opacity-50 cursor-not-allowed"
+              className="p-5 border border-border rounded-xl text-left group opacity-60 cursor-not-allowed"
               disabled
             >
-              <div className="flex items-center gap-2 font-medium">
-                <Camera className="h-5 w-5 text-purple-600" />
-                Scan Receipt
-              </div>
-              <div className="text-sm text-muted-foreground mt-1">
-                Coming soon
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                  <Camera className="h-5 w-5 text-purple-500" />
+                </div>
+                <div>
+                  <div className="font-semibold">Scan Receipt</div>
+                  <div className="text-sm text-muted-foreground">
+                    Coming soon
+                  </div>
+                </div>
               </div>
             </button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Transaction List */}
       <TransactionList key={transactionListKey} />
 
-      {/* Transaction Forms */}
       <TransactionForm
         open={isExpenseFormOpen}
         onOpenChange={setIsExpenseFormOpen}

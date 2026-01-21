@@ -1,113 +1,59 @@
-import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { isAuthenticated, fetchAuthQuery, fetchAuthMutation } from "@/lib/auth-server";
+import { api } from "@/convex/_generated/api";
 import { NextRequest, NextResponse } from "next/server";
-import { DEFAULT_EXPENSE_CATEGORIES, DEFAULT_GIVING_CATEGORIES } from "@/lib/categories";
 
-// GET - Fetch all categories for the current user
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const authenticated = await isAuthenticated();
+    if (!authenticated) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: categories, error } = await supabase
-      .from("categories")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("type", { ascending: true })
-      .order("name", { ascending: true });
-
-    if (error) {
-      console.error("Error fetching categories:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+    const user = await fetchAuthQuery(api.auth.getCurrentUser, {});
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // If user has no categories, seed default ones
-    if (!categories || categories.length === 0) {
-      const defaultCategories = [
-        ...DEFAULT_EXPENSE_CATEGORIES.map(cat => ({
-          user_id: user.id,
-          name: cat.name,
-          type: 'expense' as const,
-          color: cat.color,
-          icon: cat.icon,
-          is_default: true,
-        })),
-        ...DEFAULT_GIVING_CATEGORIES.map(cat => ({
-          user_id: user.id,
-          name: cat.name,
-          type: 'giving' as const,
-          color: cat.color,
-          icon: cat.icon,
-          is_default: true,
-        }))
-      ];
+    const searchParams = request.nextUrl.searchParams;
+    const type = searchParams.get("type") as "expense" | "giving" | null;
 
-      const { data: seededCategories, error: seedError } = await supabase
-        .from("categories")
-        .insert(defaultCategories)
-        .select();
+    const categories = await fetchAuthQuery(api.categories.list, {
+      userId: user._id,
+      type: type || undefined,
+    });
 
-      if (seedError) {
-        console.error("Error seeding categories:", seedError);
-        return NextResponse.json({ error: seedError.message }, { status: 500 });
-      }
-
-      return NextResponse.json({ categories: seededCategories });
-    }
-
-    return NextResponse.json({ categories });
+    return NextResponse.json(categories);
   } catch (error) {
-    console.error("Unexpected error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Failed to fetch categories:", error);
+    return NextResponse.json({ error: "Failed to fetch categories" }, { status: 500 });
   }
 }
 
-// POST - Create a new category
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createServerSupabaseClient();
+    const authenticated = await isAuthenticated();
+    if (!authenticated) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
+    const user = await fetchAuthQuery(api.auth.getCurrentUser, {});
+    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { name, type, color, icon } = body;
 
-    if (!name || !type) {
-      return NextResponse.json(
-        { error: "Name and type are required" },
-        { status: 400 }
-      );
-    }
+    const id = await fetchAuthMutation(api.categories.create, {
+      userId: user._id,
+      name: body.name,
+      type: body.type,
+      color: body.color,
+      icon: body.icon,
+    });
 
-    const { data: category, error } = await supabase
-      .from("categories")
-      .insert({
-        user_id: user.id,
-        name,
-        type,
-        color: color || '#3b82f6',
-        icon: icon || null,
-        is_default: false,
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error("Error creating category:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ category }, { status: 201 });
+    return NextResponse.json({ id });
   } catch (error) {
-    console.error("Unexpected error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Failed to create category:", error);
+    return NextResponse.json({ error: "Failed to create category" }, { status: 500 });
   }
 }

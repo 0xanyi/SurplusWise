@@ -1,28 +1,47 @@
-import { redirect } from "next/navigation"
-import { createServerSupabaseClient } from "@/lib/supabase/server"
-import DashboardNav from "@/components/dashboard/dashboard-nav"
+"use client";
 
-export default async function DashboardLayout({
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import DashboardNav from "@/components/dashboard/dashboard-nav";
+import { authClient } from "@/lib/auth-client";
+import { Loader2 } from "lucide-react";
+
+export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
-  const supabase = await createServerSupabaseClient()
+  const router = useRouter();
+  const { data: session, isPending } = authClient.useSession();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  useEffect(() => {
+    if (!isPending && !session) {
+      router.push("/auth/login");
+    }
+  }, [session, isPending, router]);
 
-  if (!user) {
-    redirect("/auth/login")
+  if (isPending) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!session?.user) {
+    return null;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <DashboardNav user={user} />
-      <main className="container mx-auto px-4 py-8 max-w-7xl">
-        {children}
-      </main>
+    <div className="min-h-screen bg-muted/30">
+      <DashboardNav
+        user={{
+          id: session.user.id,
+          email: session.user.email,
+          name: session.user.name,
+        }}
+      />
+      <main className="container mx-auto px-4 py-8 max-w-7xl">{children}</main>
     </div>
-  )
+  );
 }
