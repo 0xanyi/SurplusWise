@@ -11,25 +11,36 @@ export const list = query({
     search: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db.query("transactions");
+    let transactions;
 
     // Use by_userId_date index for date range filtering at the database level
-    if (args.startDate || args.endDate) {
-      query = query.withIndex("by_userId_date", (q) => {
-        let indexed = q.eq("userId", args.userId);
-        if (args.startDate) {
-          indexed = indexed.gte("date", args.startDate);
-        }
-        if (args.endDate) {
-          indexed = indexed.lte("date", args.endDate);
-        }
-        return indexed;
-      });
+    if (args.startDate && args.endDate) {
+      transactions = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId_date", (q) =>
+          q.eq("userId", args.userId).gte("date", args.startDate!).lte("date", args.endDate!)
+        )
+        .collect();
+    } else if (args.startDate) {
+      transactions = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId_date", (q) =>
+          q.eq("userId", args.userId).gte("date", args.startDate!)
+        )
+        .collect();
+    } else if (args.endDate) {
+      transactions = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId_date", (q) =>
+          q.eq("userId", args.userId).lte("date", args.endDate!)
+        )
+        .collect();
     } else {
-      query = query.withIndex("by_userId", (q) => q.eq("userId", args.userId));
+      transactions = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+        .collect();
     }
-
-    let transactions = await query.collect();
 
     // Filter by type in memory (can't combine with date index)
     if (args.type) {

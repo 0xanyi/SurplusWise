@@ -80,14 +80,17 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 gradient-hero">
-      <div className="w-full max-w-md animate-scale-in">
-        <Link href="/" className="flex items-center justify-center gap-2 mb-8">
-          <Wallet className="h-8 w-8 text-primary" />
-          <span className="font-bold text-2xl">SurplusWise</span>
+    <div className="min-h-screen flex items-center justify-center p-4 gradient-hero relative">
+      <div className="grain-overlay" aria-hidden="true" />
+      <div className="w-full max-w-md animate-scale-in relative z-10">
+        <Link href="/" className="flex items-center justify-center gap-2.5 mb-8 cursor-pointer group">
+          <div className="bg-gradient-to-br from-primary to-primary/80 p-2.5 rounded-xl shadow-lg shadow-primary/20 group-hover:shadow-primary/30 transition-shadow">
+            <Wallet className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <span className="font-bold text-2xl group-hover:text-primary transition-colors">SurplusWise</span>
         </Link>
         
-        <Card className="border-border/50 shadow-xl">
+        <Card className="glass-card border-border/30 shadow-2xl overflow-hidden">
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-2xl font-bold text-center">
               Create Account
@@ -148,7 +151,7 @@ export default function SignupPage() {
               </div>
             </CardContent>
             <CardFooter className="flex flex-col space-y-4 pt-2">
-              <Button type="submit" className="w-full h-11" disabled={loading}>
+              <Button type="submit" className="w-full h-11 font-semibold cursor-pointer cta-glow" disabled={loading}>
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -160,7 +163,7 @@ export default function SignupPage() {
               </Button>
               <div className="text-sm text-center text-muted-foreground">
                 Already have an account?{" "}
-                <Link href="/auth/login" className="text-primary font-medium hover:underline">
+                <Link href="/auth/login" className="text-primary font-semibold hover:underline cursor-pointer">
                   Sign in
                 </Link>
               </div>

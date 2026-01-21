@@ -204,13 +204,13 @@ export function TransactionList() {
               {transactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent hover:shadow-sm cursor-pointer transition-all duration-200"
                 >
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className={`p-2 rounded-full ${
                       transaction.type === 'expense'
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-green-100 text-green-600'
+                        ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
+                        : 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400'
                     }`}>
                       {transaction.type === 'expense' ? (
                         <TrendingDown className="h-5 w-5" />
@@ -224,8 +224,8 @@ export function TransactionList() {
                         <p className="font-medium">{transaction.category}</p>
                         <span className={`text-xs px-2 py-0.5 rounded-full ${
                           transaction.type === 'expense'
-                            ? 'bg-red-100 text-red-700'
-                            : 'bg-green-100 text-green-700'
+                            ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                            : 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
                         }`}>
                           {transaction.type}
                         </span>
@@ -246,7 +246,7 @@ export function TransactionList() {
 
                     <div className="text-right">
                       <p className={`text-lg font-bold ${
-                        transaction.type === 'expense' ? 'text-red-600' : 'text-green-600'
+                        transaction.type === 'expense' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
                       }`}>
                         {transaction.type === 'expense' ? '-' : '+'}
                         {formatCurrency(transaction.amount)}
@@ -258,6 +258,7 @@ export function TransactionList() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="cursor-pointer hover:bg-muted"
                       onClick={() => handleEdit(transaction)}
                     >
                       <Pencil className="h-4 w-4" />
@@ -265,9 +266,10 @@ export function TransactionList() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30"
                       onClick={() => handleDelete(transaction.id)}
                     >
-                      <Trash2 className="h-4 w-4 text-red-600" />
+                      <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                     </Button>
                   </div>
                 </div>

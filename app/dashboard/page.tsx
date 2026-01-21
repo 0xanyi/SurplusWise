@@ -68,10 +68,12 @@ export default function DashboardPage() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card className="bg-gradient-to-br from-red-50 to-white dark:from-red-950/20 dark:to-background shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
+            <div className="p-2 rounded-full bg-red-100 dark:bg-red-900/30">
+              <TrendingDown className="h-4 w-4 text-red-500 dark:text-red-400" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -81,10 +83,12 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-green-50 to-white dark:from-green-950/20 dark:to-background shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Givings</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
+            <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30">
+              <TrendingUp className="h-4 w-4 text-green-500 dark:text-green-400" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
@@ -94,15 +98,17 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-blue-50 to-white dark:from-blue-950/20 dark:to-background shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
-            <DollarSign className="h-4 w-4 text-blue-500" />
+            <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
+              <DollarSign className="h-4 w-4 text-blue-500 dark:text-blue-400" />
+            </div>
           </CardHeader>
           <CardContent>
             <div
               className={`text-2xl font-bold ${
-                netBalance >= 0 ? "text-green-600" : "text-red-600"
+                netBalance >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
               }`}
             >
               {formatCurrency(Math.abs(netBalance))}
@@ -113,10 +119,12 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-purple-50 to-white dark:from-purple-950/20 dark:to-background shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Transactions</CardTitle>
-            <Receipt className="h-4 w-4 text-purple-500" />
+            <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900/30">
+              <Receipt className="h-4 w-4 text-purple-500 dark:text-purple-400" />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.transactionCount}</div>
@@ -147,14 +155,14 @@ export default function DashboardPage() {
               {recent.map((transaction) => (
                 <div
                   key={transaction._id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
+                  className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-accent hover:shadow-sm transition-all duration-200"
                 >
                   <div className="flex items-center gap-3">
                     <div
                       className={`p-2 rounded-full ${
                         transaction.type === "expense"
-                          ? "bg-red-100 text-red-600"
-                          : "bg-green-100 text-green-600"
+                          ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+                          : "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
                       }`}
                     >
                       {transaction.type === "expense" ? (
@@ -173,8 +181,8 @@ export default function DashboardPage() {
                   <p
                     className={`font-bold ${
                       transaction.type === "expense"
-                        ? "text-red-600"
-                        : "text-green-600"
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-green-600 dark:text-green-400"
                     }`}
                   >
                     {transaction.type === "expense" ? "-" : "+"}
