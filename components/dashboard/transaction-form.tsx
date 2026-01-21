@@ -11,16 +11,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Camera, Edit3, X, Sparkles, Receipt, DollarSign, Calendar, Tag, FileText } from "lucide-react";
 import { ReceiptScanner } from "./receipt-scanner";
 import { cn } from "@/lib/utils";
-
-interface Category {
-  id: string;
-  name: string;
-  type: 'expense' | 'giving';
-  color: string;
-}
-
-// Global cache for categories to avoid re-fetching
-let categoriesCache: Category[] | null = null;
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 interface Transaction {
   id?: string;
@@ -49,7 +41,6 @@ export function TransactionForm({
 }: TransactionFormProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [mode, setMode] = useState<'manual' | 'scan'>('manual');
   const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState({
@@ -60,15 +51,10 @@ export function TransactionForm({
     notes: transaction?.notes || '',
   });
 
+  const categories = useQuery(api.categories.list, {});
+
   useEffect(() => {
     if (open) {
-      // Use cached categories if available
-      if (categoriesCache) {
-        setCategories(categoriesCache);
-      } else {
-        fetchCategories();
-      }
-      
       if (transaction) {
         setFormData({
           amount: transaction.amount.toString(),
@@ -93,26 +79,7 @@ export function TransactionForm({
     }
   }, [open, transaction, defaultType]);
 
-  const fetchCategories = async () => {
-    try {
-      const response = await fetch('/api/categories');
-      if (response.ok) {
-        const data = await response.json();
-        const cats = data.categories || [];
-        setCategories(cats);
-        categoriesCache = cats; // Store in global cache
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load categories",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const filteredCategories = categories.filter(cat => cat.type === formData.type);
+  const filteredCategories = (categories ?? []).filter(cat => cat.type === formData.type);
 
   const handleReceiptScan = (data: any) => {
     setFormData({
@@ -135,7 +102,7 @@ export function TransactionForm({
         ? `/api/transactions/${transaction.id}`
         : '/api/transactions';
 
-      const method = transaction?.id ? 'PUT' : 'POST';
+      const method = transaction?.id ? 'PATCH' : 'POST';
 
       const response = await fetch(url, {
         method,

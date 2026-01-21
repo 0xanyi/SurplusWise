@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,18 +46,7 @@ export function TransactionList() {
   // Debounce search query to avoid excessive API calls
   const debouncedSearch = useDebounce(searchQuery, 300);
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [typeFilter, categoryFilter, debouncedSearch]);
-
-  // Only fetch categories once on mount
-  useEffect(() => {
-    if (categories.length === 0) {
-      fetchCategories();
-    }
-  }, []);
-
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -80,9 +69,9 @@ export function TransactionList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [typeFilter, categoryFilter, debouncedSearch, toast]);
 
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await fetch('/api/categories');
       if (response.ok) {
@@ -97,7 +86,16 @@ export function TransactionList() {
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
+
+  // Only fetch categories once on mount
+  useEffect(() => {
+    fetchCategories();
+  }, [fetchCategories]);
 
   const handleEdit = (transaction: Transaction) => {
     setSelectedTransaction(transaction);

@@ -2,15 +2,22 @@ import { isAuthenticated, fetchAuthQuery, fetchAuthMutation } from "@/lib/auth-s
 import { api } from "@/convex/_generated/api";
 import { NextRequest, NextResponse } from "next/server";
 
+const toCategory = (category: any) => ({
+  id: category._id,
+  name: category.name,
+  type: category.type,
+  color: category.color,
+  icon: category.icon ?? null,
+  is_default: category.isDefault,
+  created_at: category.createdAt
+    ? new Date(category.createdAt).toISOString()
+    : null,
+});
+
 export async function GET(request: NextRequest) {
   try {
     const authenticated = await isAuthenticated();
     if (!authenticated) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await fetchAuthQuery(api.auth.getCurrentUser, {});
-    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -21,7 +28,9 @@ export async function GET(request: NextRequest) {
       type: type || undefined,
     });
 
-    return NextResponse.json(categories);
+    return NextResponse.json({
+      categories: categories.map(toCategory),
+    });
   } catch (error) {
     console.error("Failed to fetch categories:", error);
     return NextResponse.json({ error: "Failed to fetch categories" }, { status: 500 });
@@ -32,11 +41,6 @@ export async function POST(request: NextRequest) {
   try {
     const authenticated = await isAuthenticated();
     if (!authenticated) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await fetchAuthQuery(api.auth.getCurrentUser, {});
-    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

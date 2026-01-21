@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,11 +72,7 @@ export function AnalyticsCharts() {
     return escaped;
   };
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [period, startDate, endDate]);
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
       let url = `/api/analytics?period=${period}`;
@@ -97,7 +93,11 @@ export function AnalyticsCharts() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [period, startDate, endDate, toast]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const exportToCSV = () => {
     if (!analytics) return;

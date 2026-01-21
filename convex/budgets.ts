@@ -108,15 +108,26 @@ export const remove = mutation({
 
 export const getWithSpending = query({
   args: {
+    period: v.optional(
+      v.union(
+        v.literal("monthly"),
+        v.literal("quarterly"),
+        v.literal("yearly")
+      )
+    ),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-    const budgets = await ctx.db
+    let budgets = await ctx.db
       .query("budgets")
       .withIndex("by_userId_active", (q) =>
         q.eq("userId", userId).eq("isActive", true)
       )
       .collect();
+
+    if (args.period) {
+      budgets = budgets.filter((b) => b.period === args.period);
+    }
 
     const budgetsWithSpending = await Promise.all(
       budgets.map(async (budget) => {

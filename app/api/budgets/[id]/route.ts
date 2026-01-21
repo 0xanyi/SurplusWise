@@ -1,4 +1,4 @@
-import { isAuthenticated, fetchAuthQuery, fetchAuthMutation } from "@/lib/auth-server";
+import { isAuthenticated, fetchAuthMutation } from "@/lib/auth-server";
 import { api } from "@/convex/_generated/api";
 import { NextRequest, NextResponse } from "next/server";
 import { Id } from "@/convex/_generated/dataModel";
@@ -10,11 +10,6 @@ export async function PATCH(
   try {
     const authenticated = await isAuthenticated();
     if (!authenticated) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await fetchAuthQuery(api.auth.getCurrentUser, {});
-    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -40,11 +35,6 @@ export async function DELETE(
   try {
     const authenticated = await isAuthenticated();
     if (!authenticated) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await fetchAuthQuery(api.auth.getCurrentUser, {});
-    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
