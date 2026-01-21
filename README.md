@@ -59,7 +59,7 @@ A modern personal finance management application designed to help users track th
 
 ## Tech Stack
 
-- **Framework**: Next.js 16.1.1 (App Router with Turbopack)
+- **Framework**: Next.js 16.1.4 (App Router with Turbopack)
 - **Language**: TypeScript
 - **Runtime**: React 19.2.3
 - **Database**: Convex (real-time document database)
