@@ -1,15 +1,17 @@
 "use client";
+"use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Camera, Edit3 } from "lucide-react";
+import { Loader2, Camera, Edit3, X, Sparkles, Receipt, DollarSign, Calendar, Tag, FileText } from "lucide-react";
 import { ReceiptScanner } from "./receipt-scanner";
+import { cn } from "@/lib/utils";
 
 interface Category {
   id: string;
@@ -56,7 +58,6 @@ export function TransactionForm({
     notes: transaction?.notes || '',
   });
 
-  // Fetch categories when dialog opens
   useEffect(() => {
     if (open) {
       fetchCategories();
@@ -107,7 +108,7 @@ export function TransactionForm({
       notes: data.vendor ? `Vendor: ${data.vendor}` : '',
     });
     setReceiptUrl(data.receiptUrl);
-    setMode('manual'); // Switch to manual mode to review/edit
+    setMode('manual');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -155,145 +156,231 @@ export function TransactionForm({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {transaction?.id ? 'Edit Transaction' : 'Add Transaction'}
-          </DialogTitle>
-          <DialogDescription>
-            {transaction?.id
-              ? 'Update the transaction details below'
-              : 'Fill in the details to add a new transaction or scan a receipt'}
-          </DialogDescription>
-        </DialogHeader>
-
-        {!transaction?.id && (
-          <div className="flex gap-2 border-b pb-4">
-            <Button
-              type="button"
-              variant={mode === 'manual' ? 'default' : 'outline'}
-              onClick={() => setMode('manual')}
-              className="flex-1"
-            >
-              <Edit3 className="h-4 w-4 mr-2" />
-              Manual Entry
-            </Button>
-            <Button
-              type="button"
-              variant={mode === 'scan' ? 'default' : 'outline'}
-              onClick={() => setMode('scan')}
-              className="flex-1"
-            >
-              <Camera className="h-4 w-4 mr-2" />
-              Scan Receipt
-            </Button>
-          </div>
-        )}
-
-        {mode === 'scan' && !transaction?.id ? (
-          <ReceiptScanner
-            onScanComplete={handleReceiptScan}
-            onCancel={() => setMode('manual')}
-          />
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="type">Type</Label>
-            <Select
-              value={formData.type}
-              onValueChange={(value: 'expense' | 'giving') =>
-                setFormData({ ...formData, type: value, category: '' })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="expense">Expense</SelectItem>
-                <SelectItem value="giving">Giving</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount</Label>
-            <Input
-              id="amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="0.00"
-              value={formData.amount}
-              onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
-            <Input
-              id="date"
-              type="date"
-              value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
-            <Select
-              value={formData.category}
-              onValueChange={(value) => setFormData({ ...formData, category: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {filteredCategories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.name}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="notes">Notes (optional)</Label>
-            <Textarea
-              id="notes"
-              placeholder="Add any additional notes..."
-              value={formData.notes}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              rows={3}
-            />
-          </div>
-
-          {receiptUrl && (
-            <div className="text-sm text-muted-foreground">
-              ✓ Receipt attached
-            </div>
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <DialogPrimitive.Portal>
+        {/* Backdrop with blur */}
+        <DialogPrimitive.Overlay 
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+        />
+        
+        {/* Modal Content */}
+        <DialogPrimitive.Content
+          className={cn(
+            "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2",
+            "max-h-[90vh] overflow-y-auto",
+            "rounded-2xl border border-white/10",
+            "bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950",
+            "shadow-2xl shadow-black/50",
+            "data-[state=open]:animate-in data-[state=closed]:animate-out",
+            "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+            "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+            "data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%]",
+            "data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
           )}
+        >
+          {/* Header glow effect */}
+          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-blue-500/10 to-transparent pointer-events-none" />
+          
+          {/* Close button */}
+          <DialogPrimitive.Close className="absolute right-4 top-4 z-10 rounded-full p-2 text-white/60 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50">
+            <X className="size-5" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {transaction?.id ? 'Update' : 'Create'}
-            </Button>
+          <div className="relative p-6">
+            {/* Header */}
+            <div className="mb-6">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25">
+                  <Sparkles className="size-5 text-white" />
+                </div>
+                <DialogPrimitive.Title className="text-xl font-semibold text-white">
+                  {transaction?.id ? 'Edit Transaction' : 'Add Transaction'}
+                </DialogPrimitive.Title>
+              </div>
+              <DialogPrimitive.Description className="text-sm text-slate-400 pl-[52px]">
+                {transaction?.id
+                  ? 'Update the transaction details below'
+                  : 'Fill in the details or scan a receipt'}
+              </DialogPrimitive.Description>
+            </div>
+
+            {/* Mode Toggle */}
+            {!transaction?.id && (
+              <div className="mb-6 p-1.5 bg-slate-800/80 rounded-xl border border-white/5">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setMode('manual')}
+                    className={cn(
+                      "flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
+                      mode === 'manual'
+                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25"
+                        : "text-slate-400 hover:text-white hover:bg-white/5"
+                    )}
+                  >
+                    <Edit3 className="size-4" />
+                    Manual Entry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode('scan')}
+                    className={cn(
+                      "flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
+                      mode === 'scan'
+                        ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25"
+                        : "text-slate-400 hover:text-white hover:bg-white/5"
+                    )}
+                  >
+                    <Camera className="size-4" />
+                    Scan Receipt
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {mode === 'scan' && !transaction?.id ? (
+              <ReceiptScanner
+                onScanComplete={handleReceiptScan}
+                onCancel={() => setMode('manual')}
+              />
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Type Selection */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <Receipt className="size-4 text-slate-500" />
+                    Type
+                  </Label>
+                  <Select
+                    value={formData.type}
+                    onValueChange={(value: 'expense' | 'giving') =>
+                      setFormData({ ...formData, type: value, category: '' })
+                    }
+                  >
+                    <SelectTrigger className="h-12 bg-slate-800/50 border-white/10 text-white rounded-xl hover:border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 transition-colors">
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-white/10">
+                      <SelectItem value="expense" className="text-white focus:bg-white/10 focus:text-white">Expense</SelectItem>
+                      <SelectItem value="giving" className="text-white focus:bg-white/10 focus:text-white">Giving</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Amount */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <DollarSign className="size-4 text-slate-500" />
+                    Amount
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">$</span>
+                    <Input
+                      id="amount"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="0.00"
+                      value={formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                      required
+                      className="h-12 pl-8 bg-slate-800/50 border-white/10 text-white placeholder:text-slate-600 rounded-xl hover:border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Date */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <Calendar className="size-4 text-slate-500" />
+                    Date
+                  </Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                    required
+                    className="h-12 bg-slate-800/50 border-white/10 text-white rounded-xl hover:border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 transition-colors [color-scheme:dark]"
+                  />
+                </div>
+
+                {/* Category */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <Tag className="size-4 text-slate-500" />
+                    Category
+                  </Label>
+                  <Select
+                    value={formData.category}
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
+                  >
+                    <SelectTrigger className="h-12 bg-slate-800/50 border-white/10 text-white rounded-xl hover:border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 transition-colors">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-slate-800 border-white/10">
+                      {filteredCategories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.name} className="text-white focus:bg-white/10 focus:text-white">
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <FileText className="size-4 text-slate-500" />
+                    Notes <span className="text-slate-500 font-normal">(optional)</span>
+                  </Label>
+                  <Textarea
+                    id="notes"
+                    placeholder="Add any additional notes..."
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    rows={3}
+                    className="bg-slate-800/50 border-white/10 text-white placeholder:text-slate-600 rounded-xl hover:border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 transition-colors resize-none"
+                  />
+                </div>
+
+                {receiptUrl && (
+                  <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                    <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-sm text-emerald-400">Receipt attached</span>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-white/5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => onOpenChange(false)}
+                    disabled={loading}
+                    className="flex-1 h-12 rounded-xl text-slate-400 hover:text-white hover:bg-white/5 border border-white/10"
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    type="submit" 
+                    disabled={loading}
+                    className="flex-1 h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium shadow-lg shadow-blue-500/25 border-0 transition-all duration-200"
+                  >
+                    {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                    {transaction?.id ? 'Update' : 'Create Transaction'}
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
-        </form>
-        )}
-      </DialogContent>
-    </Dialog>
+          
+          {/* Bottom glow */}
+          <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
   );
 }
