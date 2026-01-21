@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   BarChart,
   Bar,
@@ -20,9 +21,7 @@ import {
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { Download, Calendar, TrendingUp, TrendingDown, FileText } from "lucide-react";
-import { Select } from "@/components/ui/select";
 import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
 
 const COLORS = [
   "#3b82f6", // blue
@@ -216,8 +215,49 @@ export function AnalyticsCharts() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <p className="text-muted-foreground">Loading analytics...</p>
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <Skeleton className="h-10 w-48" />
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-28" />
+            <Skeleton className="h-10 w-28" />
+          </div>
+        </div>
+        
+        <div className="grid gap-4 md:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-24" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-32" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-36" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-[300px] w-full" />
+          </CardContent>
+        </Card>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-40" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-[300px] w-full rounded-full mx-auto" style={{ maxWidth: 200 }} />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }

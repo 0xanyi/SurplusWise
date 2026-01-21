@@ -31,3 +31,36 @@ export interface PeriodFilter {
   endDate: Date
   label: string
 }
+
+export interface ApiError {
+  error: string
+  code?: string
+  status?: number
+}
+
+export interface ApiResponse<T> {
+  data?: T
+  error?: ApiError
+}
+
+export function isApiError(value: unknown): value is ApiError {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'error' in value &&
+    typeof (value as ApiError).error === 'string'
+  )
+}
+
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return error.message
+  }
+  if (isApiError(error)) {
+    return error.error
+  }
+  if (typeof error === 'string') {
+    return error
+  }
+  return 'An unexpected error occurred'
+}

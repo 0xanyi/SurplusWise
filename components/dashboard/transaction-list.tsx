@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TransactionForm } from "./transaction-form";
 import { useToast } from "@/hooks/use-toast";
@@ -177,8 +178,17 @@ export function TransactionList() {
 
           {/* Transaction List */}
           {loading ? (
-            <div className="text-center py-12 text-muted-foreground">
-              Loading transactions...
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-4 p-4 border rounded-lg">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                  <Skeleton className="h-6 w-20" />
+                </div>
+              ))}
             </div>
           ) : transactions.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
@@ -194,7 +204,7 @@ export function TransactionList() {
               {transactions.map((transaction) => (
                 <div
                   key={transaction.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent transition-colors"
                 >
                   <div className="flex items-center gap-4 flex-1 min-w-0">
                     <div className={`p-2 rounded-full ${
