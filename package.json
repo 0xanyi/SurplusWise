@@ -3,12 +3,15 @@
   "version": "0.5.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "npm-run-all --parallel dev:frontend dev:backend",
+    "dev:frontend": "next dev",
+    "dev:backend": "convex dev",
+    "build": "convex deploy --cmd 'next build'",
     "start": "next start",
     "lint": "eslint ."
   },
   "dependencies": {
+    "@convex-dev/better-auth": "0.10.10",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.8",
@@ -17,10 +20,10 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
     "@radix-ui/react-toast": "^1.2.15",
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.90.1",
+    "better-auth": "1.4.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "convex": "^1.31.5",
     "date-fns": "^4.1.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.0.0",
@@ -43,6 +46,7 @@
     "autoprefixer": "^10.4.23",
     "eslint": "^9.39.2",
     "eslint-config-next": "^16.1.1",
+    "npm-run-all": "^4.1.5",
     "postcss": "^8.5.6",
     "tailwindcss": "^4.1.18",
     "typescript": "^5.9.3"

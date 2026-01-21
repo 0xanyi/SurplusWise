@@ -15,9 +15,14 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
-import { createClient } from "@/lib/supabase/client"
+import { authClient } from "@/lib/auth-client"
 import { useToast } from "@/hooks/use-toast"
-import type { User } from "@supabase/supabase-js"
+
+interface User {
+  id: string
+  email: string
+  name: string
+}
 
 interface DashboardNavProps {
   user: User
@@ -28,10 +33,9 @@ export default function DashboardNav({ user }: DashboardNavProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { toast } = useToast()
-  const supabase = createClient()
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    await authClient.signOut()
     toast({
       title: "Logged out",
       description: "You have been logged out successfully",
@@ -85,11 +89,11 @@ export default function DashboardNav({ user }: DashboardNavProps) {
             <div className="hidden sm:flex items-center space-x-3 mr-2">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                 <span className="text-sm font-medium text-primary">
-                  {user.email?.charAt(0).toUpperCase()}
+                  {(user.name || user.email)?.charAt(0).toUpperCase()}
                 </span>
               </div>
               <span className="text-sm text-muted-foreground hidden lg:inline max-w-32 truncate">
-                {user.email}
+                {user.name || user.email}
               </span>
             </div>
             <ThemeToggle />
@@ -142,11 +146,11 @@ export default function DashboardNav({ user }: DashboardNavProps) {
             <div className="mt-4 pt-4 border-t flex items-center gap-3 px-4">
               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <span className="text-sm font-medium text-primary">
-                  {user.email?.charAt(0).toUpperCase()}
+                  {(user.name || user.email)?.charAt(0).toUpperCase()}
                 </span>
               </div>
               <span className="text-sm text-muted-foreground truncate flex-1">
-                {user.email}
+                {user.name || user.email}
               </span>
             </div>
           </div>

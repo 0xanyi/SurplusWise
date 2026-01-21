@@ -1,6 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 @layer base {
   :root {
@@ -82,11 +80,25 @@
   }
 
   .glass {
-    @apply bg-white/60 dark:bg-slate-950/60 backdrop-blur-md border border-white/20 dark:border-white/10;
+    background-color: rgb(255 255 255 / 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgb(255 255 255 / 0.2);
+  }
+
+  .dark .glass {
+    background-color: rgb(2 6 23 / 0.6);
+    border-color: rgb(255 255 255 / 0.1);
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-blue-500 to-indigo-600 dark:from-blue-400 dark:via-indigo-400 dark:to-purple-400;
+    background-clip: text;
+    -webkit-background-clip: text;
+    color: transparent;
+    background-image: linear-gradient(to right, hsl(var(--primary)), #3b82f6, #4f46e5);
+  }
+
+  .dark .text-gradient {
+    background-image: linear-gradient(to right, #60a5fa, #818cf8, #a78bfa);
   }
 
   .gradient-hero {

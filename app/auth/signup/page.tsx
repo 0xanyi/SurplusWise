@@ -14,20 +14,20 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { createClient } from "@/lib/supabase/client";
+import { authClient } from "@/lib/auth-client";
 import { useToast } from "@/hooks/use-toast";
 import { Wallet, Loader2 } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default function SignupPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const supabase = createClient();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,19 +53,17 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { error } = await authClient.signUp.email({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
+        name,
       });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       toast({
         title: "Success",
-        description: "Account created! Please check your email to confirm.",
+        description: "Account created! You can now sign in.",
       });
 
       router.push("/auth/login");
@@ -100,6 +98,18 @@ export default function SignupPage() {
           </CardHeader>
           <form onSubmit={handleSignup}>
             <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="h-11"
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <Input

@@ -1,14 +1,42 @@
-import { Database } from './database'
-
-export type Transaction = Database['public']['Tables']['transactions']['Row']
-export type TransactionInsert = Database['public']['Tables']['transactions']['Insert']
-export type TransactionUpdate = Database['public']['Tables']['transactions']['Update']
-
-export type Category = Database['public']['Tables']['categories']['Row']
-export type CategoryInsert = Database['public']['Tables']['categories']['Insert']
-export type CategoryUpdate = Database['public']['Tables']['categories']['Update']
-
 export type TransactionType = 'expense' | 'giving'
+
+export interface Transaction {
+  _id: string
+  userId: string
+  amount: number
+  date: string
+  type: TransactionType
+  category: string
+  notes?: string
+  receiptStorageId?: string
+  createdAt: number
+  updatedAt: number
+}
+
+export interface Category {
+  _id: string
+  userId: string
+  name: string
+  type: TransactionType
+  color: string
+  icon?: string
+  isDefault: boolean
+  createdAt: number
+}
+
+export interface Budget {
+  _id: string
+  userId: string
+  category: string
+  amount: number
+  period: 'monthly' | 'quarterly' | 'yearly'
+  startDate: string
+  endDate: string
+  type: TransactionType
+  isActive: boolean
+  createdAt: number
+  updatedAt: number
+}
 
 export interface ReceiptData {
   amount: number
