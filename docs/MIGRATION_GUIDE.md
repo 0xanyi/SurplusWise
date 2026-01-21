@@ -101,6 +101,27 @@ Some dashboard components still need to be updated to use Convex queries/mutatio
 
 These components currently use `fetch('/api/...')` which will need to be changed to use Convex's `useQuery` and `useMutation` hooks.
 
+## Performance Optimizations
+
+The following optimizations have been applied:
+
+1. **Database-level date filtering**: The `transactions.list` query uses the `by_userId_date` index with `gte`/`lte` bounds instead of filtering in JavaScript memory.
+
+2. **Efficient recent transactions**: A dedicated `transactions.listRecent` query uses `.order("desc").take(5)` to fetch only required records for the dashboard.
+
+3. **Budget spending calculations**: The `budgets.getWithSpending` query now queries transactions per budget's date range instead of fetching all user transactions.
+
+## Accessing User Data
+
+With Better Auth, user tables are managed internally by the auth component and stored in a separate namespace. To access user data:
+
+**In code:**
+```ts
+const user = useQuery(api.auth.getCurrentUser);
+```
+
+**In Convex Dashboard:** Look for tables prefixed with `betterAuth:` (e.g., `betterAuth:user`, `betterAuth:session`).
+
 ## Benefits of Migration
 
 1. **Real-time updates**: Convex provides automatic real-time data sync
@@ -108,3 +129,4 @@ These components currently use `fetch('/api/...')` which will need to be changed
 3. **Better type safety**: End-to-end TypeScript types from schema to client
 4. **Flexible auth**: Better Auth supports multiple providers and plugins
 5. **No SQL**: Document-based queries are easier to work with
+6. **Optimized queries**: Database-level filtering reduces data transfer
