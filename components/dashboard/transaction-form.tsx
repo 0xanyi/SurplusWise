@@ -1,5 +1,4 @@
 "use client";
-"use client";
 
 import { useState, useEffect } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -19,6 +18,9 @@ interface Category {
   type: 'expense' | 'giving';
   color: string;
 }
+
+// Global cache for categories to avoid re-fetching
+let categoriesCache: Category[] | null = null;
 
 interface Transaction {
   id?: string;
@@ -60,7 +62,13 @@ export function TransactionForm({
 
   useEffect(() => {
     if (open) {
-      fetchCategories();
+      // Use cached categories if available
+      if (categoriesCache) {
+        setCategories(categoriesCache);
+      } else {
+        fetchCategories();
+      }
+      
       if (transaction) {
         setFormData({
           amount: transaction.amount.toString(),
@@ -90,10 +98,17 @@ export function TransactionForm({
       const response = await fetch('/api/categories');
       if (response.ok) {
         const data = await response.json();
-        setCategories(data.categories || []);
+        const cats = data.categories || [];
+        setCategories(cats);
+        categoriesCache = cats; // Store in global cache
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load categories",
+        variant: "destructive",
+      });
     }
   };
 
@@ -158,12 +173,8 @@ export function TransactionForm({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        {/* Backdrop with blur */}
-        <DialogPrimitive.Overlay 
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
-        />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         
-        {/* Modal Content */}
         <DialogPrimitive.Content
           className={cn(
             "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2",
@@ -178,18 +189,15 @@ export function TransactionForm({
             "data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
           )}
         >
-          {/* Header glow effect */}
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
           <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-blue-500/10 to-transparent pointer-events-none" />
           
-          {/* Close button */}
           <DialogPrimitive.Close className="absolute right-4 top-4 z-10 rounded-full p-2 text-white/60 hover:text-white hover:bg-white/10 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/50">
             <X className="size-5" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
 
           <div className="relative p-6">
-            {/* Header */}
             <div className="mb-6">
               <div className="flex items-center gap-3 mb-2">
                 <div className="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 shadow-lg shadow-blue-500/25">
@@ -206,7 +214,6 @@ export function TransactionForm({
               </DialogPrimitive.Description>
             </div>
 
-            {/* Mode Toggle */}
             {!transaction?.id && (
               <div className="mb-6 p-1.5 bg-slate-800/80 rounded-xl border border-white/5">
                 <div className="grid grid-cols-2 gap-1.5">
@@ -247,7 +254,6 @@ export function TransactionForm({
               />
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
-                {/* Type Selection */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
                     <Receipt className="size-4 text-slate-500" />
@@ -269,7 +275,6 @@ export function TransactionForm({
                   </Select>
                 </div>
 
-                {/* Amount */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
                     <DollarSign className="size-4 text-slate-500" />
@@ -291,7 +296,6 @@ export function TransactionForm({
                   </div>
                 </div>
 
-                {/* Date */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
                     <Calendar className="size-4 text-slate-500" />
@@ -307,7 +311,6 @@ export function TransactionForm({
                   />
                 </div>
 
-                {/* Category */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
                     <Tag className="size-4 text-slate-500" />
@@ -330,7 +333,6 @@ export function TransactionForm({
                   </Select>
                 </div>
 
-                {/* Notes */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-slate-300 flex items-center gap-2">
                     <FileText className="size-4 text-slate-500" />
@@ -353,7 +355,6 @@ export function TransactionForm({
                   </div>
                 )}
 
-                {/* Action Buttons */}
                 <div className="flex gap-3 pt-4 border-t border-white/5">
                   <Button
                     type="button"
@@ -377,7 +378,6 @@ export function TransactionForm({
             )}
           </div>
           
-          {/* Bottom glow */}
           <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>

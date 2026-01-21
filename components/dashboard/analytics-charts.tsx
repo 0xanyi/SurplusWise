@@ -21,6 +21,7 @@ import {
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { Download, Calendar, TrendingUp, TrendingDown, FileText } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { jsPDF } from "jspdf";
 
 const COLORS = [
@@ -49,6 +50,7 @@ interface AnalyticsData {
 }
 
 export function AnalyticsCharts() {
+  const { toast } = useToast();
   const [period, setPeriod] = useState<Period>("monthly");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -74,6 +76,11 @@ export function AnalyticsCharts() {
       setAnalytics(data);
     } catch (error) {
       console.error("Failed to fetch analytics:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load analytics data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
@@ -137,13 +144,13 @@ export function AnalyticsCharts() {
       const summaryY = 48;
 
       pdf.setTextColor(239, 68, 68);
-      pdf.text(`Total Expenses: £${analytics.totalExpenses.toFixed(2)}`, 14, summaryY);
+      pdf.text(`Total Expenses: ${formatCurrency(analytics.totalExpenses)}`, 14, summaryY);
 
       pdf.setTextColor(16, 185, 129);
-      pdf.text(`Total Givings: £${analytics.totalGivings.toFixed(2)}`, 14, summaryY + 7);
+      pdf.text(`Total Givings: ${formatCurrency(analytics.totalGivings)}`, 14, summaryY + 7);
 
       pdf.setTextColor(netBalance >= 0 ? 16 : 239, netBalance >= 0 ? 185 : 68, netBalance >= 0 ? 129 : 68);
-      pdf.text(`Net Balance: £${Math.abs(netBalance).toFixed(2)} (${netBalance >= 0 ? 'Surplus' : 'Deficit'})`, 14, summaryY + 14);
+      pdf.text(`Net Balance: ${formatCurrency(Math.abs(netBalance))} (${netBalance >= 0 ? 'Surplus' : 'Deficit'})`, 14, summaryY + 14);
 
       pdf.setTextColor(0, 0, 0);
       pdf.text(`Transactions: ${analytics.transactionCount}`, 14, summaryY + 21);
@@ -157,7 +164,7 @@ export function AnalyticsCharts() {
         let yPos = summaryY + 43;
         analytics.expensesByCategoryArray.forEach((item, index) => {
           const percentage = (item.value / analytics.totalExpenses * 100).toFixed(1);
-          pdf.text(`${item.name}: £${item.value.toFixed(2)} (${percentage}%)`, 14, yPos);
+          pdf.text(`${item.name}: ${formatCurrency(item.value)} (${percentage}%)`, 14, yPos);
           yPos += 6;
 
           // Add new page if needed
@@ -178,7 +185,7 @@ export function AnalyticsCharts() {
           yPos += 8;
           analytics.givingsByCategoryArray.forEach((item) => {
             const percentage = (item.value / analytics.totalGivings * 100).toFixed(1);
-            pdf.text(`${item.name}: £${item.value.toFixed(2)} (${percentage}%)`, 14, yPos);
+            pdf.text(`${item.name}: ${formatCurrency(item.value)} (${percentage}%)`, 14, yPos);
             yPos += 6;
 
             // Add new page if needed

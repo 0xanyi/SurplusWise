@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, TrendingDown, TrendingUp, Plus } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 
@@ -37,6 +38,7 @@ function BudgetSkeleton() {
 }
 
 export function BudgetOverview() {
+  const { toast } = useToast();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,6 +53,11 @@ export function BudgetOverview() {
       setBudgets((data.budgets || []).slice(0, 3));
     } catch (error) {
       console.error("Failed to fetch budgets:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load budget data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
