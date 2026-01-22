@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,12 +53,7 @@ export function BudgetManagement() {
     type: "expense" as "expense" | "giving",
   });
 
-  useEffect(() => {
-    fetchBudgets();
-    fetchCategories();
-  }, []);
-
-  const fetchCategories = async () => {
+  const fetchCategories = useCallback(async () => {
     try {
       const response = await fetch("/api/categories");
       const data = await response.json();
@@ -66,9 +61,9 @@ export function BudgetManagement() {
     } catch (error) {
       console.error("Failed to fetch categories:", error);
     }
-  };
+  }, []);
 
-  const fetchBudgets = async () => {
+  const fetchBudgets = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch("/api/budgets");
@@ -84,7 +79,12 @@ export function BudgetManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchBudgets();
+    fetchCategories();
+  }, [fetchBudgets, fetchCategories]);
 
   const calculateDateRange = (period: string) => {
     const now = new Date();
@@ -156,7 +156,7 @@ export function BudgetManagement() {
 
     try {
       const response = await fetch(`/api/budgets/${editingBudget.id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: parseFloat(formData.amount),

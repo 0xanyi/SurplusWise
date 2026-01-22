@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ...receiptData,
       storageId,
+      receiptUrl: storageId,
     });
   } catch (error: unknown) {
     console.error("Receipt scanning error:", error);

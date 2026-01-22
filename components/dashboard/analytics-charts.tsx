@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -21,6 +21,7 @@ import {
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
 import { Download, Calendar, TrendingUp, TrendingDown, FileText } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { jsPDF } from "jspdf";
 
 const COLORS = [
@@ -49,6 +50,7 @@ interface AnalyticsData {
 }
 
 export function AnalyticsCharts() {
+  const { toast } = useToast();
   const [period, setPeriod] = useState<Period>("monthly");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -57,11 +59,20 @@ export function AnalyticsCharts() {
   const [exporting, setExporting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    fetchAnalytics();
-  }, [period, startDate, endDate]);
+  const escapeCsvValue = (value: string | number) => {
+    const stringValue = String(value);
+    const trimmed = stringValue.trimStart();
+    const sanitized = /^[=+\-@]/.test(trimmed) ? `'${stringValue}` : stringValue;
+    const escaped = sanitized.replace(/"/g, '""');
 
-  const fetchAnalytics = async () => {
+    if (/[",\n]/.test(escaped)) {
+      return `"${escaped}"`;
+    }
+
+    return escaped;
+  };
+
+  const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
       let url = `/api/analytics?period=${period}`;
@@ -74,10 +85,19 @@ export function AnalyticsCharts() {
       setAnalytics(data);
     } catch (error) {
       console.error("Failed to fetch analytics:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load analytics data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [period, startDate, endDate, toast]);
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, [fetchAnalytics]);
 
   const exportToCSV = () => {
     if (!analytics) return;
@@ -96,7 +116,9 @@ export function AnalyticsCharts() {
       ]),
     ];
 
-    const csv = csvData.map((row) => row.join(",")).join("\n");
+    const csv = csvData
+      .map((row) => row.map((cell) => escapeCsvValue(cell)).join(","))
+      .join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -137,13 +159,13 @@ export function AnalyticsCharts() {
       const summaryY = 48;
 
       pdf.setTextColor(239, 68, 68);
-      pdf.text(`Total Expenses: £${analytics.totalExpenses.toFixed(2)}`, 14, summaryY);
+      pdf.text(`Total Expenses: ${formatCurrency(analytics.totalExpenses)}`, 14, summaryY);
 
       pdf.setTextColor(16, 185, 129);
-      pdf.text(`Total Givings: £${analytics.totalGivings.toFixed(2)}`, 14, summaryY + 7);
+      pdf.text(`Total Givings: ${formatCurrency(analytics.totalGivings)}`, 14, summaryY + 7);
 
       pdf.setTextColor(netBalance >= 0 ? 16 : 239, netBalance >= 0 ? 185 : 68, netBalance >= 0 ? 129 : 68);
-      pdf.text(`Net Balance: £${Math.abs(netBalance).toFixed(2)} (${netBalance >= 0 ? 'Surplus' : 'Deficit'})`, 14, summaryY + 14);
+      pdf.text(`Net Balance: ${formatCurrency(Math.abs(netBalance))} (${netBalance >= 0 ? 'Surplus' : 'Deficit'})`, 14, summaryY + 14);
 
       pdf.setTextColor(0, 0, 0);
       pdf.text(`Transactions: ${analytics.transactionCount}`, 14, summaryY + 21);
@@ -155,9 +177,12 @@ export function AnalyticsCharts() {
 
         pdf.setFontSize(10);
         let yPos = summaryY + 43;
-        analytics.expensesByCategoryArray.forEach((item, index) => {
-          const percentage = (item.value / analytics.totalExpenses * 100).toFixed(1);
-          pdf.text(`${item.name}: £${item.value.toFixed(2)} (${percentage}%)`, 14, yPos);
+        analytics.expensesByCategoryArray.forEach((item) => {
+          const percentage =
+            analytics.totalExpenses > 0
+              ? ((item.value / analytics.totalExpenses) * 100).toFixed(1)
+              : "0.0";
+          pdf.text(`${item.name}: ${formatCurrency(item.value)} (${percentage}%)`, 14, yPos);
           yPos += 6;
 
           // Add new page if needed
@@ -177,8 +202,11 @@ export function AnalyticsCharts() {
           pdf.setFontSize(10);
           yPos += 8;
           analytics.givingsByCategoryArray.forEach((item) => {
-            const percentage = (item.value / analytics.totalGivings * 100).toFixed(1);
-            pdf.text(`${item.name}: £${item.value.toFixed(2)} (${percentage}%)`, 14, yPos);
+            const percentage =
+              analytics.totalGivings > 0
+                ? ((item.value / analytics.totalGivings) * 100).toFixed(1)
+                : "0.0";
+            pdf.text(`${item.name}: ${formatCurrency(item.value)} (${percentage}%)`, 14, yPos);
             yPos += 6;
 
             // Add new page if needed
@@ -271,9 +299,9 @@ export function AnalyticsCharts() {
   }
 
   const netBalance = analytics.totalGivings - analytics.totalExpenses;
-  const trendsData = period === "yearly" || period === "quarterly"
-    ? analytics.monthlyTrends
-    : analytics.dailyTrends;
+   const trendsData = (period === "yearly" || period === "quarterly"
+     ? analytics.monthlyTrends
+     : analytics.dailyTrends) ?? [];
 
   return (
     <div className="space-y-6" ref={reportRef}>
@@ -281,11 +309,11 @@ export function AnalyticsCharts() {
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
           <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-muted-foreground" />
+             <Calendar className="size-4 text-muted-foreground" />
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value as Period)}
-              className="px-3 py-2 border rounded-md bg-background"
+               className="h-10 px-3 bg-muted/50 border-0 rounded-lg text-sm font-medium focus:ring-1 focus:ring-ring"
             >
               <option value="weekly">Last 7 Days</option>
               <option value="monthly">This Month</option>
@@ -301,26 +329,26 @@ export function AnalyticsCharts() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="px-3 py-2 border rounded-md bg-background"
+                 className="h-10 px-3 bg-muted/50 border-0 rounded-lg text-sm focus:ring-1 focus:ring-ring"
               />
               <span className="text-muted-foreground">to</span>
               <input
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="px-3 py-2 border rounded-md bg-background"
+                 className="h-10 px-3 bg-muted/50 border-0 rounded-lg text-sm focus:ring-1 focus:ring-ring"
               />
             </div>
           )}
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={exportToCSV} variant="outline">
-            <Download className="h-4 w-4 mr-2" />
+           <Button onClick={exportToCSV} variant="outline" size="sm" className="h-9">
+             <Download className="size-4 mr-2" />
             Export CSV
           </Button>
-          <Button onClick={exportToPDF} variant="outline" disabled={exporting}>
-            <FileText className="h-4 w-4 mr-2" />
+           <Button onClick={exportToPDF} variant="outline" size="sm" className="h-9" disabled={exporting}>
+             <FileText className="size-4 mr-2" />
             {exporting ? "Generating..." : "Export PDF"}
           </Button>
         </div>
@@ -328,42 +356,46 @@ export function AnalyticsCharts() {
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
+         <Card className="border shadow-sm bg-rose-50 dark:bg-rose-950/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Expenses
             </CardTitle>
-            <TrendingDown className="h-4 w-4 text-red-500" />
+             <div className="p-2 rounded-lg bg-rose-100 dark:bg-rose-900/40">
+               <TrendingDown className="size-4 text-rose-600 dark:text-rose-400" />
+             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">
+             <div className="text-2xl font-semibold text-rose-600 dark:text-rose-400">
               {formatCurrency(analytics.totalExpenses)}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+         <Card className="border shadow-sm bg-emerald-50 dark:bg-emerald-950/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
+             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Givings
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
+             <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+               <TrendingUp className="size-4 text-emerald-600 dark:text-emerald-400" />
+             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+             <div className="text-2xl font-semibold text-emerald-600 dark:text-emerald-400">
               {formatCurrency(analytics.totalGivings)}
             </div>
           </CardContent>
         </Card>
 
-        <Card>
+         <Card className="border shadow-sm bg-blue-50 dark:bg-blue-950/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
+             <CardTitle className="text-sm font-medium text-muted-foreground">Net Balance</CardTitle>
           </CardHeader>
           <CardContent>
             <div
-              className={`text-2xl font-bold ${
-                netBalance >= 0 ? "text-green-600" : "text-red-600"
+               className={`text-2xl font-semibold ${
+                 netBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
               }`}
             >
               {formatCurrency(Math.abs(netBalance))}
@@ -376,9 +408,9 @@ export function AnalyticsCharts() {
       </div>
 
       {/* Spending Trends Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Spending Trends</CardTitle>
+       <Card className="border shadow-sm">
+         <CardHeader className="pb-4">
+           <CardTitle className="text-lg font-semibold">Spending Trends</CardTitle>
         </CardHeader>
         <CardContent>
           {trendsData.length === 0 ? (
@@ -422,14 +454,14 @@ export function AnalyticsCharts() {
       {/* Category Breakdown - Side by Side */}
       <div className="grid gap-6 md:grid-cols-2">
         {/* Expense Categories */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Expense Categories</CardTitle>
+         <Card className="border shadow-sm">
+           <CardHeader className="pb-4">
+             <CardTitle className="text-lg font-semibold">Expense Categories</CardTitle>
           </CardHeader>
           <CardContent>
             {analytics.expensesByCategoryArray.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No expense data</p>
+               <div className="text-center py-16">
+                 <p className="text-muted-foreground">No expense data</p>
               </div>
             ) : (
               <>
@@ -462,16 +494,16 @@ export function AnalyticsCharts() {
                   {analytics.expensesByCategoryArray.map((item, index) => (
                     <div
                       key={item.name}
-                      className="flex items-center justify-between text-sm"
+                       className="flex items-center justify-between text-sm py-1"
                     >
                       <div className="flex items-center gap-2">
                         <div
-                          className="w-3 h-3 rounded-full"
+                           className="size-3 rounded-full"
                           style={{ backgroundColor: COLORS[index % COLORS.length] }}
                         />
                         <span>{item.name}</span>
                       </div>
-                      <span className="font-medium">
+                       <span className="font-semibold text-foreground">
                         {formatCurrency(item.value)}
                       </span>
                     </div>
@@ -483,14 +515,14 @@ export function AnalyticsCharts() {
         </Card>
 
         {/* Giving Categories */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Giving Categories</CardTitle>
+         <Card className="border shadow-sm">
+           <CardHeader className="pb-4">
+             <CardTitle className="text-lg font-semibold">Giving Categories</CardTitle>
           </CardHeader>
           <CardContent>
             {analytics.givingsByCategoryArray.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No giving data</p>
+               <div className="text-center py-16">
+                 <p className="text-muted-foreground">No giving data</p>
               </div>
             ) : (
               <>
@@ -523,16 +555,16 @@ export function AnalyticsCharts() {
                   {analytics.givingsByCategoryArray.map((item, index) => (
                     <div
                       key={item.name}
-                      className="flex items-center justify-between text-sm"
+                       className="flex items-center justify-between text-sm py-1"
                     >
                       <div className="flex items-center gap-2">
                         <div
-                          className="w-3 h-3 rounded-full"
+                           className="size-3 rounded-full"
                           style={{ backgroundColor: COLORS[index % COLORS.length] }}
                         />
                         <span>{item.name}</span>
                       </div>
-                      <span className="font-medium">
+                       <span className="font-semibold text-foreground">
                         {formatCurrency(item.value)}
                       </span>
                     </div>
@@ -545,15 +577,15 @@ export function AnalyticsCharts() {
       </div>
 
       {/* Combined Category Comparison */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Category Comparison</CardTitle>
+       <Card className="border shadow-sm">
+         <CardHeader className="pb-4">
+           <CardTitle className="text-lg font-semibold">Category Comparison</CardTitle>
         </CardHeader>
         <CardContent>
           {analytics.expensesByCategoryArray.length === 0 &&
           analytics.givingsByCategoryArray.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>No data available</p>
+             <div className="text-center py-16">
+               <p className="text-muted-foreground">No data available</p>
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={300}>

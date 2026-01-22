@@ -33,7 +33,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
+     <div className="min-h-screen bg-background">
       <DashboardNav
         user={{
           id: session.user.id,
@@ -41,7 +41,7 @@ export default function DashboardLayout({
           name: session.user.name,
         }}
       />
-      <main className="container mx-auto px-4 py-8 max-w-7xl">{children}</main>
+       <main className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl">{children}</main>
     </div>
   );
 }

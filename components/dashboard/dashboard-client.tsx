@@ -25,11 +25,11 @@ export function DashboardClient() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <button
               onClick={() => setIsExpenseFormOpen(true)}
-              className="p-5 border border-border rounded-xl hover:bg-accent hover:border-primary/30 transition-all duration-200 text-left group"
+              className="p-5 border border-border rounded-xl hover:bg-accent hover:border-primary/30 hover:shadow-md transition-all duration-200 text-left group cursor-pointer"
             >
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
-                  <TrendingDown className="h-5 w-5 text-red-500" />
+                <div className="h-10 w-10 rounded-lg bg-red-500/10 dark:bg-red-500/20 flex items-center justify-center group-hover:bg-red-500/20 dark:group-hover:bg-red-500/30 transition-colors">
+                  <TrendingDown className="h-5 w-5 text-red-500 dark:text-red-400" />
                 </div>
                 <div>
                   <div className="font-semibold">Add Expense</div>
@@ -42,11 +42,11 @@ export function DashboardClient() {
 
             <button
               onClick={() => setIsGivingFormOpen(true)}
-              className="p-5 border border-border rounded-xl hover:bg-accent hover:border-primary/30 transition-all duration-200 text-left group"
+              className="p-5 border border-border rounded-xl hover:bg-accent hover:border-primary/30 hover:shadow-md transition-all duration-200 text-left group cursor-pointer"
             >
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-green-500/10 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
-                  <TrendingUp className="h-5 w-5 text-green-500" />
+                <div className="h-10 w-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center group-hover:bg-green-500/20 dark:group-hover:bg-green-500/30 transition-colors">
+                  <TrendingUp className="h-5 w-5 text-green-500 dark:text-green-400" />
                 </div>
                 <div>
                   <div className="font-semibold">Add Giving</div>
@@ -62,8 +62,8 @@ export function DashboardClient() {
               disabled
             >
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
-                  <Camera className="h-5 w-5 text-purple-500" />
+                <div className="h-10 w-10 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
+                  <Camera className="h-5 w-5 text-purple-500 dark:text-purple-400" />
                 </div>
                 <div>
                   <div className="font-semibold">Scan Receipt</div>

@@ -1,8 +1,15 @@
 import type { Metadata, Viewport } from "next";
+import { IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ConvexClientProvider } from "@/components/providers/convex-provider";
+
+const ibmPlexSans = IBM_Plex_Sans({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-ibm-plex",
+});
 
 export const metadata: Metadata = {
   title: "SurplusWise - Personal Finance Manager",
@@ -24,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={ibmPlexSans.variable} suppressHydrationWarning>
       <body className="font-sans antialiased">
         <ConvexClientProvider>
           <ThemeProvider

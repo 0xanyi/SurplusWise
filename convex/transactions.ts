@@ -1,9 +1,9 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { getAuthUserId } from "./auth";
 
 export const list = query({
   args: {
-    userId: v.string(),
     type: v.optional(v.union(v.literal("expense"), v.literal("giving"))),
     category: v.optional(v.string()),
     startDate: v.optional(v.string()),
@@ -11,25 +11,37 @@ export const list = query({
     search: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let query = ctx.db.query("transactions");
+    const userId = await getAuthUserId(ctx);
+    let transactions;
 
     // Use by_userId_date index for date range filtering at the database level
-    if (args.startDate || args.endDate) {
-      query = query.withIndex("by_userId_date", (q) => {
-        let indexed = q.eq("userId", args.userId);
-        if (args.startDate) {
-          indexed = indexed.gte("date", args.startDate);
-        }
-        if (args.endDate) {
-          indexed = indexed.lte("date", args.endDate);
-        }
-        return indexed;
-      });
+    if (args.startDate && args.endDate) {
+      transactions = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId_date", (q) =>
+          q.eq("userId", userId).gte("date", args.startDate!).lte("date", args.endDate!)
+        )
+        .collect();
+    } else if (args.startDate) {
+      transactions = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId_date", (q) =>
+          q.eq("userId", userId).gte("date", args.startDate!)
+        )
+        .collect();
+    } else if (args.endDate) {
+      transactions = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId_date", (q) =>
+          q.eq("userId", userId).lte("date", args.endDate!)
+        )
+        .collect();
     } else {
-      query = query.withIndex("by_userId", (q) => q.eq("userId", args.userId));
+      transactions = await ctx.db
+        .query("transactions")
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
+        .collect();
     }
-
-    let transactions = await query.collect();
 
     // Filter by type in memory (can't combine with date index)
     if (args.type) {
@@ -57,7 +69,6 @@ export const list = query({
 
 export const create = mutation({
   args: {
-    userId: v.string(),
     amount: v.number(),
     date: v.string(),
     type: v.union(v.literal("expense"), v.literal("giving")),
@@ -66,9 +77,10 @@ export const create = mutation({
     receiptStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const now = Date.now();
     return await ctx.db.insert("transactions", {
-      userId: args.userId,
+      userId,
       amount: args.amount,
       date: args.date,
       type: args.type,
@@ -84,7 +96,6 @@ export const create = mutation({
 export const update = mutation({
   args: {
     id: v.id("transactions"),
-    userId: v.string(),
     amount: v.optional(v.number()),
     date: v.optional(v.string()),
     type: v.optional(v.union(v.literal("expense"), v.literal("giving"))),
@@ -93,12 +104,13 @@ export const update = mutation({
     receiptStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const transaction = await ctx.db.get(args.id);
-    if (!transaction || transaction.userId !== args.userId) {
+    if (!transaction || transaction.userId !== userId) {
       throw new Error("Transaction not found or unauthorized");
     }
 
-    const { id, userId, ...updates } = args;
+    const { id, ...updates } = args;
     return await ctx.db.patch(id, {
       ...updates,
       updatedAt: Date.now(),
@@ -109,11 +121,11 @@ export const update = mutation({
 export const remove = mutation({
   args: {
     id: v.id("transactions"),
-    userId: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const transaction = await ctx.db.get(args.id);
-    if (!transaction || transaction.userId !== args.userId) {
+    if (!transaction || transaction.userId !== userId) {
       throw new Error("Transaction not found or unauthorized");
     }
 
@@ -128,11 +140,11 @@ export const remove = mutation({
 export const getById = query({
   args: {
     id: v.id("transactions"),
-    userId: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const transaction = await ctx.db.get(args.id);
-    if (!transaction || transaction.userId !== args.userId) {
+    if (!transaction || transaction.userId !== userId) {
       return null;
     }
     return transaction;
@@ -141,14 +153,14 @@ export const getById = query({
 
 export const listRecent = query({
   args: {
-    userId: v.string(),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const limit = args.limit ?? 5;
     return await ctx.db
       .query("transactions")
-      .withIndex("by_userId_date", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId_date", (q) => q.eq("userId", userId))
       .order("desc")
       .take(limit);
   },

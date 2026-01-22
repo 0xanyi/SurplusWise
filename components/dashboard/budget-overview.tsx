@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, TrendingDown, TrendingUp, Plus } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 
@@ -37,30 +38,36 @@ function BudgetSkeleton() {
 }
 
 export function BudgetOverview() {
+  const { toast } = useToast();
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchBudgets();
-  }, []);
-
-  const fetchBudgets = async () => {
+  const fetchBudgets = useCallback(async () => {
     try {
       const response = await fetch("/api/budgets?period=monthly");
       const data = await response.json();
       setBudgets((data.budgets || []).slice(0, 3));
     } catch (error) {
       console.error("Failed to fetch budgets:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load budget data",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    fetchBudgets();
+  }, [fetchBudgets]);
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Budget Overview</CardTitle>
+       <Card className="border shadow-sm">
+         <CardHeader className="pb-4">
+           <CardTitle className="text-lg font-semibold">Budget Overview</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <BudgetSkeleton />
@@ -73,18 +80,22 @@ export function BudgetOverview() {
 
   if (budgets.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Budget Overview</CardTitle>
+       <Card className="border shadow-sm">
+         <CardHeader className="pb-4">
+           <CardTitle className="text-lg font-semibold">Budget Overview</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-6">
-            <p className="text-sm text-muted-foreground mb-3">
+           <div className="text-center py-8">
+             <div className="size-12 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+               <TrendingUp className="size-6 text-muted-foreground" />
+             </div>
+             <p className="font-medium">No budgets set</p>
+             <p className="text-sm text-muted-foreground mt-1 mb-4">
               No budgets set for this month
             </p>
             <Link href="/dashboard/settings">
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
+               <Button size="sm" className="shadow-sm">
+                 <Plus className="size-4 mr-2" />
                 Create Budget
               </Button>
             </Link>
@@ -95,9 +106,9 @@ export function BudgetOverview() {
   }
 
   return (
-    <Card>
+     <Card className="border shadow-sm">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle>Budget Overview</CardTitle>
+         <CardTitle className="text-lg font-semibold">Budget Overview</CardTitle>
         <Link href="/dashboard/settings">
           <Button variant="ghost" size="sm">
             View All
@@ -111,17 +122,17 @@ export function BudgetOverview() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   {budget.type === "expense" ? (
-                    <TrendingDown className="h-4 w-4 text-red-500" />
+                     <TrendingDown className="size-4 text-rose-500" />
                   ) : (
-                    <TrendingUp className="h-4 w-4 text-green-500" />
+                     <TrendingUp className="size-4 text-emerald-500" />
                   )}
                   <span className="text-sm font-medium">{budget.category}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {(budget.status === 'warning' || budget.status === 'exceeded') && (
                     <AlertTriangle
-                      className={`h-4 w-4 ${
-                        budget.status === 'exceeded' ? 'text-red-600' : 'text-amber-500'
+                       className={`size-4 ${
+                         budget.status === 'exceeded' ? 'text-rose-600' : 'text-amber-500'
                       }`}
                     />
                   )}
@@ -131,14 +142,14 @@ export function BudgetOverview() {
                 </div>
               </div>
 
-              <div className="w-full bg-muted rounded-full h-2">
+               <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
                 <div
-                  className={`h-2 rounded-full transition-all ${
+                   className={`h-2 rounded-full transition-all duration-300 ${
                     budget.status === 'exceeded'
-                      ? 'bg-red-600'
+                       ? 'bg-rose-600'
                       : budget.status === 'warning'
                       ? 'bg-amber-500'
-                      : 'bg-green-600'
+                       : 'bg-emerald-600'
                   }`}
                   style={{ width: `${Math.min(budget.percentage, 100)}%` }}
                 />

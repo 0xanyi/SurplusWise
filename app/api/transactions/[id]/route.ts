@@ -1,4 +1,4 @@
-import { isAuthenticated, fetchAuthQuery, fetchAuthMutation } from "@/lib/auth-server";
+import { isAuthenticated, fetchAuthMutation } from "@/lib/auth-server";
 import { api } from "@/convex/_generated/api";
 import { NextRequest, NextResponse } from "next/server";
 import { Id } from "@/convex/_generated/dataModel";
@@ -13,18 +13,17 @@ export async function PATCH(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await fetchAuthQuery(api.auth.getCurrentUser, {});
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { id } = await params;
     const body = await request.json();
 
     await fetchAuthMutation(api.transactions.update, {
       id: id as Id<"transactions">,
-      userId: user._id,
-      ...body,
+      amount: body.amount,
+      date: body.date,
+      type: body.type,
+      category: body.category,
+      notes: body.notes,
+      receiptStorageId: body.receiptStorageId ?? body.receipt_url,
     });
 
     return NextResponse.json({ success: true });
@@ -44,16 +43,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await fetchAuthQuery(api.auth.getCurrentUser, {});
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const { id } = await params;
 
     await fetchAuthMutation(api.transactions.remove, {
       id: id as Id<"transactions">,
-      userId: user._id,
     });
 
     return NextResponse.json({ success: true });

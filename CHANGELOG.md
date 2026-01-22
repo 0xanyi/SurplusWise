@@ -2,6 +2,51 @@
 
 All notable changes to SurplusWise will be documented in this file.
 
+## [0.6.0] - 2025-01-21
+
+### Backend Migration - Supabase to Convex + Better Auth ✅
+
+#### Changed
+- **Database**: Migrated from Supabase (PostgreSQL) to Convex (real-time document database)
+- **Authentication**: Replaced Supabase Auth with Better Auth using `@convex-dev/better-auth`
+- **Schema**: Converted SQL schema to Convex schema with optimized indexes
+
+#### Added
+- **Convex Functions**
+  - `convex/transactions.ts` - Transaction queries/mutations with optimized date-range filtering
+  - `convex/categories.ts` - Category management functions
+  - `convex/budgets.ts` - Budget tracking with efficient spending calculations
+  - `convex/receipts.ts` - Receipt storage using Convex file storage
+  - `convex/auth.ts` - Better Auth integration with Convex adapter
+
+- **Performance Optimizations**
+  - `listRecent` query for dashboard - fetches only 5 most recent transactions using `.order("desc").take(5)`
+  - Date-range queries use `by_userId_date` index with `gte`/`lte` at database level
+  - Budget spending calculations now query only relevant date ranges per budget
+
+- **Database Indexes**
+  - `by_userId` - Base user filtering
+  - `by_userId_date` - Optimized date range queries
+  - `by_userId_type` - Transaction type filtering
+  - `by_userId_category` - Category filtering
+  - `by_userId_active` - Active budget queries
+
+#### Preserved
+- API routes maintained as shims wrapping Convex for backward compatibility
+- Existing component interfaces unchanged
+- All features continue to work as before
+
+#### Removed
+- `lib/supabase/` directory
+- `types/database.ts` (Supabase types)
+- `proxy.ts` (Supabase middleware)
+
+#### Technical Details
+- Better Auth manages user tables in component namespace (not visible in main Convex tables)
+- Real-time updates via Convex subscriptions
+- End-to-end TypeScript types from schema to client
+- Zero SQL required - document-based queries
+
 ## [0.5.0] - 2024-11-05
 
 ### Phase 4: Polish & Enhancements - Complete ✅

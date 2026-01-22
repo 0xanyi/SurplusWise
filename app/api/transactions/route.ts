@@ -2,15 +2,23 @@ import { isAuthenticated, fetchAuthQuery, fetchAuthMutation } from "@/lib/auth-s
 import { api } from "@/convex/_generated/api";
 import { NextRequest, NextResponse } from "next/server";
 
+const toTransaction = (transaction: any) => ({
+  id: transaction._id,
+  amount: transaction.amount,
+  date: transaction.date,
+  type: transaction.type,
+  category: transaction.category,
+  notes: transaction.notes ?? null,
+  receipt_url: transaction.receiptStorageId ?? null,
+  created_at: transaction.createdAt
+    ? new Date(transaction.createdAt).toISOString()
+    : null,
+});
+
 export async function GET(request: NextRequest) {
   try {
     const authenticated = await isAuthenticated();
     if (!authenticated) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await fetchAuthQuery(api.auth.getCurrentUser, {});
-    if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -22,7 +30,6 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search");
 
     const transactions = await fetchAuthQuery(api.transactions.list, {
-      userId: user._id,
       type: type || undefined,
       category: category || undefined,
       startDate: startDate || undefined,
@@ -30,7 +37,9 @@ export async function GET(request: NextRequest) {
       search: search || undefined,
     });
 
-    return NextResponse.json(transactions);
+    return NextResponse.json({
+      transactions: transactions.map(toTransaction),
+    });
   } catch (error) {
     console.error("Failed to fetch transactions:", error);
     return NextResponse.json({ error: "Failed to fetch transactions" }, { status: 500 });
@@ -44,21 +53,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await fetchAuthQuery(api.auth.getCurrentUser, {});
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const body = await request.json();
 
     const id = await fetchAuthMutation(api.transactions.create, {
-      userId: user._id,
       amount: body.amount,
       date: body.date,
       type: body.type,
       category: body.category,
       notes: body.notes,
-      receiptStorageId: body.receiptStorageId,
+      receiptStorageId: body.receiptStorageId ?? body.receipt_url,
     });
 
     return NextResponse.json({ id });

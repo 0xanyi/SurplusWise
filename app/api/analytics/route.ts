@@ -9,21 +9,25 @@ function getDateRange(period: string): { startDate: string; endDate: string } {
 
   switch (period) {
     case "week":
+    case "weekly":
       const weekAgo = new Date(now);
       weekAgo.setDate(weekAgo.getDate() - 7);
       startDate = weekAgo.toISOString().split("T")[0];
       break;
     case "month":
+    case "monthly":
       const monthAgo = new Date(now);
       monthAgo.setMonth(monthAgo.getMonth() - 1);
       startDate = monthAgo.toISOString().split("T")[0];
       break;
     case "quarter":
+    case "quarterly":
       const quarterAgo = new Date(now);
       quarterAgo.setMonth(quarterAgo.getMonth() - 3);
       startDate = quarterAgo.toISOString().split("T")[0];
       break;
     case "year":
+    case "yearly":
       const yearAgo = new Date(now);
       yearAgo.setFullYear(yearAgo.getFullYear() - 1);
       startDate = yearAgo.toISOString().split("T")[0];
@@ -44,11 +48,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const user = await fetchAuthQuery(api.auth.getCurrentUser, {});
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     const searchParams = request.nextUrl.searchParams;
     const period = searchParams.get("period") || "month";
     let startDate = searchParams.get("startDate");
@@ -61,7 +60,6 @@ export async function GET(request: NextRequest) {
     }
 
     const transactions = await fetchAuthQuery(api.transactions.list, {
-      userId: user._id,
       startDate,
       endDate,
     });
@@ -105,6 +103,20 @@ export async function GET(request: NextRequest) {
       .map(([date, totals]) => ({ date, ...totals }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
+    const monthlyTotals: Record<string, { expenses: number; givings: number }> = {};
+    for (const entry of trendData) {
+      const monthKey = entry.date.slice(0, 7);
+      if (!monthlyTotals[monthKey]) {
+        monthlyTotals[monthKey] = { expenses: 0, givings: 0 };
+      }
+      monthlyTotals[monthKey].expenses += entry.expenses;
+      monthlyTotals[monthKey].givings += entry.givings;
+    }
+
+    const monthlyTrends = Object.entries(monthlyTotals)
+      .map(([month, totals]) => ({ month, ...totals }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
     return NextResponse.json({
       totalExpenses,
       totalGivings,
@@ -113,7 +125,8 @@ export async function GET(request: NextRequest) {
       givingsByCategory,
       expensesByCategoryArray,
       givingsByCategoryArray,
-      trendData,
+      dailyTrends: trendData,
+      monthlyTrends,
       transactionCount: transactions.length,
       period: { startDate, endDate },
     });

@@ -1,25 +1,26 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { getAuthUserId } from "./auth";
 
 export const list = query({
   args: {
-    userId: v.string(),
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     let budgets;
 
     if (args.isActive !== undefined) {
       budgets = await ctx.db
         .query("budgets")
         .withIndex("by_userId_active", (q) =>
-          q.eq("userId", args.userId).eq("isActive", args.isActive!)
+          q.eq("userId", userId).eq("isActive", args.isActive!)
         )
         .collect();
     } else {
       budgets = await ctx.db
         .query("budgets")
-        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
         .collect();
     }
 
@@ -29,7 +30,6 @@ export const list = query({
 
 export const create = mutation({
   args: {
-    userId: v.string(),
     category: v.string(),
     amount: v.number(),
     period: v.union(
@@ -42,9 +42,10 @@ export const create = mutation({
     type: v.union(v.literal("expense"), v.literal("giving")),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const now = Date.now();
     return await ctx.db.insert("budgets", {
-      userId: args.userId,
+      userId,
       category: args.category,
       amount: args.amount,
       period: args.period,
@@ -61,7 +62,6 @@ export const create = mutation({
 export const update = mutation({
   args: {
     id: v.id("budgets"),
-    userId: v.string(),
     category: v.optional(v.string()),
     amount: v.optional(v.number()),
     period: v.optional(
@@ -77,12 +77,13 @@ export const update = mutation({
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const budget = await ctx.db.get(args.id);
-    if (!budget || budget.userId !== args.userId) {
+    if (!budget || budget.userId !== userId) {
       throw new Error("Budget not found or unauthorized");
     }
 
-    const { id, userId, ...updates } = args;
+    const { id, ...updates } = args;
     return await ctx.db.patch(id, {
       ...updates,
       updatedAt: Date.now(),
@@ -93,11 +94,11 @@ export const update = mutation({
 export const remove = mutation({
   args: {
     id: v.id("budgets"),
-    userId: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const budget = await ctx.db.get(args.id);
-    if (!budget || budget.userId !== args.userId) {
+    if (!budget || budget.userId !== userId) {
       throw new Error("Budget not found or unauthorized");
     }
 
@@ -107,15 +108,26 @@ export const remove = mutation({
 
 export const getWithSpending = query({
   args: {
-    userId: v.string(),
+    period: v.optional(
+      v.union(
+        v.literal("monthly"),
+        v.literal("quarterly"),
+        v.literal("yearly")
+      )
+    ),
   },
   handler: async (ctx, args) => {
-    const budgets = await ctx.db
+    const userId = await getAuthUserId(ctx);
+    let budgets = await ctx.db
       .query("budgets")
       .withIndex("by_userId_active", (q) =>
-        q.eq("userId", args.userId).eq("isActive", true)
+        q.eq("userId", userId).eq("isActive", true)
       )
       .collect();
+
+    if (args.period) {
+      budgets = budgets.filter((b) => b.period === args.period);
+    }
 
     const budgetsWithSpending = await Promise.all(
       budgets.map(async (budget) => {
@@ -123,7 +135,7 @@ export const getWithSpending = query({
           .query("transactions")
           .withIndex("by_userId_date", (q) =>
             q
-              .eq("userId", args.userId)
+              .eq("userId", userId)
               .gte("date", budget.startDate)
               .lte("date", budget.endDate)
           )

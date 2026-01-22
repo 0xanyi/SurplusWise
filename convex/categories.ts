@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { getAuthUserId } from "./auth";
 
 const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Food & Dining", color: "#ef4444", icon: "utensils" },
@@ -27,23 +28,23 @@ const DEFAULT_GIVING_CATEGORIES = [
 
 export const list = query({
   args: {
-    userId: v.string(),
     type: v.optional(v.union(v.literal("expense"), v.literal("giving"))),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     let categories;
 
     if (args.type) {
       categories = await ctx.db
         .query("categories")
         .withIndex("by_userId_type", (q) =>
-          q.eq("userId", args.userId).eq("type", args.type!)
+          q.eq("userId", userId).eq("type", args.type!)
         )
         .collect();
     } else {
       categories = await ctx.db
         .query("categories")
-        .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+        .withIndex("by_userId", (q) => q.eq("userId", userId))
         .collect();
     }
 
@@ -55,12 +56,12 @@ export const list = query({
 
 export const ensureDefaults = mutation({
   args: {
-    userId: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const existing = await ctx.db
       .query("categories")
-      .withIndex("by_userId", (q) => q.eq("userId", args.userId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .first();
 
     if (existing) {
@@ -71,7 +72,7 @@ export const ensureDefaults = mutation({
 
     for (const cat of DEFAULT_EXPENSE_CATEGORIES) {
       await ctx.db.insert("categories", {
-        userId: args.userId,
+        userId,
         name: cat.name,
         type: "expense",
         color: cat.color,
@@ -83,7 +84,7 @@ export const ensureDefaults = mutation({
 
     for (const cat of DEFAULT_GIVING_CATEGORIES) {
       await ctx.db.insert("categories", {
-        userId: args.userId,
+        userId,
         name: cat.name,
         type: "giving",
         color: cat.color,
@@ -99,17 +100,17 @@ export const ensureDefaults = mutation({
 
 export const create = mutation({
   args: {
-    userId: v.string(),
     name: v.string(),
     type: v.union(v.literal("expense"), v.literal("giving")),
     color: v.string(),
     icon: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const existing = await ctx.db
       .query("categories")
       .withIndex("by_userId_name_type", (q) =>
-        q.eq("userId", args.userId).eq("name", args.name).eq("type", args.type)
+        q.eq("userId", userId).eq("name", args.name).eq("type", args.type)
       )
       .first();
 
@@ -118,7 +119,7 @@ export const create = mutation({
     }
 
     return await ctx.db.insert("categories", {
-      userId: args.userId,
+      userId,
       name: args.name,
       type: args.type,
       color: args.color,
@@ -132,14 +133,14 @@ export const create = mutation({
 export const update = mutation({
   args: {
     id: v.id("categories"),
-    userId: v.string(),
     name: v.optional(v.string()),
     color: v.optional(v.string()),
     icon: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const category = await ctx.db.get(args.id);
-    if (!category || category.userId !== args.userId) {
+    if (!category || category.userId !== userId) {
       throw new Error("Category not found or unauthorized");
     }
 
@@ -147,7 +148,7 @@ export const update = mutation({
       throw new Error("Cannot modify default categories");
     }
 
-    const { id, userId, ...updates } = args;
+    const { id, ...updates } = args;
     return await ctx.db.patch(id, updates);
   },
 });
@@ -155,11 +156,11 @@ export const update = mutation({
 export const remove = mutation({
   args: {
     id: v.id("categories"),
-    userId: v.string(),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
     const category = await ctx.db.get(args.id);
-    if (!category || category.userId !== args.userId) {
+    if (!category || category.userId !== userId) {
       throw new Error("Category not found or unauthorized");
     }
 

@@ -4,20 +4,27 @@ A modern personal finance management application designed to help users track th
 
 ## Features
 
-### Current Features (Phase 1 ✅, Phase 2 ✅, Phase 3 ✅, Phase 4 ✅)
+### Current Features
 
 **Authentication & Security**
-- ✅ User authentication (signup, login, logout)
-- ✅ Secure session management with Supabase
-- ✅ Row-level security policies
+- ✅ User authentication (signup, login, logout) with Better Auth
+- ✅ Secure session management
+- ✅ Email/password authentication
 
 **Transaction Management**
 - ✅ Manual transaction entry (expenses and givings)
 - ✅ CRUD operations for all transactions
 - ✅ Search and filter transactions
-- ✅ Date range filtering
+- ✅ Date range filtering with database-level optimization
 - 🤖 AI-powered receipt scanning with OpenAI Vision
-- ✅ Receipt upload and storage
+- ✅ Receipt upload and storage via Convex
+
+**Budget Tracking**
+- ✅ Create budgets for expense and giving categories
+- ✅ Monthly, quarterly, and yearly budget periods
+- ✅ Real-time budget vs actual spending tracking
+- ✅ Budget progress indicators with color coding
+- ✅ Optimized spending calculations with date-range queries
 
 **Analytics & Reports**
 - 📊 Interactive analytics dashboard with charts
@@ -25,6 +32,7 @@ A modern personal finance management application designed to help users track th
 - 🥧 Category breakdown (pie charts)
 - 📅 Period-based filtering (weekly, monthly, quarterly, yearly, custom)
 - 💾 CSV data export
+- 📄 PDF report generation
 - ✅ Real-time financial summaries
 
 **Category Management**
@@ -37,6 +45,7 @@ A modern personal finance management application designed to help users track th
 **User Interface**
 - ✅ Responsive dashboard layout
 - ✅ Modern UI with Tailwind CSS and shadcn/ui
+- ✅ Dark mode support
 - ✅ Toast notifications
 - ✅ PWA-ready configuration
 - ✅ Mobile-friendly design
@@ -44,19 +53,17 @@ A modern personal finance management application designed to help users track th
 ### Upcoming Features
 - 💾 PDF report generation
 - 🔔 Push notifications
-- 🌙 Dark mode support
 - 📱 Advanced filtering options
 - 🏦 Bank integration
-- 💰 Budget tracking
 - 🔮 Spending predictions
 
 ## Tech Stack
 
-- **Framework**: Next.js 16.0.1 (App Router with Turbopack)
+- **Framework**: Next.js 16.1.4 (App Router with Turbopack)
 - **Language**: TypeScript
-- **Runtime**: React 19.0.0
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
+- **Runtime**: React 19.2.3
+- **Database**: Convex (real-time document database)
+- **Authentication**: Better Auth with Convex adapter
 - **AI/OCR**: OpenAI Vision API
 - **UI Components**: shadcn/ui + Radix UI
 - **Styling**: Tailwind CSS
@@ -68,7 +75,7 @@ A modern personal finance management application designed to help users track th
 ### Prerequisites
 
 - Node.js 18+ and npm
-- A Supabase account ([signup here](https://supabase.com))
+- A Convex account ([signup here](https://convex.dev))
 - An OpenAI API key ([get one here](https://platform.openai.com))
 
 ### Installation
@@ -89,119 +96,26 @@ npm install
 Create a `.env.local` file in the root directory:
 
 ```env
-# Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
+# Convex Configuration
+CONVEX_DEPLOYMENT=your_convex_deployment
+NEXT_PUBLIC_CONVEX_URL=your_convex_url
+NEXT_PUBLIC_CONVEX_SITE_URL=your_convex_site_url
+
+# Better Auth Configuration
+SITE_URL=http://localhost:3000
+BETTER_AUTH_SECRET=your_secret_key
 
 # OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key
-
-# App Configuration
-NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-4. Set up Supabase database:
+4. Initialize Convex:
 
-Run the following SQL in your Supabase SQL Editor:
-
-```sql
--- Create transactions table
-CREATE TABLE transactions (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  amount DECIMAL(10, 2) NOT NULL,
-  date DATE NOT NULL,
-  type TEXT CHECK (type IN ('expense', 'giving')) NOT NULL,
-  category TEXT NOT NULL,
-  notes TEXT,
-  receipt_url TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Create categories table
-CREATE TABLE categories (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  name TEXT NOT NULL,
-  type TEXT CHECK (type IN ('expense', 'giving')) NOT NULL,
-  color TEXT DEFAULT '#3b82f6',
-  icon TEXT,
-  is_default BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, name, type)
-);
-
--- Enable Row Level Security
-ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-
--- Create policies for transactions
-CREATE POLICY "Users can view own transactions" 
-  ON transactions FOR SELECT 
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own transactions" 
-  ON transactions FOR INSERT 
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own transactions" 
-  ON transactions FOR UPDATE 
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own transactions" 
-  ON transactions FOR DELETE 
-  USING (auth.uid() = user_id);
-
--- Create policies for categories
-CREATE POLICY "Users can view own categories" 
-  ON categories FOR SELECT 
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own categories" 
-  ON categories FOR INSERT 
-  WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own categories" 
-  ON categories FOR UPDATE 
-  USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own categories" 
-  ON categories FOR DELETE 
-  USING (auth.uid() = user_id);
-
--- Create updated_at trigger
-CREATE OR REPLACE FUNCTION update_updated_at_column()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ language 'plpgsql';
-
-CREATE TRIGGER update_transactions_updated_at 
-  BEFORE UPDATE ON transactions 
-  FOR EACH ROW 
-  EXECUTE FUNCTION update_updated_at_column();
-
--- Create storage bucket for receipts
-INSERT INTO storage.buckets (id, name, public) 
-VALUES ('receipts', 'receipts', false);
-
--- Create storage policy
-CREATE POLICY "Users can upload own receipts"
-  ON storage.objects FOR INSERT
-  WITH CHECK (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
-
-CREATE POLICY "Users can view own receipts"
-  ON storage.objects FOR SELECT
-  USING (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
-
-CREATE POLICY "Users can delete own receipts"
-  ON storage.objects FOR DELETE
-  USING (bucket_id = 'receipts' AND auth.uid()::text = (storage.foldername(name))[1]);
+```bash
+npx convex dev
 ```
+
+This will set up your Convex database with the schema defined in `convex/schema.ts`.
 
 5. Run the development server:
 ```bash
@@ -217,24 +131,47 @@ SurplusWise/
 ├── app/
 │   ├── auth/           # Authentication pages (login, signup)
 │   ├── dashboard/      # Dashboard pages
-│   ├── api/            # API routes
+│   ├── api/            # API routes (shims wrapping Convex)
 │   ├── globals.css     # Global styles
 │   ├── layout.tsx      # Root layout
 │   └── page.tsx        # Home page
 ├── components/
 │   ├── ui/             # shadcn/ui components
 │   └── dashboard/      # Dashboard-specific components
+├── convex/
+│   ├── schema.ts       # Database schema
+│   ├── transactions.ts # Transaction queries/mutations
+│   ├── categories.ts   # Category queries/mutations
+│   ├── budgets.ts      # Budget queries/mutations
+│   ├── receipts.ts     # Receipt storage functions
+│   ├── auth.ts         # Better Auth integration
+│   └── auth.config.ts  # Auth configuration
 ├── lib/
-│   ├── supabase/       # Supabase client configuration
 │   ├── openai/         # OpenAI client configuration
+│   ├── auth-client.ts  # Better Auth client
+│   ├── auth-server.ts  # Better Auth server utilities
 │   └── utils.ts        # Utility functions
 ├── types/
-│   ├── database.ts     # Database type definitions
 │   └── index.ts        # Shared types
 ├── hooks/              # Custom React hooks
-├── public/             # Static assets
-└── middleware.ts       # Next.js middleware for auth
+└── public/             # Static assets
 ```
+
+## Database Schema (Convex)
+
+The application uses three main collections:
+
+- **transactions**: User financial transactions with indexed queries by userId, date, type, and category
+- **categories**: User-defined and default categories for organizing transactions
+- **budgets**: Budget allocations with period-based tracking
+
+Authentication tables (users, sessions, accounts) are managed by the Better Auth component.
+
+## API Architecture
+
+The app uses a hybrid approach:
+- **Direct Convex queries/mutations**: Used in client components via `useQuery` and `useMutation` hooks
+- **API route shims**: Preserved for backward compatibility, wrapping Convex functions
 
 ## Development Roadmap
 
@@ -252,21 +189,17 @@ SurplusWise/
 
 ### Phase 3: Analytics & Reports ✅
 - [x] Visual charts and graphs
-- [x] Period-based filtering (weekly, monthly, quarterly, yearly, custom)
-- [x] Interactive spending trends
-- [x] Category breakdown visualizations
+- [x] Period-based filtering
 - [x] Data export (CSV)
-- [x] Custom category management (CRUD)
+- [x] Custom category management
 
-### Phase 4: Polish & Enhancements
-- [ ] Dark mode
-- [ ] Mobile optimization
-- [ ] Push notifications
-- [ ] Advanced filtering
+### Phase 4: Polish & Enhancements ✅
+- [x] Dark mode
+- [x] Budget tracking
+- [x] **Migration to Convex + Better Auth**
 
 ### Phase 5: Advanced Features
 - [ ] Bank integration
-- [ ] Budget tracking
 - [ ] Spending predictions
 - [ ] Multi-user support
 
@@ -280,4 +213,4 @@ This project is licensed under the MIT License.
 
 ## Support
 
-For support, email support@surpluswise.com or open an issue in the repository.
+For support, open an issue in the repository.
