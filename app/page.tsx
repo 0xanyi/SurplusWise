@@ -252,6 +252,7 @@ export default async function Home() {
             
             <p className="text-sm text-muted-foreground">
               © {new Date().getFullYear()} SurplusWise. All rights reserved.
+              <span className="ml-2 text-xs opacity-60">v0.6.0</span>
             </p>
           </div>
         </div>

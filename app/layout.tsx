@@ -12,10 +12,79 @@ const ibmPlexSans = IBM_Plex_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "SurplusWise - Personal Finance Manager",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  title: {
+    default: "SurplusWise - Smart Personal Finance Manager",
+    template: "%s | SurplusWise"
+  },
   description:
-    "Track expenditures, manage church givings, and gain financial insights with AI-powered receipt scanning.",
+    "Track expenditures, manage church givings, and gain financial insights with AI-powered receipt scanning. Simple, secure, and smart finance management.",
+  keywords: [
+    "personal finance",
+    "budget tracking",
+    "expense tracker",
+    "church giving",
+    "tithe tracking",
+    "receipt scanner",
+    "AI finance",
+    "money management",
+    "financial insights"
+  ],
+  authors: [{ name: "SurplusWise" }],
+  creator: "SurplusWise",
+  publisher: "SurplusWise",
   manifest: "/manifest.json",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "/",
+    title: "SurplusWise - Smart Personal Finance Manager",
+    description:
+      "Track expenditures, manage church givings, and gain financial insights with AI-powered receipt scanning.",
+    siteName: "SurplusWise",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "SurplusWise - Personal Finance Manager"
+      }
+    ]
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "SurplusWise - Smart Personal Finance Manager",
+    description:
+      "Track expenditures, manage church givings, and gain financial insights with AI-powered receipt scanning.",
+    images: ["/og-image.png"],
+    creator: "@surpluswise"
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" }
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }
+    ]
+  },
+  verification: {
+    // Add these when you have them
+    // google: 'your-google-verification-code',
+    // yandex: 'your-yandex-verification-code',
+  }
 };
 
 export const viewport: Viewport = {

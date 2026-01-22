@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import DashboardNav from "@/components/dashboard/dashboard-nav";
 import { authClient } from "@/lib/auth-client";
 import { Loader2 } from "lucide-react";
+import { KeyboardShortcutsDialog } from "@/components/ui/keyboard-shortcuts-dialog";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 
 export default function DashboardLayout({
   children,
@@ -13,6 +15,34 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
+
+  // Global keyboard shortcuts
+  useKeyboardShortcuts([
+    {
+      key: "d",
+      ctrl: true,
+      action: () => router.push("/dashboard"),
+      description: "Go to Dashboard",
+    },
+    {
+      key: "t",
+      ctrl: true,
+      action: () => router.push("/dashboard/transactions"),
+      description: "Go to Transactions",
+    },
+    {
+      key: "r",
+      ctrl: true,
+      action: () => router.push("/dashboard/reports"),
+      description: "Go to Reports",
+    },
+    {
+      key: ",",
+      ctrl: true,
+      action: () => router.push("/dashboard/settings"),
+      description: "Go to Settings",
+    },
+  ]);
 
   useEffect(() => {
     if (!isPending && !session) {
@@ -42,6 +72,7 @@ export default function DashboardLayout({
         }}
       />
        <main className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl">{children}</main>
+       <KeyboardShortcutsDialog />
     </div>
   );
 }

@@ -2,6 +2,55 @@
 
 All notable changes to SurplusWise will be documented in this file.
 
+## [0.6.1] - 2026-01-22
+
+### Quick Wins & Enhancements ✨
+
+#### Added
+- **SEO & Social Media**
+  - Comprehensive meta tags with OpenGraph and Twitter Card support
+  - Keywords optimization for better search visibility
+  - Social media preview images configuration
+  - Structured metadata with templates
+  - Search engine verification support ready
+  - App icons for all platforms (192x192, 512x512, Apple touch icon)
+
+- **User Experience**
+  - Custom 404 page with helpful navigation
+  - Keyboard shortcuts system for navigation and actions
+    - `Ctrl + D` - Go to Dashboard
+    - `Ctrl + T` - Go to Transactions
+    - `Ctrl + R` - Go to Reports
+    - `Ctrl + ,` - Go to Settings
+    - `?` - Show keyboard shortcuts help
+  - Keyboard shortcuts help dialog (`?` key)
+  - Version number display in footer (v0.6.1)
+
+- **Accessibility**
+  - Focus trap hook for modal dialogs
+  - Focus return hook for better keyboard navigation
+  - Improved focus management across the app
+  - Better keyboard navigation support
+
+- **Developer Experience**
+  - Toast helper utilities for common patterns
+  - Undo toast functionality for reversible actions
+  - Success and error toast helpers
+  - Sitemap.xml generation for SEO
+  - Robots.txt configuration
+
+#### Enhanced
+- Layout metadata now includes comprehensive SEO properties
+- Footer displays version information
+- Better structured data for search engines
+
+#### Technical Details
+- Added `use-keyboard-shortcuts` hook
+- Added `use-focus-trap` hook for accessibility
+- Added `toast-helpers` utilities
+- Dynamic sitemap generation
+- Robots.txt configuration with proper disallow rules
+
 ## [0.6.0] - 2025-01-21
 
 ### Backend Migration - Supabase to Convex + Better Auth ✅
