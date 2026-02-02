@@ -292,7 +292,7 @@ export function TransactionForm({
                     </SelectTrigger>
                     <SelectContent className="bg-slate-800 border-white/10">
                       {filteredCategories.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.name} className="text-white focus:bg-white/10 focus:text-white">
+                        <SelectItem key={cat._id} value={cat.name} className="text-white focus:bg-white/10 focus:text-white">
                           {cat.name}
                         </SelectItem>
                       ))}

@@ -2,6 +2,11 @@
 
 All notable changes to SurplusWise will be documented in this file.
 
+## [0.8.1] - 2026-02-02
+
+### Changed
+- Version bump to 0.8.1
+
 ## [0.6.1] - 2026-01-22
 
 ### Quick Wins & Enhancements ✨

@@ -1,6 +1,6 @@
-# New Features Guide - v0.6.1
+# New Features Guide - v0.8.1
 
-Welcome to SurplusWise v0.6.1! This release includes several improvements to enhance your experience.
+Welcome to SurplusWise v0.8.1! This release includes several improvements to enhance your experience.
 
 ## 🎹 Keyboard Shortcuts
 
@@ -164,7 +164,7 @@ We're working on exciting new features:
 ## 🐛 Found a Bug?
 
 If you encounter any issues:
-1. Check the version number in the footer (v0.6.1)
+1. Check the version number in the footer (v0.8.1)
 2. Try the keyboard shortcut `?` to ensure features are working
 3. Report issues with version information included
 
@@ -177,7 +177,7 @@ If you encounter any issues:
 
 ---
 
-**Version**: 0.6.1  
-**Release Date**: January 22, 2026  
+**Version**: 0.8.1  
+**Release Date**: February 2, 2026  
 **Type**: Minor Update (Quick Wins & Enhancements)
 

@@ -2,7 +2,7 @@
 
 This document tracks implemented improvements and future enhancements for the SurplusWise application.
 
-## ✅ Recently Implemented (v0.6.1 - Jan 22, 2026)
+## ✅ Recently Implemented (v0.8.1 - Feb 2, 2026)
 
 ### Quick Wins Completed
 
@@ -35,7 +35,7 @@ This document tracks implemented improvements and future enhancements for the Su
 **Impact**: Power users can navigate faster, improved accessibility
 
 #### 4. Version Number Display
-- ✅ Version displayed in footer (v0.6.1)
+- ✅ Version displayed in footer (v0.8.1)
 - ✅ Synced with package.json
 
 **Impact**: Better transparency and easier debugging
@@ -242,6 +242,6 @@ This document tracks implemented improvements and future enhancements for the Su
 
 ---
 
-**Last Updated**: January 22, 2026
-**Current Version**: 0.6.1
+**Last Updated**: February 2, 2026
+**Current Version**: 0.8.1
 **Next Milestone**: Testing Infrastructure & Security (v0.7.0)
