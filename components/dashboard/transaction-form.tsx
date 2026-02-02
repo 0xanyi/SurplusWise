@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { ReceiptScanner } from "./receipt-scanner";
 import { cn } from "@/lib/utils";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useEffect } from "react";
 
 interface Transaction {
   id?: string;
@@ -235,9 +236,9 @@ export function TransactionForm({
                     <SelectTrigger className="h-12 bg-slate-800/50 border-white/10 text-white rounded-xl hover:border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 transition-colors">
                       <SelectValue placeholder="Select type" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-white/10">
-                      <SelectItem value="expense" className="text-white focus:bg-white/10 focus:text-white">Expense</SelectItem>
-                      <SelectItem value="giving" className="text-white focus:bg-white/10 focus:text-white">Giving</SelectItem>
+                    <SelectContent className="bg-slate-800 border-white/10 text-white">
+                      <SelectItem value="expense" className="focus:bg-white/10 focus:text-white">Expense</SelectItem>
+                      <SelectItem value="giving" className="focus:bg-white/10 focus:text-white">Giving</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -290,9 +291,9 @@ export function TransactionForm({
                     <SelectTrigger className="h-12 bg-slate-800/50 border-white/10 text-white rounded-xl hover:border-white/20 focus:border-blue-500/50 focus:ring-blue-500/20 transition-colors">
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-white/10">
+                    <SelectContent className="bg-slate-800 border-white/10 text-white">
                       {filteredCategories.map((cat) => (
-                        <SelectItem key={cat._id} value={cat.name} className="text-white focus:bg-white/10 focus:text-white">
+                        <SelectItem key={cat._id} value={cat.name} className="focus:bg-white/10 focus:text-white">
                           {cat.name}
                         </SelectItem>
                       ))}

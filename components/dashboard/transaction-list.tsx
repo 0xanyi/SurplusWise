@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency, cn } from "@/lib/utils";
 import { ArrowUpRight, ArrowDownRight, Pencil, Trash2, Search, SlidersHorizontal, Receipt } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 interface Transaction {
   id: string;
@@ -23,16 +25,10 @@ interface Transaction {
   created_at: string;
 }
 
-interface Category {
-  id: string;
-  name: string;
-  type: 'expense' | 'giving';
-}
-
 export function TransactionList() {
   const { toast } = useToast();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const categories = useQuery(api.categories.list, {});
   const [loading, setLoading] = useState(true);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -71,31 +67,9 @@ export function TransactionList() {
     }
   }, [typeFilter, categoryFilter, debouncedSearch, toast]);
 
-  const fetchCategories = useCallback(async () => {
-    try {
-      const response = await fetch('/api/categories');
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data.categories || []);
-      }
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load categories",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
-
   useEffect(() => {
     fetchTransactions();
   }, [fetchTransactions]);
-
-  // Only fetch categories once on mount
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
 
   const handleEdit = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
@@ -130,7 +104,7 @@ export function TransactionList() {
     setSelectedTransaction(null);
   };
 
-  const filteredCategories = categories.filter(cat => typeFilter === 'all' || cat.type === typeFilter);
+  const filteredCategories = (categories ?? []).filter(cat => typeFilter === 'all' || cat.type === typeFilter);
 
   return (
     <>
@@ -173,7 +147,7 @@ export function TransactionList() {
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {filteredCategories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                  <SelectItem key={cat._id} value={cat.name}>{cat.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

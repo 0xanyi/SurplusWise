@@ -7,6 +7,7 @@ import { authClient } from "@/lib/auth-client";
 import { Loader2 } from "lucide-react";
 import { KeyboardShortcutsDialog } from "@/components/ui/keyboard-shortcuts-dialog";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { DashboardFooter } from "@/components/dashboard/dashboard-footer";
 
 export default function DashboardLayout({
   children,
@@ -63,7 +64,7 @@ export default function DashboardLayout({
   }
 
   return (
-     <div className="min-h-screen bg-background">
+     <div className="min-h-screen bg-background flex flex-col">
       <DashboardNav
         user={{
           id: session.user.id,
@@ -71,7 +72,8 @@ export default function DashboardLayout({
           name: session.user.name,
         }}
       />
-       <main className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl">{children}</main>
+       <main className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl flex-1">{children}</main>
+       <DashboardFooter />
        <KeyboardShortcutsDialog />
     </div>
   );

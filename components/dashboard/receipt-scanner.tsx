@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Upload, Loader2, Camera, X } from "lucide-react";
+import { Upload, Loader2, Camera, X, FileText, ImageIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
 
 interface ReceiptData {
   amount: number;
@@ -25,12 +25,10 @@ interface ReceiptScannerProps {
 export function ReceiptScanner({ onScanComplete, onCancel }: ReceiptScannerProps) {
   const [scanning, setScanning] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const { toast } = useToast();
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = async (file: File) => {
     // Validate file type
     if (!file.type.startsWith("image/")) {
       toast({
@@ -95,6 +93,28 @@ export function ReceiptScanner({ onScanComplete, onCancel }: ReceiptScannerProps
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
   const handleClearPreview = () => {
     setPreview(null);
     if (onCancel) {
@@ -103,85 +123,93 @@ export function ReceiptScanner({ onScanComplete, onCancel }: ReceiptScannerProps
   };
 
   return (
-    <Card>
-      <CardContent className="pt-6">
-        {preview ? (
-          <div className="space-y-4">
-            <div className="relative w-full max-w-md mx-auto">
-              <div className="relative aspect-[3/4] w-full rounded-lg overflow-hidden border">
-                <Image
-                  src={preview}
-                  alt="Receipt preview"
-                  fill
-                  className="object-contain"
-                />
-              </div>
-              {!scanning && (
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="absolute top-2 right-2"
-                  onClick={handleClearPreview}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              )}
-            </div>
+    <div className="w-full">
+      {preview ? (
+        <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-white/10 p-1">
+          <div className="relative aspect-[3/4] w-full rounded-xl overflow-hidden bg-black/50">
+            <Image
+              src={preview}
+              alt="Receipt preview"
+              fill
+              className="object-contain"
+            />
+            
+            {/* Overlay while scanning */}
             {scanning && (
-              <div className="text-center py-4">
-                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Analyzing receipt with AI...
-                </p>
+              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-white">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-blue-500 blur-xl opacity-20 rounded-full animate-pulse" />
+                  <Loader2 className="h-10 w-10 animate-spin relative z-10 text-blue-500" />
+                </div>
+                <p className="mt-4 font-medium text-lg">Analyzing Receipt...</p>
+                <p className="text-sm text-slate-400">Extracting vendor, date, and amount</p>
               </div>
             )}
-          </div>
-        ) : (
-          <div className="text-center py-8">
-            <div className="mb-4 flex justify-center gap-4">
-              <Camera className="h-12 w-12 text-muted-foreground opacity-50" />
-              <Upload className="h-12 w-12 text-muted-foreground opacity-50" />
-            </div>
-            <h3 className="font-semibold mb-2">Scan Receipt</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Upload a photo of your receipt and we'll extract the transaction details automatically
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2 justify-center">
-              <Button asChild variant="default" disabled={scanning}>
-                <label htmlFor="receipt-upload" className="cursor-pointer">
-                  {scanning ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload Receipt
-                    </>
-                  )}
-                  <input
-                    id="receipt-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileSelect}
-                    disabled={scanning}
-                  />
-                </label>
+
+            {!scanning && (
+              <Button
+                size="icon"
+                variant="destructive"
+                className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg"
+                onClick={handleClearPreview}
+              >
+                <X className="h-4 w-4" />
               </Button>
-              {onCancel && (
-                <Button variant="outline" onClick={onCancel}>
-                  Cancel
-                </Button>
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              Supported formats: JPG, PNG (max 5MB)
-            </p>
+            )}
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      ) : (
+        <div
+          className={cn(
+            "relative border-2 border-dashed rounded-2xl p-8 transition-all duration-200 text-center",
+            isDragging
+              ? "border-blue-500 bg-blue-500/10"
+              : "border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 hover:border-slate-600"
+          )}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+        >
+          <div className="flex justify-center mb-6">
+            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center border border-white/5 shadow-inner">
+              <Camera className="h-8 w-8 text-blue-400" />
+            </div>
+          </div>
+          
+          <h3 className="text-lg font-semibold text-white mb-2">Upload Receipt</h3>
+          <p className="text-slate-400 text-sm mb-6 max-w-xs mx-auto">
+            Drag and drop your receipt here, or click to browse files
+          </p>
+
+          <div className="flex flex-col gap-3 max-w-xs mx-auto">
+            <Button asChild className="w-full h-11 bg-white text-slate-900 hover:bg-slate-100 rounded-xl font-medium">
+              <label className="cursor-pointer">
+                <ImageIcon className="h-4 w-4 mr-2" />
+                Choose Image
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+              </label>
+            </Button>
+            {onCancel && (
+              <Button 
+                variant="ghost" 
+                onClick={onCancel}
+                className="w-full h-11 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl"
+              >
+                Cancel
+              </Button>
+            )}
+          </div>
+          
+          <p className="text-xs text-slate-500 mt-6">
+            Supported formats: JPG, PNG • Max size: 5MB
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

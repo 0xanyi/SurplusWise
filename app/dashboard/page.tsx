@@ -95,7 +95,7 @@
    ];
 
    return (
-     <div className="space-y-8">
+     <div className="space-y-8 pb-8">
        {/* Page Header */}
        <div>
          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Dashboard</h1>

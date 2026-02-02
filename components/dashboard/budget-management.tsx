@@ -15,6 +15,8 @@ import {
 import { Plus, Edit2, Trash2, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 interface Budget {
   id: string;
@@ -31,15 +33,9 @@ interface Budget {
   status: "ok" | "warning" | "exceeded";
 }
 
-interface Category {
-  id: string;
-  name: string;
-  type: "expense" | "giving";
-}
-
 export function BudgetManagement() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const categories = useQuery(api.categories.list, {});
   const [loading, setLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -52,16 +48,6 @@ export function BudgetManagement() {
     period: "monthly" as "monthly" | "quarterly" | "yearly",
     type: "expense" as "expense" | "giving",
   });
-
-  const fetchCategories = useCallback(async () => {
-    try {
-      const response = await fetch("/api/categories");
-      const data = await response.json();
-      setCategories(data.categories || []);
-    } catch (error) {
-      console.error("Failed to fetch categories:", error);
-    }
-  }, []);
 
   const fetchBudgets = useCallback(async () => {
     setLoading(true);
@@ -83,8 +69,7 @@ export function BudgetManagement() {
 
   useEffect(() => {
     fetchBudgets();
-    fetchCategories();
-  }, [fetchBudgets, fetchCategories]);
+  }, [fetchBudgets]);
 
   const calculateDateRange = (period: string) => {
     const now = new Date();
@@ -227,7 +212,7 @@ export function BudgetManagement() {
     setIsEditDialogOpen(true);
   };
 
-  const filteredCategories = categories.filter((c) => c.type === formData.type);
+  const filteredCategories = (categories ?? []).filter((c) => c.type === formData.type);
 
   if (loading) {
     return (
@@ -242,7 +227,7 @@ export function BudgetManagement() {
       {/* Add Budget Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
-          <Button>
+          <Button className="w-full sm:w-auto">
             <Plus className="h-4 w-4 mr-2" />
             Add Budget
           </Button>
@@ -282,7 +267,7 @@ export function BudgetManagement() {
               >
                 <option value="">Select a category</option>
                 {filteredCategories.map((cat) => (
-                  <option key={cat.id} value={cat.name}>
+                  <option key={cat._id} value={cat.name}>
                     {cat.name}
                   </option>
                 ))}
@@ -384,73 +369,74 @@ export function BudgetManagement() {
       </Dialog>
 
       {/* Budgets List */}
-      <div className="grid gap-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {budgets.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="text-center py-12 text-muted-foreground">
-                <p className="font-medium">No budgets created yet</p>
-                <p className="text-sm mt-2">
-                  Create your first budget to start tracking your spending
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="col-span-full">
+            <Card>
+                <CardContent className="pt-6">
+                <div className="text-center py-12 text-muted-foreground">
+                    <p className="font-medium">No budgets created yet</p>
+                    <p className="text-sm mt-2">
+                    Create your first budget to start tracking your spending
+                    </p>
+                </div>
+                </CardContent>
+            </Card>
+          </div>
         ) : (
           budgets.map((budget) => (
-            <Card key={budget.id}>
+            <Card key={budget.id} className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {budget.type === "expense" ? (
-                      <TrendingDown className="h-5 w-5 text-red-500" />
-                    ) : (
-                      <TrendingUp className="h-5 w-5 text-green-500" />
-                    )}
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${budget.type === "expense" ? "bg-red-500/10" : "bg-green-500/10"}`}>
+                        {budget.type === "expense" ? (
+                        <TrendingDown className="h-5 w-5 text-red-500" />
+                        ) : (
+                        <TrendingUp className="h-5 w-5 text-green-500" />
+                        )}
+                    </div>
                     <div>
-                      <CardTitle className="text-lg">{budget.category}</CardTitle>
+                      <CardTitle className="text-base font-semibold">{budget.category}</CardTitle>
                       <p className="text-xs text-muted-foreground capitalize">
                         {budget.period} {budget.type}
                       </p>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" onClick={() => openEditDialog(budget)}>
+                  <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDialog(budget)}>
                       <Edit2 className="h-4 w-4" />
                     </Button>
                     <Button
-                      size="sm"
-                      variant="outline"
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => handleDeleteBudget(budget)}
                     >
-                      <Trash2 className="h-4 w-4 text-red-500" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Budget:</span>
-                    <span className="font-medium">{formatCurrency(budget.amount)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Spent:</span>
-                    <span className={`font-medium ${budget.status === 'exceeded' ? 'text-red-600' : budget.status === 'warning' ? 'text-amber-600' : ''}`}>
-                      {formatCurrency(budget.spent)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Remaining:</span>
-                    <span className={`font-medium ${budget.remaining < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      {formatCurrency(Math.abs(budget.remaining))}
-                    </span>
-                  </div>
+                <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <p className="text-xs text-muted-foreground mb-1">Spent</p>
+                            <p className={`font-semibold ${budget.status === 'exceeded' ? 'text-red-600' : budget.status === 'warning' ? 'text-amber-600' : ''}`}>
+                                {formatCurrency(budget.spent)}
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-xs text-muted-foreground mb-1">Budget</p>
+                            <p className="font-semibold">{formatCurrency(budget.amount)}</p>
+                        </div>
+                    </div>
 
                   {/* Progress Bar */}
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{budget.percentage.toFixed(1)}% used</span>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs font-medium">
+                      <span>{Math.min(budget.percentage, 100).toFixed(1)}%</span>
                       {budget.status === 'exceeded' && (
                         <span className="flex items-center gap-1 text-red-600">
                           <AlertTriangle className="h-3 w-3" />
@@ -463,25 +449,28 @@ export function BudgetManagement() {
                           Near limit
                         </span>
                       )}
+                      {budget.status === 'ok' && (
+                          <span className="text-green-600">On track</span>
+                      )}
                     </div>
-                    <div className="w-full bg-muted rounded-full h-2.5">
+                    <div className="w-full bg-muted/50 rounded-full h-2 overflow-hidden">
                       <div
-                        className={`h-2.5 rounded-full transition-all ${
+                        className={`h-full rounded-full transition-all duration-500 ease-out ${
                           budget.status === 'exceeded'
-                            ? 'bg-red-600'
+                            ? 'bg-red-500'
                             : budget.status === 'warning'
                             ? 'bg-amber-500'
-                            : 'bg-green-600'
+                            : 'bg-green-500'
                         }`}
                         style={{ width: `${Math.min(budget.percentage, 100)}%` }}
                       />
                     </div>
                   </div>
-
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Period: {new Date(budget.start_date).toLocaleDateString()} -{' '}
-                    {new Date(budget.end_date).toLocaleDateString()}
-                  </p>
+                  
+                  <div className="pt-2 border-t border-border/50 flex justify-between items-center text-xs text-muted-foreground">
+                    <span>Remaining: <span className={budget.remaining < 0 ? 'text-red-500 font-medium' : 'text-green-500 font-medium'}>{formatCurrency(Math.abs(budget.remaining))}</span></span>
+                    <span>Ends: {new Date(budget.end_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>
