@@ -45,6 +45,32 @@ export interface ReceiptData {
   confidence: number
 }
 
+export interface ApiTransaction {
+  id: string
+  amount: number
+  date: string
+  type: TransactionType
+  category: string
+  notes: string | null
+  receipt_url: string | null
+  created_at: string | null
+}
+
+export interface ApiBudget {
+  id: string
+  category: string
+  amount: number
+  period: "monthly" | "quarterly" | "yearly"
+  start_date: string
+  end_date: string
+  type: TransactionType
+  is_active: boolean
+  spent: number
+  remaining: number
+  percentage: number
+  status: "ok" | "warning" | "exceeded"
+}
+
 export interface DashboardStats {
   totalExpenses: number
   totalGivings: number

@@ -1,25 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, TrendingDown, TrendingUp, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import type { ApiBudget } from "@/types";
 import Link from "next/link";
-
-interface Budget {
-  id: string;
-  category: string;
-  amount: number;
-  period: string;
-  type: string;
-  spent: number;
-  remaining: number;
-  percentage: number;
-  status: "ok" | "warning" | "exceeded";
-}
 
 function BudgetSkeleton() {
   return (
@@ -39,15 +28,23 @@ function BudgetSkeleton() {
 
 export function BudgetOverview() {
   const { toast } = useToast();
-  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [budgets, setBudgets] = useState<ApiBudget[]>([]);
   const [loading, setLoading] = useState(true);
+  const abortRef = useRef<AbortController | null>(null);
 
   const fetchBudgets = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
-      const response = await fetch("/api/budgets?period=monthly");
+      const response = await fetch("/api/budgets?period=monthly", {
+        signal: controller.signal,
+      });
       const data = await response.json();
       setBudgets((data.budgets || []).slice(0, 3));
     } catch (error) {
+      if ((error as Error).name === "AbortError") return;
       console.error("Failed to fetch budgets:", error);
       toast({
         title: "Error",
@@ -55,12 +52,15 @@ export function BudgetOverview() {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [toast]);
 
   useEffect(() => {
     fetchBudgets();
+    return () => abortRef.current?.abort();
   }, [fetchBudgets]);
 
   if (loading) {

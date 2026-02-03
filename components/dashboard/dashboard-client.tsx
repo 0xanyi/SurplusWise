@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TransactionForm } from "./transaction-form";
 import { TrendingDown, TrendingUp, ScanLine, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,14 +8,8 @@ import { cn } from "@/lib/utils";
 export function DashboardClient() {
   const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
   const [isGivingFormOpen, setIsGivingFormOpen] = useState(false);
-  // Separate Scan Receipt state if needed, or pass scan mode to existing form
-  const [isScanOpen, setIsScanOpen] = useState(false);
 
-  const handleTransactionSuccess = () => {
-     // Trigger global refresh or update list if needed
-     // For now we rely on SWR/Query revalidation or simple state refresh
-     window.location.reload(); 
-  };
+  const handleTransactionSuccess = () => {};
 
   const QuickActionCard = ({
     title,

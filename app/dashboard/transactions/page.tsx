@@ -8,11 +8,6 @@
 
  export default function TransactionsPage() {
    const [isFormOpen, setIsFormOpen] = useState(false);
-   const [transactionListKey, setTransactionListKey] = useState(0);
-
-   const handleTransactionSuccess = () => {
-     setTransactionListKey(prev => prev + 1);
-   };
 
    return (
      <div className="space-y-6 pb-6">
@@ -33,12 +28,11 @@
          </Button>
        </div>
 
-       <TransactionList key={transactionListKey} />
+       <TransactionList />
 
        <TransactionForm
          open={isFormOpen}
          onOpenChange={setIsFormOpen}
-         onSuccess={handleTransactionSuccess}
        />
      </div>
    );

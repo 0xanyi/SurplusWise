@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "./auth";
 
@@ -64,6 +65,57 @@ export const list = query({
     transactions.sort((a, b) => b.date.localeCompare(a.date));
 
     return transactions;
+  },
+});
+
+export const listPaginated = query({
+  args: {
+    type: v.optional(v.union(v.literal("expense"), v.literal("giving"))),
+    category: v.optional(v.string()),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
+    search: v.optional(v.string()),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+
+    let queryBuilder = ctx.db
+      .query("transactions")
+      .withIndex("by_userId_date", (q) => {
+        let base = q.eq("userId", userId);
+        if (args.startDate) {
+          base = base.gte("date", args.startDate);
+        }
+        if (args.endDate) {
+          base = base.lte("date", args.endDate);
+        }
+        return base;
+      });
+
+    if (args.type) {
+      queryBuilder = queryBuilder.filter((q) => q.eq(q.field("type"), args.type));
+    }
+
+    if (args.category) {
+      queryBuilder = queryBuilder.filter((q) => q.eq(q.field("category"), args.category));
+    }
+
+    const result = await queryBuilder.order("desc").paginate(args.paginationOpts);
+
+    if (!args.search) {
+      return result;
+    }
+
+    const searchLower = args.search.toLowerCase();
+    return {
+      ...result,
+      page: result.page.filter(
+        (t) =>
+          t.category.toLowerCase().includes(searchLower) ||
+          (t.notes && t.notes.toLowerCase().includes(searchLower))
+      ),
+    };
   },
 });
 

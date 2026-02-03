@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,26 +11,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Camera, Edit3, X, Sparkles, Receipt, DollarSign, Calendar, Tag, FileText } from "lucide-react";
 import { ReceiptScanner } from "./receipt-scanner";
 import { cn } from "@/lib/utils";
-import { useQuery } from "convex/react";
+import type { TransactionType } from "@/types";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useEffect } from "react";
-
-interface Transaction {
-  id?: string;
-  amount: number;
-  date: string;
-  type: 'expense' | 'giving';
-  category: string;
-  notes?: string | null;
-  receipt_url?: string | null;
-}
+import type { Doc, Id } from "@/convex/_generated/dataModel";
 
 interface TransactionFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  transaction?: Transaction | null;
+  transaction?: Doc<"transactions"> | null;
   onSuccess?: () => void;
-  defaultType?: 'expense' | 'giving';
+  defaultType?: TransactionType;
 }
 
 export function TransactionForm({
@@ -41,9 +32,11 @@ export function TransactionForm({
   defaultType = 'expense'
 }: TransactionFormProps) {
   const { toast } = useToast();
+  const createTransaction = useMutation(api.transactions.create);
+  const updateTransaction = useMutation(api.transactions.update);
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<'manual' | 'scan'>('manual');
-  const [receiptUrl, setReceiptUrl] = useState<string | null>(null);
+  const [receiptStorageId, setReceiptStorageId] = useState<Id<"_storage"> | null>(null);
   const [formData, setFormData] = useState({
     amount: transaction?.amount?.toString() || '',
     date: transaction?.date || new Date().toISOString().split('T')[0],
@@ -64,7 +57,7 @@ export function TransactionForm({
           category: transaction.category,
           notes: transaction.notes || '',
         });
-        setReceiptUrl(transaction.receipt_url || null);
+        setReceiptStorageId(transaction.receiptStorageId ?? null);
         setMode('manual');
       } else {
         setFormData({
@@ -74,7 +67,7 @@ export function TransactionForm({
           category: '',
           notes: '',
         });
-        setReceiptUrl(null);
+        setReceiptStorageId(null);
         setMode('manual');
       }
     }
@@ -90,7 +83,8 @@ export function TransactionForm({
       category: data.category || '',
       notes: data.vendor ? `Vendor: ${data.vendor}` : '',
     });
-    setReceiptUrl(data.receiptUrl);
+    const storageId = (data.receiptUrl ?? data.storageId) as Id<"_storage"> | undefined;
+    setReceiptStorageId(storageId ?? null);
     setMode('manual');
   };
 
@@ -99,30 +93,35 @@ export function TransactionForm({
     setLoading(true);
 
     try {
-      const url = transaction?.id
-        ? `/api/transactions/${transaction.id}`
-        : '/api/transactions';
+      const amount = Number.parseFloat(formData.amount);
+      if (Number.isNaN(amount)) {
+        throw new Error("Invalid amount");
+      }
 
-      const method = transaction?.id ? 'PATCH' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          amount: parseFloat(formData.amount),
-          receipt_url: receiptUrl,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to save transaction');
+      if (transaction?._id) {
+        await updateTransaction({
+          id: transaction._id,
+          amount,
+          date: formData.date,
+          type: formData.type,
+          category: formData.category,
+          notes: formData.notes || undefined,
+          receiptStorageId: receiptStorageId ?? undefined,
+        });
+      } else {
+        await createTransaction({
+          amount,
+          date: formData.date,
+          type: formData.type,
+          category: formData.category,
+          notes: formData.notes || undefined,
+          receiptStorageId: receiptStorageId ?? undefined,
+        });
       }
 
       toast({
         title: "Success",
-        description: `Transaction ${transaction?.id ? 'updated' : 'created'} successfully`,
+        description: `Transaction ${transaction?._id ? 'updated' : 'created'} successfully`,
       });
 
       onOpenChange(false);
@@ -229,7 +228,7 @@ export function TransactionForm({
                   </Label>
                   <Select
                     value={formData.type}
-                    onValueChange={(value: 'expense' | 'giving') =>
+                    onValueChange={(value: TransactionType) =>
                       setFormData({ ...formData, type: value, category: '' })
                     }
                   >
@@ -316,7 +315,7 @@ export function TransactionForm({
                   />
                 </div>
 
-                {receiptUrl && (
+                {receiptStorageId && (
                   <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                     <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-sm text-emerald-400">Receipt attached</span>

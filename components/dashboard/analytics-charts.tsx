@@ -22,7 +22,6 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { Download, Calendar, TrendingUp, TrendingDown, FileText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { jsPDF } from "jspdf";
 
 const COLORS = [
   "#3b82f6", // blue
@@ -58,6 +57,7 @@ export function AnalyticsCharts() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   const escapeCsvValue = (value: string | number) => {
     const stringValue = String(value);
@@ -73,6 +73,10 @@ export function AnalyticsCharts() {
   };
 
   const fetchAnalytics = useCallback(async () => {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     try {
       let url = `/api/analytics?period=${period}`;
@@ -80,10 +84,11 @@ export function AnalyticsCharts() {
         url += `&startDate=${startDate}&endDate=${endDate}`;
       }
 
-      const response = await fetch(url);
+      const response = await fetch(url, { signal: controller.signal });
       const data = await response.json();
       setAnalytics(data);
     } catch (error) {
+      if ((error as Error).name === "AbortError") return;
       console.error("Failed to fetch analytics:", error);
       toast({
         title: "Error",
@@ -91,12 +96,15 @@ export function AnalyticsCharts() {
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [period, startDate, endDate, toast]);
 
   useEffect(() => {
     fetchAnalytics();
+    return () => abortRef.current?.abort();
   }, [fetchAnalytics]);
 
   const exportToCSV = () => {
@@ -133,6 +141,7 @@ export function AnalyticsCharts() {
 
     setExporting(true);
     try {
+      const { jsPDF } = await import("jspdf");
       const pdf = new jsPDF("p", "mm", "a4");
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,72 +11,69 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency, cn } from "@/lib/utils";
+import type { TransactionType } from "@/types";
 import { ArrowUpRight, ArrowDownRight, Pencil, Trash2, Search, SlidersHorizontal, Receipt } from "lucide-react";
-import { useQuery } from "convex/react";
+import { usePaginatedQuery, useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
 
-interface Transaction {
-  id: string;
-  amount: number;
-  date: string;
-  type: 'expense' | 'giving';
-  category: string;
-  notes: string | null;
-  created_at: string;
-}
+const PAGE_SIZE = 20;
+
+type TypeFilter = "all" | TransactionType;
 
 export function TransactionList() {
   const { toast } = useToast();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const categories = useQuery(api.categories.list, {});
-  const [loading, setLoading] = useState(true);
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const removeTransaction = useMutation(api.transactions.remove);
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'expense' | 'giving'>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Doc<"transactions"> | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [deleteId, setDeleteId] = useState<Id<"transactions"> | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  // Debounce search query to avoid excessive API calls
   const debouncedSearch = useDebounce(searchQuery, 300);
 
-  const fetchTransactions = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams();
-      if (typeFilter !== 'all') params.append('type', typeFilter);
-      if (categoryFilter !== 'all') params.append('category', categoryFilter);
-      if (debouncedSearch) params.append('search', debouncedSearch);
+  const queryArgs = useMemo(
+    () => ({
+      type: typeFilter === "all" ? undefined : typeFilter,
+      category: categoryFilter === "all" ? undefined : categoryFilter,
+      search: debouncedSearch || undefined,
+    }),
+    [typeFilter, categoryFilter, debouncedSearch]
+  );
 
-      const response = await fetch(`/api/transactions?${params}`);
-      if (response.ok) {
-        const data = await response.json();
-        setTransactions(data.transactions || []);
-      }
-    } catch (error) {
-      console.error('Error fetching transactions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch transactions",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [typeFilter, categoryFilter, debouncedSearch, toast]);
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.transactions.listPaginated,
+    queryArgs,
+    { initialNumItems: PAGE_SIZE }
+  );
 
   useEffect(() => {
-    fetchTransactions();
-  }, [fetchTransactions]);
+    setCurrentPage(1);
+  }, [queryArgs]);
 
-  const handleEdit = (transaction: Transaction) => {
+  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const pageTransactions = results.slice(pageStart, pageStart + PAGE_SIZE);
+
+  const handleEdit = (transaction: Doc<"transactions">) => {
     setSelectedTransaction(transaction);
     setIsFormOpen(true);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: Id<"transactions">) => {
     setDeleteId(id);
     setShowDeleteConfirm(true);
   };
@@ -85,13 +82,8 @@ export function TransactionList() {
     if (!deleteId) return;
 
     try {
-      const response = await fetch(`/api/transactions/${deleteId}`, { method: 'DELETE' });
-      if (response.ok) {
-        toast({ title: "Success", description: "Transaction deleted successfully" });
-        fetchTransactions();
-      } else {
-        throw new Error('Failed to delete transaction');
-      }
+      await removeTransaction({ id: deleteId });
+      toast({ title: "Success", description: "Transaction deleted successfully" });
     } catch (error) {
       toast({ title: "Error", description: "Failed to delete transaction", variant: "destructive" });
     } finally {
@@ -104,7 +96,33 @@ export function TransactionList() {
     setSelectedTransaction(null);
   };
 
-  const filteredCategories = (categories ?? []).filter(cat => typeFilter === 'all' || cat.type === typeFilter);
+  const handleNext = () => {
+    const nextPage = currentPage + 1;
+    if (nextPage <= totalPages) {
+      setCurrentPage(nextPage);
+      return;
+    }
+
+    if (status === "CanLoadMore") {
+      loadMore(PAGE_SIZE);
+      setCurrentPage(nextPage);
+    }
+  };
+
+  const handlePrev = () => {
+    setCurrentPage((prev) => Math.max(1, prev - 1));
+  };
+
+  const filteredCategories = (categories ?? []).filter(
+    (cat) => typeFilter === "all" || cat.type === typeFilter
+  );
+
+  const isLoadingFirstPage = status === "LoadingFirstPage";
+  const isLoadingMore = status === "LoadingMore";
+  const isLoadingNextPage = isLoadingMore && pageTransactions.length === 0;
+  const canLoadMore = status === "CanLoadMore";
+  const nextDisabled = isLoadingMore || (!canLoadMore && currentPage >= totalPages);
+  const prevDisabled = isLoadingFirstPage || currentPage <= 1;
 
   return (
     <>
@@ -125,10 +143,13 @@ export function TransactionList() {
               />
             </div>
 
-            <Select value={typeFilter} onValueChange={(value: any) => {
-              setTypeFilter(value);
-              setCategoryFilter('all');
-            }}>
+            <Select
+              value={typeFilter}
+              onValueChange={(value: TypeFilter) => {
+                setTypeFilter(value);
+                setCategoryFilter("all");
+              }}
+            >
               <SelectTrigger className="w-full sm:w-[140px] h-10 bg-muted/50 border-0">
                 <SlidersHorizontal className="size-4 mr-2 text-muted-foreground" />
                 <SelectValue />
@@ -147,14 +168,16 @@ export function TransactionList() {
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
                 {filteredCategories.map((cat) => (
-                  <SelectItem key={cat._id} value={cat.name}>{cat.name}</SelectItem>
+                  <SelectItem key={cat._id} value={cat.name}>
+                    {cat.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
           {/* Transaction List */}
-          {loading ? (
+          {isLoadingFirstPage ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-muted/30">
@@ -167,33 +190,35 @@ export function TransactionList() {
                 </div>
               ))}
             </div>
-          ) : transactions.length === 0 ? (
+          ) : pageTransactions.length === 0 ? (
             <div className="text-center py-16">
               <div className="size-14 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
                 <Receipt className="size-7 text-muted-foreground" />
               </div>
               <p className="font-medium">No transactions found</p>
               <p className="text-sm text-muted-foreground mt-1">
-                {searchQuery || typeFilter !== 'all' || categoryFilter !== 'all'
-                  ? 'Try adjusting your filters'
-                  : 'Start by adding your first transaction'}
+                {searchQuery || typeFilter !== "all" || categoryFilter !== "all"
+                  ? "Try adjusting your filters"
+                  : "Start by adding your first transaction"}
               </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {transactions.map((transaction) => (
+              {pageTransactions.map((transaction) => (
                 <div
-                  key={transaction.id}
+                  key={transaction._id}
                   className="group flex items-center justify-between p-4 rounded-xl hover:bg-muted/50 transition-colors duration-150"
                 >
                   <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className={cn(
-                      "size-10 rounded-xl flex items-center justify-center shrink-0",
-                      transaction.type === 'expense'
-                        ? "bg-rose-100 dark:bg-rose-900/40"
-                        : "bg-emerald-100 dark:bg-emerald-900/40"
-                    )}>
-                      {transaction.type === 'expense' ? (
+                    <div
+                      className={cn(
+                        "size-10 rounded-xl flex items-center justify-center shrink-0",
+                        transaction.type === "expense"
+                          ? "bg-rose-100 dark:bg-rose-900/40"
+                          : "bg-emerald-100 dark:bg-emerald-900/40"
+                      )}
+                    >
+                      {transaction.type === "expense" ? (
                         <ArrowDownRight className="size-5 text-rose-600 dark:text-rose-400" />
                       ) : (
                         <ArrowUpRight className="size-5 text-emerald-600 dark:text-emerald-400" />
@@ -203,31 +228,41 @@ export function TransactionList() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-sm">{transaction.category}</p>
-                        <span className={cn(
-                          "text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide",
-                          transaction.type === 'expense'
-                            ? "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300"
-                            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
-                        )}>
+                        <span
+                          className={cn(
+                            "text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide",
+                            transaction.type === "expense"
+                              ? "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300"
+                              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+                          )}
+                        >
                           {transaction.type}
                         </span>
                       </div>
                       {transaction.notes && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">{transaction.notes}</p>
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          {transaction.notes}
+                        </p>
                       )}
                       <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(transaction.date).toLocaleDateString('en-US', {
-                          year: 'numeric', month: 'short', day: 'numeric'
+                        {new Date(transaction.date).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
                         })}
                       </p>
                     </div>
 
                     <div className="text-right shrink-0">
-                      <p className={cn(
-                        "text-base font-semibold",
-                        transaction.type === 'expense' ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"
-                      )}>
-                        {transaction.type === 'expense' ? '-' : '+'}
+                      <p
+                        className={cn(
+                          "text-base font-semibold",
+                          transaction.type === "expense"
+                            ? "text-rose-600 dark:text-rose-400"
+                            : "text-emerald-600 dark:text-emerald-400"
+                        )}
+                      >
+                        {transaction.type === "expense" ? "-" : "+"}
                         {formatCurrency(transaction.amount)}
                       </p>
                     </div>
@@ -246,13 +281,31 @@ export function TransactionList() {
                       variant="ghost"
                       size="icon"
                       className="size-8 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/30"
-                      onClick={() => handleDelete(transaction.id)}
+                      onClick={() => handleDelete(transaction._id)}
                     >
                       <Trash2 className="size-4 text-rose-600 dark:text-rose-400" />
                     </Button>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {isLoadingNextPage && (
+            <p className="text-xs text-muted-foreground mt-4">Loading next page...</p>
+          )}
+
+          {(pageTransactions.length > 0 || isLoadingNextPage) && (
+            <div className="flex items-center justify-between mt-6">
+              <Button variant="outline" size="sm" onClick={handlePrev} disabled={prevDisabled}>
+                Prev
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ""}
+              </span>
+              <Button variant="outline" size="sm" onClick={handleNext} disabled={nextDisabled}>
+                {isLoadingMore ? "Loading..." : "Next"}
+              </Button>
             </div>
           )}
         </CardContent>
@@ -262,7 +315,6 @@ export function TransactionList() {
         open={isFormOpen}
         onOpenChange={handleFormClose}
         transaction={selectedTransaction}
-        onSuccess={fetchTransactions}
       />
 
       <ConfirmDialog

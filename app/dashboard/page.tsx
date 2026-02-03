@@ -1,5 +1,6 @@
 "use client";
 
+ import { useMemo } from "react";
  import { useQuery } from "convex/react";
  import { api } from "@/convex/_generated/api";
  import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,16 +14,23 @@
    const { data: session } = authClient.useSession();
    const userId = session?.user?.id;
 
-   const now = new Date();
-   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+   const { startDate, endDate } = useMemo(() => {
+     const now = new Date();
+     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+     return {
+       startDate: startOfMonth.toISOString().split("T")[0],
+       endDate: endOfMonth.toISOString().split("T")[0],
+     };
+   }, []);
 
    const transactions = useQuery(
      api.transactions.list,
      userId
        ? {
-           startDate: startOfMonth.toISOString().split("T")[0],
-           endDate: endOfMonth.toISOString().split("T")[0],
+           startDate,
+           endDate,
          }
        : "skip"
    );
