@@ -83,14 +83,14 @@ export const listPaginated = query({
     let queryBuilder = ctx.db
       .query("transactions")
       .withIndex("by_userId_date", (q) => {
-        let base = q.eq("userId", userId);
-        if (args.startDate) {
-          base = base.gte("date", args.startDate);
+        if (args.startDate && args.endDate) {
+          return q.eq("userId", userId).gte("date", args.startDate).lte("date", args.endDate);
+        } else if (args.startDate) {
+          return q.eq("userId", userId).gte("date", args.startDate);
+        } else if (args.endDate) {
+          return q.eq("userId", userId).lte("date", args.endDate);
         }
-        if (args.endDate) {
-          base = base.lte("date", args.endDate);
-        }
-        return base;
+        return q.eq("userId", userId);
       });
 
     if (args.type) {

@@ -171,17 +171,17 @@ export function TransactionForm({
                   <Sparkles className="size-5 text-white" />
                 </div>
                 <DialogPrimitive.Title className="text-xl font-semibold text-white">
-                  {transaction?.id ? 'Edit Transaction' : 'Add Transaction'}
+                  {transaction?._id ? 'Edit Transaction' : 'Add Transaction'}
                 </DialogPrimitive.Title>
               </div>
               <DialogPrimitive.Description className="text-sm text-slate-400 pl-[52px]">
-                {transaction?.id
+                {transaction?._id
                   ? 'Update the transaction details below'
                   : 'Fill in the details or scan a receipt'}
               </DialogPrimitive.Description>
             </div>
 
-            {!transaction?.id && (
+            {!transaction?._id && (
               <div className="mb-6 p-1.5 bg-slate-800/80 rounded-xl border border-white/5">
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
@@ -214,7 +214,7 @@ export function TransactionForm({
               </div>
             )}
 
-            {mode === 'scan' && !transaction?.id ? (
+            {mode === 'scan' && !transaction?._id ? (
               <ReceiptScanner
                 onScanComplete={handleReceiptScan}
                 onCancel={() => setMode('manual')}
@@ -338,7 +338,7 @@ export function TransactionForm({
                     className="flex-1 h-12 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-medium shadow-lg shadow-blue-500/25 border-0 transition-all duration-200"
                   >
                     {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                    {transaction?.id ? 'Update' : 'Create Transaction'}
+                    {transaction?._id ? 'Update' : 'Create Transaction'}
                   </Button>
                 </div>
               </form>
