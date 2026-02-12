@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { formatCurrency, cn } from "@/lib/utils";
 import type { TransactionType } from "@/types";
-import { ArrowUpRight, ArrowDownRight, Pencil, Trash2, Search, SlidersHorizontal, Receipt } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, TrendingUp, Pencil, Trash2, Search, SlidersHorizontal, Receipt } from "lucide-react";
 import { usePaginatedQuery, useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
@@ -124,6 +124,30 @@ export function TransactionList() {
   const nextDisabled = isLoadingMore || (!canLoadMore && currentPage >= totalPages);
   const prevDisabled = isLoadingFirstPage || currentPage <= 1;
 
+  const getTransactionIcon = (type: string) => {
+    if (type === "expense") return <ArrowDownRight className="size-5 text-rose-600 dark:text-rose-400" />;
+    if (type === "income") return <TrendingUp className="size-5 text-blue-600 dark:text-blue-400" />;
+    return <ArrowUpRight className="size-5 text-emerald-600 dark:text-emerald-400" />;
+  };
+
+  const getTransactionIconBg = (type: string) => {
+    if (type === "expense") return "bg-rose-100 dark:bg-rose-900/40";
+    if (type === "income") return "bg-blue-100 dark:bg-blue-900/40";
+    return "bg-emerald-100 dark:bg-emerald-900/40";
+  };
+
+  const getTransactionColor = (type: string) => {
+    if (type === "expense") return "text-rose-600 dark:text-rose-400";
+    if (type === "income") return "text-blue-600 dark:text-blue-400";
+    return "text-emerald-600 dark:text-emerald-400";
+  };
+
+  const getTypeBadgeClasses = (type: string) => {
+    if (type === "expense") return "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300";
+    if (type === "income") return "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300";
+    return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300";
+  };
+
   return (
     <>
       <Card className="border shadow-sm">
@@ -156,6 +180,7 @@ export function TransactionList() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="income">Income</SelectItem>
                 <SelectItem value="expense">Expenses</SelectItem>
                 <SelectItem value="giving">Givings</SelectItem>
               </SelectContent>
@@ -213,16 +238,10 @@ export function TransactionList() {
                     <div
                       className={cn(
                         "size-10 rounded-xl flex items-center justify-center shrink-0",
-                        transaction.type === "expense"
-                          ? "bg-rose-100 dark:bg-rose-900/40"
-                          : "bg-emerald-100 dark:bg-emerald-900/40"
+                        getTransactionIconBg(transaction.type)
                       )}
                     >
-                      {transaction.type === "expense" ? (
-                        <ArrowDownRight className="size-5 text-rose-600 dark:text-rose-400" />
-                      ) : (
-                        <ArrowUpRight className="size-5 text-emerald-600 dark:text-emerald-400" />
-                      )}
+                      {getTransactionIcon(transaction.type)}
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -231,9 +250,7 @@ export function TransactionList() {
                         <span
                           className={cn(
                             "text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide",
-                            transaction.type === "expense"
-                              ? "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300"
-                              : "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+                            getTypeBadgeClasses(transaction.type)
                           )}
                         >
                           {transaction.type}
@@ -257,9 +274,7 @@ export function TransactionList() {
                       <p
                         className={cn(
                           "text-base font-semibold",
-                          transaction.type === "expense"
-                            ? "text-rose-600 dark:text-rose-400"
-                            : "text-emerald-600 dark:text-emerald-400"
+                          getTransactionColor(transaction.type)
                         )}
                       >
                         {transaction.type === "expense" ? "-" : "+"}
@@ -268,7 +283,7 @@ export function TransactionList() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 ml-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="flex items-center gap-1 ml-4 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                     <Button
                       variant="ghost"
                       size="icon"

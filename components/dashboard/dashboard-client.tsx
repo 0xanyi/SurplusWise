@@ -2,14 +2,22 @@
 
 import { useState } from "react";
 import { TransactionForm } from "./transaction-form";
-import { TrendingDown, TrendingUp, ScanLine, ArrowRight } from "lucide-react";
+import { TrendingDown, TrendingUp, ScanLine, ArrowRight, Banknote } from "lucide-react";
 import { cn } from "@/lib/utils";
+import type { TransactionType } from "@/types";
 
 export function DashboardClient() {
-  const [isExpenseFormOpen, setIsExpenseFormOpen] = useState(false);
-  const [isGivingFormOpen, setIsGivingFormOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(false);
+  const [formType, setFormType] = useState<TransactionType>("expense");
+  const [formMode, setFormMode] = useState<'manual' | 'scan'>('manual');
 
   const handleTransactionSuccess = () => {};
+
+  const openForm = (type: TransactionType, mode: 'manual' | 'scan' = 'manual') => {
+    setFormType(type);
+    setFormMode(mode);
+    setFormOpen(true);
+  };
 
   const QuickActionCard = ({
     title,
@@ -33,7 +41,7 @@ export function DashboardClient() {
       <div className={cn("absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity", colorClass)}>
         <Icon className="w-24 h-24 -mr-8 -mt-8" />
       </div>
-      
+
       <div className="relative z-10 flex flex-col h-full justify-between">
         <div className="flex items-start justify-between mb-4">
           <div className={cn("p-3 rounded-xl", bgClass)}>
@@ -43,7 +51,7 @@ export function DashboardClient() {
             <ArrowRight className="w-5 h-5 text-muted-foreground" />
           </div>
         </div>
-        
+
         <div>
           <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors">{title}</h3>
           <p className="text-sm text-muted-foreground">{description}</p>
@@ -54,21 +62,30 @@ export function DashboardClient() {
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <QuickActionCard
+          title="Add Income"
+          description="Record salary or earnings"
+          icon={Banknote}
+          onClick={() => openForm("income")}
+          colorClass="text-blue-500"
+          bgClass="bg-blue-500/10"
+        />
+
         <QuickActionCard
           title="Add Expense"
-          description="Log a new expense manually"
+          description="Log a new expense"
           icon={TrendingDown}
-          onClick={() => setIsExpenseFormOpen(true)}
+          onClick={() => openForm("expense")}
           colorClass="text-rose-500"
           bgClass="bg-rose-500/10"
         />
-        
+
         <QuickActionCard
           title="Add Giving"
           description="Record tithes & offerings"
           icon={TrendingUp}
-          onClick={() => setIsGivingFormOpen(true)}
+          onClick={() => openForm("giving")}
           colorClass="text-emerald-500"
           bgClass="bg-emerald-500/10"
         />
@@ -77,28 +94,17 @@ export function DashboardClient() {
           title="Scan Receipt"
           description="AI-powered receipt scanning"
           icon={ScanLine}
-          onClick={() => {
-             // For now, open expense form in scan mode if possible, 
-             // or just open expense form and user switches to scan.
-             // Ideally pass a prop to start in scan mode.
-             setIsExpenseFormOpen(true); 
-          }}
-          colorClass="text-blue-500"
-          bgClass="bg-blue-500/10"
+          onClick={() => openForm("expense", "scan")}
+          colorClass="text-violet-500"
+          bgClass="bg-violet-500/10"
         />
       </div>
 
       <TransactionForm
-        open={isExpenseFormOpen}
-        onOpenChange={setIsExpenseFormOpen}
-        defaultType="expense"
-        onSuccess={handleTransactionSuccess}
-      />
-
-      <TransactionForm
-        open={isGivingFormOpen}
-        onOpenChange={setIsGivingFormOpen}
-        defaultType="giving"
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        defaultType={formType}
+        defaultMode={formMode}
         onSuccess={handleTransactionSuccess}
       />
     </>

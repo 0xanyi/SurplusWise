@@ -20,7 +20,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { formatCurrency } from "@/lib/utils";
-import { Download, Calendar, TrendingUp, TrendingDown, FileText } from "lucide-react";
+import { Download, Calendar, TrendingUp, TrendingDown, FileText, Banknote, Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const COLORS = [
@@ -41,11 +41,13 @@ type Period = "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
 interface AnalyticsData {
   totalExpenses: number;
   totalGivings: number;
+  totalIncome: number;
   transactionCount: number;
   expensesByCategoryArray: { name: string; value: number }[];
   givingsByCategoryArray: { name: string; value: number }[];
-  dailyTrends: { date: string; expenses: number; givings: number }[];
-  monthlyTrends: { month: string; expenses: number; givings: number }[];
+  incomeByCategoryArray: { name: string; value: number }[];
+  dailyTrends: { date: string; expenses: number; givings: number; income: number }[];
+  monthlyTrends: { month: string; expenses: number; givings: number; income: number }[];
 }
 
 export function AnalyticsCharts() {
@@ -112,6 +114,11 @@ export function AnalyticsCharts() {
 
     const csvData = [
       ["Category", "Type", "Amount"],
+      ...analytics.incomeByCategoryArray.map((item) => [
+        item.name,
+        "Income",
+        item.value.toString(),
+      ]),
       ...analytics.expensesByCategoryArray.map((item) => [
         item.name,
         "Expense",
@@ -164,66 +171,84 @@ export function AnalyticsCharts() {
       pdf.text("Financial Summary", 14, 40);
 
       pdf.setFontSize(11);
-      const netBalance = analytics.totalGivings - analytics.totalExpenses;
+      const netBalance = (analytics.totalIncome || 0) - analytics.totalExpenses - analytics.totalGivings;
       const summaryY = 48;
 
+      pdf.setTextColor(59, 130, 246);
+      pdf.text(`Total Income: ${formatCurrency(analytics.totalIncome || 0)}`, 14, summaryY);
+
       pdf.setTextColor(239, 68, 68);
-      pdf.text(`Total Expenses: ${formatCurrency(analytics.totalExpenses)}`, 14, summaryY);
+      pdf.text(`Total Expenses: ${formatCurrency(analytics.totalExpenses)}`, 14, summaryY + 7);
 
       pdf.setTextColor(16, 185, 129);
-      pdf.text(`Total Givings: ${formatCurrency(analytics.totalGivings)}`, 14, summaryY + 7);
+      pdf.text(`Total Givings: ${formatCurrency(analytics.totalGivings)}`, 14, summaryY + 14);
 
       pdf.setTextColor(netBalance >= 0 ? 16 : 239, netBalance >= 0 ? 185 : 68, netBalance >= 0 ? 129 : 68);
-      pdf.text(`Net Balance: ${formatCurrency(Math.abs(netBalance))} (${netBalance >= 0 ? 'Surplus' : 'Deficit'})`, 14, summaryY + 14);
+      pdf.text(`Net Balance: ${formatCurrency(Math.abs(netBalance))} (${netBalance >= 0 ? 'Surplus' : 'Deficit'})`, 14, summaryY + 21);
 
       pdf.setTextColor(0, 0, 0);
-      pdf.text(`Transactions: ${analytics.transactionCount}`, 14, summaryY + 21);
+      pdf.text(`Transactions: ${analytics.transactionCount}`, 14, summaryY + 28);
+
+      let yPos = summaryY + 42;
+
+      // Add income categories
+      if ((analytics.incomeByCategoryArray || []).length > 0) {
+        pdf.setFontSize(14);
+        pdf.text("Income Categories", 14, yPos);
+        pdf.setFontSize(10);
+        yPos += 8;
+        for (const item of analytics.incomeByCategoryArray) {
+          const percentage = analytics.totalIncome > 0
+            ? ((item.value / analytics.totalIncome) * 100).toFixed(1)
+            : "0.0";
+          pdf.text(`${item.name}: ${formatCurrency(item.value)} (${percentage}%)`, 14, yPos);
+          yPos += 6;
+          if (yPos > pageHeight - 30) {
+            pdf.addPage();
+            yPos = 20;
+          }
+        }
+        yPos += 8;
+      }
 
       // Add expense categories
       if (analytics.expensesByCategoryArray.length > 0) {
         pdf.setFontSize(14);
-        pdf.text("Expense Categories", 14, summaryY + 35);
-
+        pdf.text("Expense Categories", 14, yPos);
         pdf.setFontSize(10);
-        let yPos = summaryY + 43;
-        analytics.expensesByCategoryArray.forEach((item) => {
+        yPos += 8;
+        for (const item of analytics.expensesByCategoryArray) {
           const percentage =
             analytics.totalExpenses > 0
               ? ((item.value / analytics.totalExpenses) * 100).toFixed(1)
               : "0.0";
           pdf.text(`${item.name}: ${formatCurrency(item.value)} (${percentage}%)`, 14, yPos);
           yPos += 6;
-
-          // Add new page if needed
           if (yPos > pageHeight - 30) {
             pdf.addPage();
             yPos = 20;
           }
-        });
-
+        }
         yPos += 8;
 
         // Add giving categories
         if (analytics.givingsByCategoryArray.length > 0) {
           pdf.setFontSize(14);
           pdf.text("Giving Categories", 14, yPos);
-
           pdf.setFontSize(10);
           yPos += 8;
-          analytics.givingsByCategoryArray.forEach((item) => {
+          for (const item of analytics.givingsByCategoryArray) {
             const percentage =
               analytics.totalGivings > 0
                 ? ((item.value / analytics.totalGivings) * 100).toFixed(1)
                 : "0.0";
             pdf.text(`${item.name}: ${formatCurrency(item.value)} (${percentage}%)`, 14, yPos);
             yPos += 6;
-
-            // Add new page if needed
             if (yPos > pageHeight - 30) {
               pdf.addPage();
               yPos = 20;
             }
-          });
+          }
         }
       }
 
@@ -260,9 +285,9 @@ export function AnalyticsCharts() {
             <Skeleton className="h-10 w-28" />
           </div>
         </div>
-        
-        <div className="grid gap-4 md:grid-cols-3">
-          {[1, 2, 3].map((i) => (
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
               <CardHeader className="pb-2">
                 <Skeleton className="h-4 w-24" />
@@ -282,19 +307,6 @@ export function AnalyticsCharts() {
             <Skeleton className="h-[300px] w-full" />
           </CardContent>
         </Card>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          {[1, 2].map((i) => (
-            <Card key={i}>
-              <CardHeader>
-                <Skeleton className="h-6 w-40" />
-              </CardHeader>
-              <CardContent>
-                <Skeleton className="h-[300px] w-full rounded-full mx-auto" style={{ maxWidth: 200 }} />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       </div>
     );
   }
@@ -307,10 +319,10 @@ export function AnalyticsCharts() {
     );
   }
 
-  const netBalance = analytics.totalGivings - analytics.totalExpenses;
-   const trendsData = (period === "yearly" || period === "quarterly"
-     ? analytics.monthlyTrends
-     : analytics.dailyTrends) ?? [];
+  const netBalance = (analytics.totalIncome || 0) - analytics.totalExpenses - analytics.totalGivings;
+  const trendsData = (period === "yearly" || period === "quarterly"
+    ? analytics.monthlyTrends
+    : analytics.dailyTrends) ?? [];
 
   return (
     <div className="space-y-6" ref={reportRef}>
@@ -364,8 +376,24 @@ export function AnalyticsCharts() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-         <Card className="border shadow-sm bg-rose-50 dark:bg-rose-950/30">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border shadow-sm bg-blue-50 dark:bg-blue-950/30">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Income
+            </CardTitle>
+            <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/40">
+              <Banknote className="size-4 text-blue-600 dark:text-blue-400" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold text-blue-600 dark:text-blue-400">
+              {formatCurrency(analytics.totalIncome || 0)}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border shadow-sm bg-rose-50 dark:bg-rose-950/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
              <CardTitle className="text-sm font-medium text-muted-foreground">
               Total Expenses
@@ -397,9 +425,12 @@ export function AnalyticsCharts() {
           </CardContent>
         </Card>
 
-         <Card className="border shadow-sm bg-blue-50 dark:bg-blue-950/30">
+         <Card className="border shadow-sm bg-violet-50 dark:bg-violet-950/30">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
              <CardTitle className="text-sm font-medium text-muted-foreground">Net Balance</CardTitle>
+             <div className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/40">
+               <Wallet className="size-4 text-violet-600 dark:text-violet-400" />
+             </div>
           </CardHeader>
           <CardContent>
             <div
@@ -419,7 +450,7 @@ export function AnalyticsCharts() {
       {/* Spending Trends Chart */}
        <Card className="border shadow-sm">
          <CardHeader className="pb-4">
-           <CardTitle className="text-lg font-semibold">Spending Trends</CardTitle>
+           <CardTitle className="text-lg font-semibold">Financial Trends</CardTitle>
         </CardHeader>
         <CardContent>
           {trendsData.length === 0 ? (
@@ -442,6 +473,13 @@ export function AnalyticsCharts() {
                 <Legend />
                 <Line
                   type="monotone"
+                  dataKey="income"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  name="Income"
+                />
+                <Line
+                  type="monotone"
                   dataKey="expenses"
                   stroke="#ef4444"
                   strokeWidth={2}
@@ -460,8 +498,69 @@ export function AnalyticsCharts() {
         </CardContent>
       </Card>
 
-      {/* Category Breakdown - Side by Side */}
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* Category Breakdown */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Income Categories */}
+        <Card className="border shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-semibold">Income Categories</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {(analytics.incomeByCategoryArray || []).length === 0 ? (
+              <div className="text-center py-16">
+                <p className="text-muted-foreground">No income data</p>
+              </div>
+            ) : (
+              <>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie
+                      data={analytics.incomeByCategoryArray}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => {
+                        const safePercent = typeof percent === "number" ? percent : 0;
+                        return `${name}: ${(safePercent * 100).toFixed(0)}%`;
+                      }}
+                      outerRadius={70}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {analytics.incomeByCategoryArray.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="mt-4 space-y-2">
+                  {analytics.incomeByCategoryArray.map((item, index) => (
+                    <div
+                      key={item.name}
+                      className="flex items-center justify-between text-sm py-1"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="size-3 rounded-full"
+                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
+                        />
+                        <span>{item.name}</span>
+                      </div>
+                      <span className="font-semibold text-foreground">
+                        {formatCurrency(item.value)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Expense Categories */}
          <Card className="border shadow-sm">
            <CardHeader className="pb-4">
@@ -474,7 +573,7 @@ export function AnalyticsCharts() {
               </div>
             ) : (
               <>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
                     <Pie
                       data={analytics.expensesByCategoryArray}
@@ -485,7 +584,7 @@ export function AnalyticsCharts() {
                         const safePercent = typeof percent === "number" ? percent : 0;
                         return `${name}: ${(safePercent * 100).toFixed(0)}%`;
                       }}
-                      outerRadius={80}
+                      outerRadius={70}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -535,7 +634,7 @@ export function AnalyticsCharts() {
               </div>
             ) : (
               <>
-                <ResponsiveContainer width="100%" height={300}>
+                <ResponsiveContainer width="100%" height={250}>
                   <PieChart>
                     <Pie
                       data={analytics.givingsByCategoryArray}
@@ -546,7 +645,7 @@ export function AnalyticsCharts() {
                         const safePercent = typeof percent === "number" ? percent : 0;
                         return `${name}: ${(safePercent * 100).toFixed(0)}%`;
                       }}
-                      outerRadius={80}
+                      outerRadius={70}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -592,7 +691,8 @@ export function AnalyticsCharts() {
         </CardHeader>
         <CardContent>
           {analytics.expensesByCategoryArray.length === 0 &&
-          analytics.givingsByCategoryArray.length === 0 ? (
+          analytics.givingsByCategoryArray.length === 0 &&
+          (analytics.incomeByCategoryArray || []).length === 0 ? (
              <div className="text-center py-16">
                <p className="text-muted-foreground">No data available</p>
             </div>
@@ -600,13 +700,21 @@ export function AnalyticsCharts() {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart
                 data={[
+                  ...(analytics.incomeByCategoryArray || []).map((item) => ({
+                    category: item.name,
+                    Income: item.value,
+                    Expenses: 0,
+                    Givings: 0,
+                  })),
                   ...analytics.expensesByCategoryArray.map((item) => ({
                     category: item.name,
+                    Income: 0,
                     Expenses: item.value,
                     Givings: 0,
                   })),
                   ...analytics.givingsByCategoryArray.map((item) => ({
                     category: item.name,
+                    Income: 0,
                     Expenses: 0,
                     Givings: item.value,
                   })),
@@ -617,6 +725,7 @@ export function AnalyticsCharts() {
                 <YAxis tick={{ fontSize: 12 }} />
                 <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
                 <Legend />
+                <Bar dataKey="Income" fill="#3b82f6" />
                 <Bar dataKey="Expenses" fill="#ef4444" />
                 <Bar dataKey="Givings" fill="#10b981" />
               </BarChart>

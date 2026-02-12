@@ -20,7 +20,7 @@ import { api } from "@/convex/_generated/api";
 interface Category {
   _id: string;
   name: string;
-  type: "expense" | "giving";
+  type: "expense" | "giving" | "income";
   color: string;
   isDefault: boolean;
 }
@@ -36,7 +36,7 @@ export function CategoryManagement() {
   // Form state
   const [formData, setFormData] = useState({
     name: "",
-    type: "expense" as "expense" | "giving",
+    type: "expense" as "expense" | "giving" | "income",
     color: "#3b82f6",
   });
 
@@ -69,7 +69,7 @@ export function CategoryManagement() {
       });
 
       setIsAddDialogOpen(false);
-      setFormData({ name: "", type: "expense", color: "#3b82f6" });
+      setFormData({ name: "", type: "expense" as "expense" | "giving" | "income", color: "#3b82f6" });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -108,7 +108,7 @@ export function CategoryManagement() {
 
       setIsEditDialogOpen(false);
       setEditingCategory(null);
-      setFormData({ name: "", type: "expense", color: "#3b82f6" });
+      setFormData({ name: "", type: "expense" as "expense" | "giving" | "income", color: "#3b82f6" });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -175,6 +175,7 @@ export function CategoryManagement() {
     );
   }
 
+  const incomeCategories = categories.filter((c) => c.type === "income");
   const expenseCategories = categories.filter((c) => c.type === "expense");
   const givingCategories = categories.filter((c) => c.type === "giving");
 
@@ -214,11 +215,12 @@ export function CategoryManagement() {
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    type: e.target.value as "expense" | "giving",
+                    type: e.target.value as "expense" | "giving" | "income",
                   })
                 }
                 className="w-full px-3 py-2 border rounded-md bg-background"
               >
+                <option value="income">Income</option>
                 <option value="expense">Expense</option>
                 <option value="giving">Giving</option>
               </select>
@@ -319,7 +321,65 @@ export function CategoryManagement() {
         </DialogContent>
       </Dialog>
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className="grid md:grid-cols-3 gap-6">
+        {/* Income Categories */}
+        <Card>
+            <CardHeader>
+            <CardTitle>Income Categories</CardTitle>
+            </CardHeader>
+            <CardContent>
+            <div className="space-y-2">
+                {incomeCategories.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">
+                    No income categories
+                </p>
+                ) : (
+                incomeCategories.map((category) => (
+                    <div
+                    key={category._id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                    >
+                    <div className="flex items-center gap-3">
+                        <div
+                        className="w-6 h-6 rounded-full border border-border/20 shadow-sm"
+                        style={{ backgroundColor: category.color || "#3b82f6" }}
+                        />
+                        <div>
+                        <p className="font-medium text-sm">{category.name}</p>
+                        {category.isDefault && (
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                            Default
+                            </p>
+                        )}
+                        </div>
+                    </div>
+                    <div className="flex gap-1">
+                        <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => openEditDialog(category)}
+                        >
+                        <Edit2 className="h-4 w-4" />
+                        </Button>
+                        {!category.isDefault && (
+                        <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeleteCategory(category)}
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                        )}
+                    </div>
+                    </div>
+                ))
+                )}
+            </div>
+            </CardContent>
+        </Card>
+
         {/* Expense Categories */}
         <Card>
             <CardHeader>

@@ -39,7 +39,7 @@ export const create = mutation({
     ),
     startDate: v.string(),
     endDate: v.string(),
-    type: v.union(v.literal("expense"), v.literal("giving")),
+    type: v.union(v.literal("expense"), v.literal("giving"), v.literal("income")),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -73,7 +73,7 @@ export const update = mutation({
     ),
     startDate: v.optional(v.string()),
     endDate: v.optional(v.string()),
-    type: v.optional(v.union(v.literal("expense"), v.literal("giving"))),
+    type: v.optional(v.union(v.literal("expense"), v.literal("giving"), v.literal("income"))),
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
