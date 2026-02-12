@@ -1,4 +1,4 @@
-export type TransactionType = 'expense' | 'giving'
+export type TransactionType = 'expense' | 'giving' | 'income'
 
 export interface Transaction {
   _id: string
@@ -74,9 +74,11 @@ export interface ApiBudget {
 export interface DashboardStats {
   totalExpenses: number
   totalGivings: number
+  totalIncome: number
   netBalance: number
   expensesByCategory: Record<string, number>
   givingsByCategory: Record<string, number>
+  incomeByCategory: Record<string, number>
   transactionCount: number
 }
 

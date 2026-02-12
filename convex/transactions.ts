@@ -5,7 +5,7 @@ import { getAuthUserId } from "./auth";
 
 export const list = query({
   args: {
-    type: v.optional(v.union(v.literal("expense"), v.literal("giving"))),
+    type: v.optional(v.union(v.literal("expense"), v.literal("giving"), v.literal("income"))),
     category: v.optional(v.string()),
     startDate: v.optional(v.string()),
     endDate: v.optional(v.string()),
@@ -70,7 +70,7 @@ export const list = query({
 
 export const listPaginated = query({
   args: {
-    type: v.optional(v.union(v.literal("expense"), v.literal("giving"))),
+    type: v.optional(v.union(v.literal("expense"), v.literal("giving"), v.literal("income"))),
     category: v.optional(v.string()),
     startDate: v.optional(v.string()),
     endDate: v.optional(v.string()),
@@ -123,7 +123,7 @@ export const create = mutation({
   args: {
     amount: v.number(),
     date: v.string(),
-    type: v.union(v.literal("expense"), v.literal("giving")),
+    type: v.union(v.literal("expense"), v.literal("giving"), v.literal("income")),
     category: v.string(),
     notes: v.optional(v.string()),
     receiptStorageId: v.optional(v.id("_storage")),
@@ -150,7 +150,7 @@ export const update = mutation({
     id: v.id("transactions"),
     amount: v.optional(v.number()),
     date: v.optional(v.string()),
-    type: v.optional(v.union(v.literal("expense"), v.literal("giving"))),
+    type: v.optional(v.union(v.literal("expense"), v.literal("giving"), v.literal("income"))),
     category: v.optional(v.string()),
     notes: v.optional(v.string()),
     receiptStorageId: v.optional(v.id("_storage")),

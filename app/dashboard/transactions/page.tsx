@@ -16,7 +16,7 @@
          <div>
            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Transactions</h1>
            <p className="text-muted-foreground mt-1">
-             View and manage all your expenses and givings
+             View and manage all your income, expenses, and givings
            </p>
          </div>
          <Button 

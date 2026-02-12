@@ -66,16 +66,21 @@ export async function GET(request: NextRequest) {
 
     const expensesByCategory: Record<string, number> = {};
     const givingsByCategory: Record<string, number> = {};
+    const incomeByCategory: Record<string, number> = {};
     let totalExpenses = 0;
     let totalGivings = 0;
+    let totalIncome = 0;
 
     for (const t of transactions) {
       if (t.type === "expense") {
         expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
         totalExpenses += t.amount;
-      } else {
+      } else if (t.type === "giving") {
         givingsByCategory[t.category] = (givingsByCategory[t.category] || 0) + t.amount;
         totalGivings += t.amount;
+      } else if (t.type === "income") {
+        incomeByCategory[t.category] = (incomeByCategory[t.category] || 0) + t.amount;
+        totalIncome += t.amount;
       }
     }
 
@@ -87,15 +92,21 @@ export async function GET(request: NextRequest) {
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value);
 
-    const dailyTotals: Record<string, { expenses: number; givings: number }> = {};
+    const incomeByCategoryArray = Object.entries(incomeByCategory)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    const dailyTotals: Record<string, { expenses: number; givings: number; income: number }> = {};
     for (const t of transactions) {
       if (!dailyTotals[t.date]) {
-        dailyTotals[t.date] = { expenses: 0, givings: 0 };
+        dailyTotals[t.date] = { expenses: 0, givings: 0, income: 0 };
       }
       if (t.type === "expense") {
         dailyTotals[t.date].expenses += t.amount;
-      } else {
+      } else if (t.type === "giving") {
         dailyTotals[t.date].givings += t.amount;
+      } else if (t.type === "income") {
+        dailyTotals[t.date].income += t.amount;
       }
     }
 
@@ -103,14 +114,15 @@ export async function GET(request: NextRequest) {
       .map(([date, totals]) => ({ date, ...totals }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    const monthlyTotals: Record<string, { expenses: number; givings: number }> = {};
+    const monthlyTotals: Record<string, { expenses: number; givings: number; income: number }> = {};
     for (const entry of trendData) {
       const monthKey = entry.date.slice(0, 7);
       if (!monthlyTotals[monthKey]) {
-        monthlyTotals[monthKey] = { expenses: 0, givings: 0 };
+        monthlyTotals[monthKey] = { expenses: 0, givings: 0, income: 0 };
       }
       monthlyTotals[monthKey].expenses += entry.expenses;
       monthlyTotals[monthKey].givings += entry.givings;
+      monthlyTotals[monthKey].income += entry.income;
     }
 
     const monthlyTrends = Object.entries(monthlyTotals)
@@ -120,11 +132,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       totalExpenses,
       totalGivings,
-      netBalance: totalGivings - totalExpenses,
+      totalIncome,
+      netBalance: totalIncome - totalExpenses - totalGivings,
       expensesByCategory,
       givingsByCategory,
+      incomeByCategory,
       expensesByCategoryArray,
       givingsByCategoryArray,
+      incomeByCategoryArray,
       dailyTrends: trendData,
       monthlyTrends,
       transactionCount: transactions.length,

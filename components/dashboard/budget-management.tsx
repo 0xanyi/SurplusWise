@@ -25,7 +25,7 @@ interface Budget {
   period: "monthly" | "quarterly" | "yearly";
   start_date: string;
   end_date: string;
-  type: "expense" | "giving";
+  type: "expense" | "giving" | "income";
   is_active: boolean;
   spent: number;
   remaining: number;
@@ -46,7 +46,7 @@ export function BudgetManagement() {
     category: "",
     amount: "",
     period: "monthly" as "monthly" | "quarterly" | "yearly",
-    type: "expense" as "expense" | "giving",
+    type: "expense" as "expense" | "giving" | "income",
   });
 
   const fetchBudgets = useCallback(async () => {
@@ -245,12 +245,13 @@ export function BudgetManagement() {
                 onChange={(e) =>
                   setFormData({
                     ...formData,
-                    type: e.target.value as "expense" | "giving",
+                    type: e.target.value as "expense" | "giving" | "income",
                     category: "",
                   })
                 }
                 className="w-full px-3 py-2 border rounded-md bg-background"
               >
+                <option value="income">Income</option>
                 <option value="expense">Expense</option>
                 <option value="giving">Giving</option>
               </select>

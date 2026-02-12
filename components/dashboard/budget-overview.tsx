@@ -123,6 +123,8 @@ export function BudgetOverview() {
                 <div className="flex items-center gap-2">
                   {budget.type === "expense" ? (
                      <TrendingDown className="size-4 text-rose-500" />
+                  ) : budget.type === "income" ? (
+                     <TrendingUp className="size-4 text-blue-500" />
                   ) : (
                      <TrendingUp className="size-4 text-emerald-500" />
                   )}

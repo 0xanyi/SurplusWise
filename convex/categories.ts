@@ -26,9 +26,20 @@ const DEFAULT_GIVING_CATEGORIES = [
   { name: "Other Giving", color: "#6b7280", icon: "more-horizontal" },
 ];
 
+const DEFAULT_INCOME_CATEGORIES = [
+  { name: "Salary", color: "#10b981", icon: "banknote" },
+  { name: "Freelance", color: "#06b6d4", icon: "laptop" },
+  { name: "Business", color: "#8b5cf6", icon: "briefcase" },
+  { name: "Investments", color: "#f59e0b", icon: "trending-up" },
+  { name: "Rental Income", color: "#3b82f6", icon: "home" },
+  { name: "Gifts Received", color: "#ec4899", icon: "gift" },
+  { name: "Refunds", color: "#14b8a6", icon: "rotate-ccw" },
+  { name: "Other Income", color: "#6b7280", icon: "more-horizontal" },
+];
+
 export const list = query({
   args: {
-    type: v.optional(v.union(v.literal("expense"), v.literal("giving"))),
+    type: v.optional(v.union(v.literal("expense"), v.literal("giving"), v.literal("income"))),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -65,6 +76,30 @@ export const ensureDefaults = mutation({
       .first();
 
     if (existing) {
+      // Check if income categories exist yet (for existing users upgrading)
+      const existingIncome = await ctx.db
+        .query("categories")
+        .withIndex("by_userId_type", (q) =>
+          q.eq("userId", userId).eq("type", "income")
+        )
+        .first();
+
+      if (!existingIncome) {
+        const now = Date.now();
+        for (const cat of DEFAULT_INCOME_CATEGORIES) {
+          await ctx.db.insert("categories", {
+            userId,
+            name: cat.name,
+            type: "income",
+            color: cat.color,
+            icon: cat.icon,
+            isDefault: true,
+            createdAt: now,
+          });
+        }
+        return { created: true, message: "Income categories added" };
+      }
+
       return { created: false, message: "Categories already exist" };
     }
 
@@ -94,6 +129,18 @@ export const ensureDefaults = mutation({
       });
     }
 
+    for (const cat of DEFAULT_INCOME_CATEGORIES) {
+      await ctx.db.insert("categories", {
+        userId,
+        name: cat.name,
+        type: "income",
+        color: cat.color,
+        icon: cat.icon,
+        isDefault: true,
+        createdAt: now,
+      });
+    }
+
     return { created: true, message: "Default categories created" };
   },
 });
@@ -101,7 +148,7 @@ export const ensureDefaults = mutation({
 export const create = mutation({
   args: {
     name: v.string(),
-    type: v.union(v.literal("expense"), v.literal("giving")),
+    type: v.union(v.literal("expense"), v.literal("giving"), v.literal("income")),
     color: v.string(),
     icon: v.optional(v.string()),
   },
