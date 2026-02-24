@@ -1,6 +1,6 @@
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { transactions } from "@/db/schema";
+import { transactions, outgoingPaymentLogs, debtBalanceLogs, recurringOutgoings, debtsCredits } from "@/db/schema";
 import {
   userIdSchema,
   analyticsQuerySchema,
@@ -44,6 +44,10 @@ export interface AnalyticsResult {
   dailyTrends: DailyTrend[];
   monthlyTrends: MonthlyTrend[];
   period: DateRange;
+  /** Outgoing payments logged this period (included in totalExpenses) */
+  outgoingPaymentsTotal: number;
+  /** Debt payments logged this period (included in totalExpenses) */
+  debtPaymentsTotal: number;
 }
 
 // ─── Service functions ───────────────────────────────────────────────────────
@@ -51,6 +55,10 @@ export interface AnalyticsResult {
 /**
  * Full analytics payload that mirrors the existing `/api/analytics` response.
  * All aggregation is done in SQL where possible.
+ *
+ * Now also includes:
+ * - Logged outgoing payments as expenses (category: "Recurring Outgoings" or their outgoing category)
+ * - Debt balance-log payments as expenses (category: "Debt Payments")
  */
 export async function getAnalytics(
   userId: string,
@@ -117,12 +125,87 @@ export async function getAnalytics(
     else if (row.type === "income") incomeByCategoryArray.push(entry);
   }
 
+  // 3. Outgoing payment logs as expenses
+  const outgoingPayments = await db
+    .select({
+      amount: outgoingPaymentLogs.amount,
+      paidAt: outgoingPaymentLogs.paidAt,
+      category: recurringOutgoings.category,
+    })
+    .from(outgoingPaymentLogs)
+    .innerJoin(
+      recurringOutgoings,
+      eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id),
+    )
+    .where(
+      and(
+        eq(outgoingPaymentLogs.userId, userId),
+        gte(outgoingPaymentLogs.paidAt, range.startDate),
+        lte(outgoingPaymentLogs.paidAt, range.endDate),
+      ),
+    );
+
+  let outgoingPaymentsTotal = 0;
+  const outgoingCategoryTotals = new Map<string, number>();
+  for (const row of outgoingPayments) {
+    const amount = Number(row.amount);
+    outgoingPaymentsTotal += amount;
+    const cat = row.category ?? "Recurring Outgoings";
+    outgoingCategoryTotals.set(cat, (outgoingCategoryTotals.get(cat) ?? 0) + amount);
+  }
+
+  // Merge outgoing payments into expense categories
+  for (const [cat, total] of outgoingCategoryTotals) {
+    const existing = expensesByCategoryArray.find((c) => c.name === cat);
+    if (existing) {
+      existing.value += total;
+    } else {
+      expensesByCategoryArray.push({ name: cat, value: total });
+    }
+  }
+  totalExpenses += outgoingPaymentsTotal;
+
+  // 4. Debt balance-log payments as expenses
+  const debtPayments = await db
+    .select({
+      paymentMade: debtBalanceLogs.paymentMade,
+      loggedAt: debtBalanceLogs.loggedAt,
+      debtName: debtsCredits.name,
+    })
+    .from(debtBalanceLogs)
+    .innerJoin(debtsCredits, eq(debtBalanceLogs.debtId, debtsCredits.id))
+    .where(
+      and(
+        eq(debtBalanceLogs.userId, userId),
+        gte(debtBalanceLogs.loggedAt, range.startDate),
+        lte(debtBalanceLogs.loggedAt, range.endDate),
+        sql`${debtBalanceLogs.paymentMade} IS NOT NULL AND ${debtBalanceLogs.paymentMade} > 0`,
+      ),
+    );
+
+  let debtPaymentsTotal = 0;
+  for (const row of debtPayments) {
+    if (row.paymentMade) {
+      debtPaymentsTotal += Number(row.paymentMade);
+    }
+  }
+
+  if (debtPaymentsTotal > 0) {
+    const existing = expensesByCategoryArray.find((c) => c.name === "Debt Payments");
+    if (existing) {
+      existing.value += debtPaymentsTotal;
+    } else {
+      expensesByCategoryArray.push({ name: "Debt Payments", value: debtPaymentsTotal });
+    }
+    totalExpenses += debtPaymentsTotal;
+  }
+
   // Sort each descending by value
   expensesByCategoryArray.sort((a, b) => b.value - a.value);
   givingsByCategoryArray.sort((a, b) => b.value - a.value);
   incomeByCategoryArray.sort((a, b) => b.value - a.value);
 
-  // 3. Daily trends (single query)
+  // 5. Daily trends (single query — transactions only for now)
   const dailyRows = await db
     .select({
       date: transactions.date,
@@ -146,11 +229,36 @@ export async function getAnalytics(
     else if (row.type === "giving") entry.givings = v;
     else if (row.type === "income") entry.income = v;
   }
+
+  // Merge outgoing payments into daily trends
+  for (const row of outgoingPayments) {
+    const date = row.paidAt;
+    let entry = dailyMap.get(date);
+    if (!entry) {
+      entry = { date, expenses: 0, givings: 0, income: 0 };
+      dailyMap.set(date, entry);
+    }
+    entry.expenses += Number(row.amount);
+  }
+
+  // Merge debt payments into daily trends
+  for (const row of debtPayments) {
+    if (row.paymentMade) {
+      const date = row.loggedAt;
+      let entry = dailyMap.get(date);
+      if (!entry) {
+        entry = { date, expenses: 0, givings: 0, income: 0 };
+        dailyMap.set(date, entry);
+      }
+      entry.expenses += Number(row.paymentMade);
+    }
+  }
+
   const dailyTrends = Array.from(dailyMap.values()).sort((a, b) =>
     a.date.localeCompare(b.date),
   );
 
-  // 4. Monthly trends (derived from daily for consistency)
+  // 6. Monthly trends (derived from daily for consistency)
   const monthlyMap = new Map<string, MonthlyTrend>();
   for (const day of dailyTrends) {
     const monthKey = day.date.slice(0, 7); // YYYY-MM
@@ -178,5 +286,7 @@ export async function getAnalytics(
     dailyTrends,
     monthlyTrends,
     period: range,
+    outgoingPaymentsTotal,
+    debtPaymentsTotal,
   };
 }

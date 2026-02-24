@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Receipt, CalendarDays, Loader2 } from "lucide-react";
+import { Receipt, CalendarDays, Loader2, CheckCircle2, Clock } from "lucide-react";
 import { useApiQuery } from "@/hooks/use-api";
 import type { ApiRecurringOutgoing } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,10 +30,16 @@ function getNextDueDate(dayOfMonth: number, reference: Date): Date {
   return getDueDateForMonth(reference.getFullYear(), reference.getMonth() + 1, dayOfMonth);
 }
 
+function isDueDatePassed(dayOfMonth: number): boolean {
+  const now = new Date();
+  return now.getDate() > dayOfMonth;
+}
+
 interface OutgoingsResponse {
   outgoings: ApiRecurringOutgoing[];
   monthly_total: number;
   active_count: number;
+  period_month: string;
 }
 
 export function OutgoingsOverview() {
@@ -72,6 +78,12 @@ export function OutgoingsOverview() {
   const activeOutgoings = outgoings.filter((o) => o.is_active);
   const scheduledMonthlyOutgoings = activeOutgoings.filter((o) => o.frequency === "monthly");
   const unsupportedFrequencyCount = activeOutgoings.length - scheduledMonthlyOutgoings.length;
+
+  // Payment stats
+  const paidCount = scheduledMonthlyOutgoings.filter((o) => o.payment_status.paid).length;
+  const overdueCount = scheduledMonthlyOutgoings.filter(
+    (o) => !o.payment_status.paid && isDueDatePassed(o.day_of_month),
+  ).length;
 
   const referenceDate = new Date();
   const startOfToday = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate());
@@ -112,6 +124,23 @@ export function OutgoingsOverview() {
               </span>
             </div>
 
+            {/* Payment progress */}
+            <div className="flex items-center gap-3 text-xs">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <CheckCircle2 className="size-3" />
+                {paidCount} paid
+              </span>
+              {overdueCount > 0 && (
+                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                  <Clock className="size-3" />
+                  {overdueCount} overdue
+                </span>
+              )}
+              <span className="text-muted-foreground">
+                {scheduledMonthlyOutgoings.length - paidCount - overdueCount} upcoming
+              </span>
+            </div>
+
             {unsupportedFrequencyCount > 0 && (
               <p className="text-xs text-muted-foreground">
                 {unsupportedFrequencyCount} non-monthly outgoing{unsupportedFrequencyCount === 1 ? "" : "s"} not included in upcoming schedule.
@@ -123,27 +152,54 @@ export function OutgoingsOverview() {
                 const dueDate = getNextDueDate(item.day_of_month, referenceDate);
                 const isToday = dueDate.getTime() === startOfToday.getTime();
                 const isNextMonth = dueDate.getMonth() !== referenceDate.getMonth();
+                const isPaid = item.payment_status.paid;
+                const isOverdue = !isPaid && isDueDatePassed(item.day_of_month);
+
                 return (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2.5 text-sm"
+                    className={`flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm ${
+                      isPaid
+                        ? "border-emerald-200/50 dark:border-emerald-800/30 bg-emerald-50/30 dark:bg-emerald-950/10"
+                        : isOverdue
+                        ? "border-amber-200/50 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10"
+                        : "border-border/50"
+                    }`}
                   >
                     <div className="flex items-center gap-2">
-                      <CalendarDays className={`size-3.5 ${isToday ? "text-amber-500" : "text-muted-foreground"}`} />
-                      <span className="font-medium">{item.name}</span>
-                      {isToday && (
+                      {isPaid ? (
+                        <CheckCircle2 className="size-3.5 text-emerald-500" />
+                      ) : isOverdue ? (
+                        <Clock className="size-3.5 text-amber-500" />
+                      ) : (
+                        <CalendarDays className={`size-3.5 ${isToday ? "text-amber-500" : "text-muted-foreground"}`} />
+                      )}
+                      <span className={`font-medium ${isPaid ? "line-through text-muted-foreground" : ""}`}>
+                        {item.name}
+                      </span>
+                      {isPaid && (
+                        <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-medium">
+                          Paid
+                        </span>
+                      )}
+                      {isOverdue && (
+                        <span className="text-[10px] bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full font-medium">
+                          Overdue
+                        </span>
+                      )}
+                      {!isPaid && !isOverdue && isToday && (
                         <span className="text-[10px] bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full font-medium">
                           Today
                         </span>
                       )}
-                      {!isToday && isNextMonth && (
+                      {!isPaid && !isOverdue && !isToday && isNextMonth && (
                         <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full">
                           Next month
                         </span>
                       )}
                     </div>
                     <div className="text-right">
-                      <p className="font-medium tabular-nums text-rose-600 dark:text-rose-400">
+                      <p className={`font-medium tabular-nums ${isPaid ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>
                         {formatCurrency(item.amount)}
                       </p>
                       <p className="text-[10px] text-muted-foreground">

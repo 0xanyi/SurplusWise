@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth-server";
 import * as outgoingsService from "@/lib/db/recurring-outgoings";
+import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
@@ -18,16 +19,44 @@ function toOutgoing(row: Record<string, unknown>) {
   };
 }
 
+function getCurrentPeriodMonth() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}-01`;
+}
+
 export async function GET() {
   try {
     const userId = await requireAuth();
     const outgoings = await outgoingsService.list(userId);
     const summary = await outgoingsService.getMonthlyTotal(userId);
 
+    // Get payment status for current month
+    const periodMonth = getCurrentPeriodMonth();
+    const paymentMap = await paymentLogService.getMonthlyStatus(userId, periodMonth);
+
+    const outgoingsWithStatus = outgoings.map((o) => {
+      const mapped = toOutgoing(o);
+      const payment = paymentMap.get(o.id);
+      return {
+        ...mapped,
+        payment_status: payment
+          ? {
+              paid: true,
+              payment_id: payment.id,
+              amount_paid: payment.amount,
+              paid_at: payment.paidAt,
+            }
+          : { paid: false },
+      };
+    });
+
     return NextResponse.json({
-      outgoings: outgoings.map(toOutgoing),
+      outgoings: outgoingsWithStatus,
       monthly_total: summary.total,
       active_count: summary.count,
+      period_month: periodMonth,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

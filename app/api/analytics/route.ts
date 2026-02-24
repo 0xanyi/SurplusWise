@@ -49,6 +49,8 @@ export async function GET(request: NextRequest) {
       monthlyTrends: result.monthlyTrends,
       transactionCount: result.transactionCount,
       period: result.period,
+      outgoingPaymentsTotal: result.outgoingPaymentsTotal,
+      debtPaymentsTotal: result.debtPaymentsTotal,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

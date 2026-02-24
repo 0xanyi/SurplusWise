@@ -8,6 +8,10 @@ import {
   CalendarDays,
   Receipt,
   Loader2,
+  CheckCircle2,
+  Circle,
+  Clock,
+  Undo2,
 } from "lucide-react";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
 import type { ApiRecurringOutgoing } from "@/types";
@@ -54,10 +58,28 @@ function getOrdinalSuffix(day: number) {
   }
 }
 
+function getCurrentPeriodMonth() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}-01`;
+}
+
+function getCurrentMonthLabel() {
+  return new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
+function isDueDatePassed(dayOfMonth: number): boolean {
+  const now = new Date();
+  const today = now.getDate();
+  return today > dayOfMonth;
+}
+
 interface OutgoingsResponse {
   outgoings: ApiRecurringOutgoing[];
   monthly_total: number;
   active_count: number;
+  period_month: string;
 }
 
 export function RecurringOutgoingsManagement() {
@@ -75,6 +97,7 @@ export function RecurringOutgoingsManagement() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [loggingPayment, setLoggingPayment] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<ApiRecurringOutgoing | null>(null);
 
   const [formData, setFormData] = useState({
@@ -94,6 +117,52 @@ export function RecurringOutgoingsManagement() {
       notes: "",
     });
     setEditingItem(null);
+  };
+
+  const handleLogPayment = async (item: ApiRecurringOutgoing) => {
+    setLoggingPayment(item.id);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const periodMonth = getCurrentPeriodMonth();
+
+      await apiFetch(`/api/recurring-outgoings/${item.id}/payment-logs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: item.amount,
+          paidAt: today,
+          periodMonth,
+        }),
+      });
+      toast({
+        title: "Payment logged",
+        description: `${item.name} marked as paid for ${getCurrentMonthLabel()}. This will count as an expense.`,
+      });
+      refresh();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to log payment";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setLoggingPayment(null);
+    }
+  };
+
+  const handleUndoPayment = async (item: ApiRecurringOutgoing) => {
+    if (!item.payment_status.paid || !item.payment_status.payment_id) return;
+    try {
+      await apiFetch(
+        `/api/recurring-outgoings/${item.id}/payment-logs/${item.payment_status.payment_id}`,
+        { method: "DELETE" },
+      );
+      toast({
+        title: "Payment undone",
+        description: `${item.name} marked as unpaid for ${getCurrentMonthLabel()}.`,
+      });
+      refresh();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to undo payment";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    }
   };
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -223,6 +292,16 @@ export function RecurringOutgoingsManagement() {
     );
   }
 
+  // Compute payment summary for the month
+  const activeOutgoings = outgoings.filter((o) => o.is_active);
+  const paidCount = activeOutgoings.filter((o) => o.payment_status.paid).length;
+  const paidTotal = activeOutgoings
+    .filter((o) => o.payment_status.paid)
+    .reduce((sum, o) => sum + (o.payment_status.amount_paid ?? o.amount), 0);
+  const overdueCount = activeOutgoings.filter(
+    (o) => !o.payment_status.paid && isDueDatePassed(o.day_of_month),
+  ).length;
+
   const formFields = (
     <>
       <div className="space-y-2">
@@ -298,25 +377,71 @@ export function RecurringOutgoingsManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Summary card */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Monthly Outgoings</p>
-              <p className="text-2xl font-semibold text-rose-600 dark:text-rose-400 tabular-nums">
-                {formatCurrency(monthlyTotal)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {data?.active_count ?? 0} active {(data?.active_count ?? 0) === 1 ? "outgoing" : "outgoings"}
-              </p>
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Monthly Outgoings</p>
+                <p className="text-2xl font-semibold text-rose-600 dark:text-rose-400 tabular-nums">
+                  {formatCurrency(monthlyTotal)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {data?.active_count ?? 0} active {(data?.active_count ?? 0) === 1 ? "outgoing" : "outgoings"}
+                </p>
+              </div>
+              <div className="rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3">
+                <Receipt className="size-6 text-rose-600 dark:text-rose-400" />
+              </div>
             </div>
-            <div className="rounded-xl bg-rose-50 dark:bg-rose-950/30 p-3">
-              <Receipt className="size-6 text-rose-600 dark:text-rose-400" />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Paid This Month</p>
+                <p className="text-2xl font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                  {formatCurrency(paidTotal)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {paidCount} of {activeOutgoings.length} paid
+                </p>
+              </div>
+              <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 p-3">
+                <CheckCircle2 className="size-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Overdue</p>
+                <p className={`text-2xl font-semibold tabular-nums ${overdueCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`}>
+                  {overdueCount}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {overdueCount === 0 ? "All caught up" : "past due date, not logged"}
+                </p>
+              </div>
+              <div className={`rounded-xl p-3 ${overdueCount > 0 ? "bg-amber-50 dark:bg-amber-950/30" : "bg-muted"}`}>
+                <Clock className={`size-6 ${overdueCount > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}`} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Month indicator */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <CalendarDays className="size-4" />
+        <span>Showing payment status for <strong className="text-foreground">{getCurrentMonthLabel()}</strong></span>
+      </div>
 
       {/* Add button + dialogs */}
       <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
@@ -380,71 +505,154 @@ export function RecurringOutgoingsManagement() {
             </CardContent>
           </Card>
         ) : (
-          outgoings.map((item) => (
-            <Card key={item.id} className={!item.is_active ? "opacity-60" : ""}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-rose-50 dark:bg-rose-950/30 p-2">
-                      <Receipt className="size-4 text-rose-600 dark:text-rose-400" />
+          outgoings.map((item) => {
+            const isPaid = item.payment_status.paid;
+            const isOverdue = !isPaid && item.is_active && isDueDatePassed(item.day_of_month);
+            const isLogging = loggingPayment === item.id;
+
+            return (
+              <Card
+                key={item.id}
+                className={`${!item.is_active ? "opacity-60" : ""} ${
+                  isPaid
+                    ? "border-emerald-200 dark:border-emerald-800/50"
+                    : isOverdue
+                    ? "border-amber-200 dark:border-amber-800/50"
+                    : ""
+                }`}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`rounded-xl p-2 ${
+                          isPaid
+                            ? "bg-emerald-50 dark:bg-emerald-950/30"
+                            : isOverdue
+                            ? "bg-amber-50 dark:bg-amber-950/30"
+                            : "bg-rose-50 dark:bg-rose-950/30"
+                        }`}
+                      >
+                        {isPaid ? (
+                          <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
+                        ) : isOverdue ? (
+                          <Clock className="size-4 text-amber-600 dark:text-amber-400" />
+                        ) : (
+                          <Receipt className="size-4 text-rose-600 dark:text-rose-400" />
+                        )}
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{item.name}</CardTitle>
+                        <div className="flex items-center gap-1.5">
+                          {item.category && (
+                            <p className="text-xs text-muted-foreground">{item.category}</p>
+                          )}
+                          {isPaid && (
+                            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-medium">
+                              Paid
+                            </span>
+                          )}
+                          {isOverdue && (
+                            <span className="text-[10px] bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 px-1.5 py-0.5 rounded-full font-medium">
+                              Overdue
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <CardTitle className="text-base">{item.name}</CardTitle>
-                      {item.category && (
-                        <p className="text-xs text-muted-foreground">{item.category}</p>
+                    <div className="flex gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => openEditDialog(item)}
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(item)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-semibold tabular-nums text-rose-600 dark:text-rose-400">
+                      {formatCurrency(item.amount)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <CalendarDays className="size-3.5" />
+                      Due date
+                    </span>
+                    <span className="font-medium">
+                      {item.day_of_month}{getOrdinalSuffix(item.day_of_month)} of each month
+                    </span>
+                  </div>
+                  {item.frequency !== "monthly" && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Frequency</span>
+                      <span className="capitalize font-medium">{item.frequency}</span>
+                    </div>
+                  )}
+                  {item.notes && (
+                    <p className="text-xs text-muted-foreground pt-1 border-t border-border/50">
+                      {item.notes}
+                    </p>
+                  )}
+
+                  {/* Payment action */}
+                  {item.is_active && (
+                    <div className="pt-2 border-t border-border/50">
+                      {isPaid ? (
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <CheckCircle2 className="size-3" />
+                            Paid on {new Date(item.payment_status.paid_at!).toLocaleDateString("en-GB")}
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs text-muted-foreground"
+                            onClick={() => handleUndoPayment(item)}
+                          >
+                            <Undo2 className="size-3 mr-1" />
+                            Undo
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant={isOverdue ? "default" : "outline"}
+                          className={`w-full h-8 text-xs ${
+                            isOverdue
+                              ? "bg-amber-600 hover:bg-amber-700 text-white"
+                              : ""
+                          }`}
+                          disabled={isLogging}
+                          onClick={() => handleLogPayment(item)}
+                        >
+                          {isLogging ? (
+                            <Loader2 className="size-3 mr-1 animate-spin" />
+                          ) : (
+                            <Circle className="size-3 mr-1" />
+                          )}
+                          {isOverdue ? "Log as Paid (Overdue)" : "Log as Paid"}
+                        </Button>
                       )}
                     </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      onClick={() => openEditDialog(item)}
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(item)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Amount</span>
-                  <span className="font-semibold tabular-nums text-rose-600 dark:text-rose-400">
-                    {formatCurrency(item.amount)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <CalendarDays className="size-3.5" />
-                    Due date
-                  </span>
-                  <span className="font-medium">
-                    {item.day_of_month}{getOrdinalSuffix(item.day_of_month)} of each month
-                  </span>
-                </div>
-                {item.frequency !== "monthly" && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Frequency</span>
-                    <span className="capitalize font-medium">{item.frequency}</span>
-                  </div>
-                )}
-                {item.notes && (
-                  <p className="text-xs text-muted-foreground pt-1 border-t border-border/50">
-                    {item.notes}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          ))
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>

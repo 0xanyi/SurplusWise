@@ -222,6 +222,37 @@ export const recurringOutgoings = pgTable(
   ],
 );
 
+// ─── Outgoing Payment Logs ───────────────────────────────────────────────────
+
+/**
+ * Tracks actual payments made against recurring outgoings.
+ * One row per outgoing per month = "I paid my rent for Feb 2026".
+ * The `period_month` column stores the first day of the target month (YYYY-MM-01).
+ */
+export const outgoingPaymentLogs = pgTable(
+  "outgoing_payment_logs",
+  {
+    id: text("id").primaryKey(),
+    outgoingId: text("outgoing_id")
+      .notNull()
+      .references(() => recurringOutgoings.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    paidAt: date("paid_at", { mode: "string" }).notNull(), // actual payment date
+    periodMonth: date("period_month", { mode: "string" }).notNull(), // YYYY-MM-01
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_outgoing_payment_logs_user").on(t.userId, t.paidAt),
+    index("idx_outgoing_payment_logs_outgoing").on(t.outgoingId, t.periodMonth),
+    // One payment per outgoing per month
+    uniqueIndex("idx_outgoing_payment_logs_unique").on(t.outgoingId, t.periodMonth),
+  ],
+);
+
 // ─── Debts & Credits ─────────────────────────────────────────────────────────
 
 export const debtsCredits = pgTable(

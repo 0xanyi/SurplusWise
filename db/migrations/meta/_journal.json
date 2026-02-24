@@ -50,6 +50,13 @@
       "when": 1771972498383,
       "tag": "0006_unusual_mantis",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1771976275523,
+      "tag": "0007_outgoing_payment_logs",
+      "breakpoints": true
     }
   ]
 }

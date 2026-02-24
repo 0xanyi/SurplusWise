@@ -250,6 +250,28 @@ export const recurringOutgoingUpdateSchema = z
     { message: "At least one field must be provided for update" },
   );
 
+// ─── Outgoing Payment Logs ───────────────────────────────────────────────────
+
+/** YYYY-MM-01 format for period month. */
+export const periodMonthSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-01$/, "periodMonth must be YYYY-MM-01 format")
+  .refine(
+    (val) => {
+      const [y, m] = val.split("-").map(Number);
+      const date = new Date(y, m - 1, 1);
+      return date.getFullYear() === y && date.getMonth() === m - 1;
+    },
+    { message: "periodMonth is not a valid calendar month" },
+  );
+
+export const outgoingPaymentLogCreateSchema = z.object({
+  amount: amountSchema,
+  paidAt: dateStringSchema,
+  periodMonth: periodMonthSchema,
+  notes: z.string().nullish(),
+});
+
 // ─── Debts & Credits ─────────────────────────────────────────────────────────
 
 export const debtTypeSchema = z.enum([

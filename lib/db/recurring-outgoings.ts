@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { recurringOutgoings } from "@/db/schema";
+import { recurringOutgoings, outgoingPaymentLogs } from "@/db/schema";
 import {
   userIdSchema,
   idSchema,

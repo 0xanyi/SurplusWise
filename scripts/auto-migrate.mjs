@@ -80,6 +80,7 @@ async function quickSchemaCheck(client) {
     "users",
     "transactions",
     "recurring_outgoings",
+    "outgoing_payment_logs",
     "debts_credits",
     "loans_given",
     "investments",

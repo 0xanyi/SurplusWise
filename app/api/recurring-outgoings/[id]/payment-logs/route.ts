@@ -1,0 +1,89 @@
+import { requireAuth } from "@/lib/auth-server";
+import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
+import { NextRequest, NextResponse } from "next/server";
+import { ZodError } from "zod";
+
+function toPaymentLog(row: Record<string, unknown>) {
+  return {
+    id: row.id,
+    outgoing_id: row.outgoingId,
+    amount: Number(row.amount),
+    paid_at: row.paidAt,
+    period_month: row.periodMonth,
+    notes: row.notes,
+    created_at: row.createdAt,
+  };
+}
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const userId = await requireAuth();
+    const { id: outgoingId } = await params;
+
+    const logs = await paymentLogService.listForOutgoing(userId, outgoingId);
+    return NextResponse.json({ logs: logs.map(toPaymentLog) });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (error instanceof Error && error.message.includes("not found")) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    console.error("Failed to fetch payment logs:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch payment logs" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const userId = await requireAuth();
+    const { id: outgoingId } = await params;
+    const body = await request.json();
+
+    const row = await paymentLogService.create(userId, outgoingId, {
+      amount: body.amount,
+      paidAt: body.paidAt ?? body.paid_at,
+      periodMonth: body.periodMonth ?? body.period_month,
+      notes: body.notes,
+    });
+
+    return NextResponse.json(toPaymentLog(row));
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (error instanceof Error && error.message.includes("not found")) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: error.issues[0]?.message ?? "Validation error" },
+        { status: 400 },
+      );
+    }
+    // Unique constraint violation (duplicate payment for the same month)
+    if (
+      error instanceof Error &&
+      error.message.includes("unique")
+    ) {
+      return NextResponse.json(
+        { error: "Payment already logged for this month" },
+        { status: 409 },
+      );
+    }
+    console.error("Failed to create payment log:", error);
+    return NextResponse.json(
+      { error: "Failed to create payment log" },
+      { status: 500 },
+    );
+  }
+}
