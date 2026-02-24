@@ -41,11 +41,15 @@ S3_SECRET_ACCESS_KEY=minioadmin
 NEXT_PUBLIC_SITE_URL=https://your-app-domain.com
 ```
 
-### Step 3: Run Migrations
+### Step 3: Run Migrations (Required)
 
-> **Important:** The production Docker image uses Next.js standalone output and
-> does **not** include `drizzle-kit` or source files. You cannot run
-> `npm run db:migrate` inside the running container.
+> **Required:** migrations must be applied **before** app deploy.
+> The app container runs a startup DB schema verification and will fail to boot
+> if required schema changes are missing.
+>
+> **Why:** the production Docker image uses Next.js standalone output and does
+> **not** include `drizzle-kit` or source files, so `npm run db:migrate` cannot
+> run inside the runtime container.
 
 Apply migrations from a machine that has the full repository checkout:
 
@@ -57,10 +61,10 @@ DATABASE_URL=postgresql://postgres:pw@<db-host>:5432/surpluswise \
   npx drizzle-kit migrate
 ```
 
-**Option B — One-off Docker container from the builder stage**
+**Option B — One-off Docker container from the migrator stage**
 
 ```bash
-docker build --target builder -t surpluswise-migrate .
+docker build --target migrator -t surpluswise-migrate .
 docker run --rm \
   -e DATABASE_URL=postgresql://postgres:pw@<db-host>:5432/surpluswise \
   surpluswise-migrate npx drizzle-kit migrate
@@ -80,6 +84,11 @@ from the Dokploy network.
 
 Click **Deploy** and monitor build logs.
 
+### Production Protocol Checklist
+
+Use the exact command/order runbook here:
+- [docs/PROD_GO_LIVE_CHECKLIST.md](docs/PROD_GO_LIVE_CHECKLIST.md)
+
 ## Environment Variables Reference
 
 | Variable | Required | Description |
@@ -94,6 +103,9 @@ Click **Deploy** and monitor build logs.
 | `S3_ACCESS_KEY_ID` | No | S3 access key |
 | `S3_SECRET_ACCESS_KEY` | No | S3 secret key |
 | `S3_PUBLIC_URL` | No | Public CDN prefix for stored files |
+| `SKIP_DB_SCHEMA_CHECK` | No | Keep `false` in production (startup migration gate) |
+| `DB_SCHEMA_CHECK_RETRIES` | No | DB readiness retries before startup fails (default 20) |
+| `DB_SCHEMA_CHECK_RETRY_DELAY_MS` | No | Delay between retries in ms (default 2000) |
 
 ## Troubleshooting
 

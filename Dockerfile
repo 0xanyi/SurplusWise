@@ -16,6 +16,13 @@ COPY package.json package-lock.json ./
 # Install dependencies
 RUN npm ci --legacy-peer-deps
 
+# ---- Migrator (full source + drizzle-kit, no Next build) ----
+FROM base AS migrator
+WORKDIR /app
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
 # ---- Builder ----
 FROM base AS builder
 WORKDIR /app
@@ -57,6 +64,7 @@ RUN chown nextjs:nodejs .next
 # Copy standalone output and static files
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/verify-db-schema.mjs ./verify-db-schema.mjs
 
 USER nextjs
 
@@ -65,4 +73,4 @@ EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-CMD ["node", "server.js"]
+CMD ["sh", "-c", "node verify-db-schema.mjs && node server.js"]

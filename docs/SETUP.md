@@ -103,6 +103,9 @@ In the application service → Environment:
 | `S3_ACCESS_KEY_ID` | No | S3 access key |
 | `S3_SECRET_ACCESS_KEY` | No | S3 secret key |
 | `S3_PUBLIC_URL` | No | Public CDN/URL prefix |
+| `SKIP_DB_SCHEMA_CHECK` | No | Keep `false` in production (startup migration gate) |
+| `DB_SCHEMA_CHECK_RETRIES` | No | DB readiness retries before startup fails (default 20) |
+| `DB_SCHEMA_CHECK_RETRY_DELAY_MS` | No | Delay between retries in ms (default 2000) |
 
 **Build args** (set in Build section):
 
@@ -110,11 +113,15 @@ In the application service → Environment:
 |-----|-------------|
 | `NEXT_PUBLIC_SITE_URL` | Same as runtime — needed at build time for metadata |
 
-### Step 3: Run Migrations
+### Step 3: Run Migrations (Required)
 
-> **Important:** The production Docker image uses Next.js standalone output and
-> does **not** include `drizzle-kit` or source files. You cannot run
-> `npm run db:migrate` inside the running container.
+> **Required:** migrations must be applied **before** app deploy.
+> The app container now runs a startup DB schema check and will refuse to boot
+> if required tables/columns are missing.
+>
+> **Why:** the production Docker image uses Next.js standalone output and does
+> **not** include `drizzle-kit` or source files, so `npm run db:migrate` cannot
+> run inside the app runtime container.
 
 Apply migrations from a machine that has the full repository checkout:
 
@@ -133,12 +140,12 @@ deploy step so that the schema is always up-to-date when the new image starts.
 
 **Option B — Multi-stage Docker migration job**
 
-Run a one-off container from the *builder* stage of the Dockerfile (which still
-has `node_modules` and source):
+Run a one-off container from the dedicated *migrator* stage of the Dockerfile
+(which has `node_modules` + source, but skips Next build):
 
 ```bash
-# Build just the builder stage:
-docker build --target builder -t surpluswise-migrate .
+# Build just the migrator stage:
+docker build --target migrator -t surpluswise-migrate .
 
 # Run the migration:
 docker run --rm \
@@ -159,6 +166,11 @@ Click **Deploy** in Dokploy. Monitor build logs. Once complete, access via your 
 2. Add your custom domain.
 3. Enable HTTPS (Let's Encrypt auto-provisions).
 4. Container port: `3000`.
+
+### Production Runbook
+
+For exact production command order, use:
+- [docs/PROD_GO_LIVE_CHECKLIST.md](./PROD_GO_LIVE_CHECKLIST.md)
 
 ---
 

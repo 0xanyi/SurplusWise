@@ -108,10 +108,13 @@ OPENAI_API_KEY=your_openai_api_key
 
 See `.env.example` for the full list including S3 storage vars.
 
-4. Run database migrations:
+4. Run database migrations (**required**):
 ```bash
 npm run db:migrate
 ```
+
+> Production note: Docker runtime will refuse startup if required migrations are
+> missing. See Dokploy runbook: `docs/PROD_GO_LIVE_CHECKLIST.md`.
 
 5. Start the development server:
 ```bash
@@ -121,6 +124,7 @@ npm run dev
 6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 > For detailed setup instructions (including Dokploy deployment), see [docs/SETUP.md](docs/SETUP.md).
+> For production release command order, use [docs/PROD_GO_LIVE_CHECKLIST.md](docs/PROD_GO_LIVE_CHECKLIST.md).
 
 ## Project Structure
 
