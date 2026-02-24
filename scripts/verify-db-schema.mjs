@@ -10,6 +10,13 @@ const REQUIRED_TABLES = [
   "transactions",
   "categories",
   "budgets",
+  "recurring_outgoings",
+  "debts_credits",
+  "debt_balance_logs",
+  "loans_given",
+  "loan_repayments",
+  "investments",
+  "investment_events",
 ];
 
 // Columns that guarantee latest migrations have been applied.
@@ -18,6 +25,10 @@ const REQUIRED_COLUMNS = [
   { table: "transactions", column: "date" },
   { table: "budgets", column: "start_date" },
   { table: "budgets", column: "end_date" },
+  { table: "recurring_outgoings", column: "day_of_month" },
+  { table: "debts_credits", column: "current_balance" },
+  { table: "loans_given", column: "outstanding_balance" },
+  { table: "investments", column: "current_value" },
 ];
 
 const RETRIES = Number(process.env.DB_SCHEMA_CHECK_RETRIES ?? "20");
