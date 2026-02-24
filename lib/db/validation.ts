@@ -206,3 +206,97 @@ export const analyticsQuerySchema = z
     },
     { message: "startDate must be on or before endDate" },
   );
+
+// ─── Recurring Outgoings ─────────────────────────────────────────────────────
+
+// Product scope: recurring outgoings are currently monthly only.
+export const outgoingFrequencySchema = z.enum(["monthly"]);
+
+/** Day of month 1-31. */
+export const dayOfMonthSchema = z
+  .number()
+  .int("dayOfMonth must be an integer")
+  .min(1, "dayOfMonth must be 1-31")
+  .max(31, "dayOfMonth must be 1-31");
+
+export const recurringOutgoingCreateSchema = z.object({
+  name: z.string().min(1, "name is required").max(100),
+  amount: amountSchema,
+  dayOfMonth: dayOfMonthSchema,
+  frequency: outgoingFrequencySchema.optional().default("monthly"),
+  category: z.string().max(100).nullish(),
+  notes: z.string().nullish(),
+});
+
+export const recurringOutgoingUpdateSchema = z
+  .object({
+    name: z.string().min(1).max(100).optional(),
+    amount: amountSchema.optional(),
+    dayOfMonth: dayOfMonthSchema.optional(),
+    frequency: outgoingFrequencySchema.optional(),
+    category: z.string().max(100).nullish(),
+    notes: z.string().nullish(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.amount !== undefined ||
+      data.dayOfMonth !== undefined ||
+      data.frequency !== undefined ||
+      data.category !== undefined ||
+      data.notes !== undefined ||
+      data.isActive !== undefined,
+    { message: "At least one field must be provided for update" },
+  );
+
+// ─── Debts & Credits ─────────────────────────────────────────────────────────
+
+export const debtTypeSchema = z.enum([
+  "credit_card",
+  "loan",
+  "mortgage",
+  "overdraft",
+  "other",
+]);
+
+export const debtCreditCreateSchema = z.object({
+  name: z.string().min(1, "name is required").max(200),
+  debtType: debtTypeSchema,
+  lender: z.string().max(200).nullish(),
+  currentBalance: z.number().min(0, "balance must be non-negative"),
+  creditLimit: z.number().min(0).nullish(),
+  interestRate: z.number().min(0).max(100).nullish(),
+  minimumPayment: z.number().min(0).nullish(),
+  paymentDayOfMonth: dayOfMonthSchema.nullish(),
+  startDate: dateStringSchema.nullish(),
+  endDate: dateStringSchema.nullish(),
+  notes: z.string().nullish(),
+});
+
+export const debtCreditUpdateSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    debtType: debtTypeSchema.optional(),
+    lender: z.string().max(200).nullish(),
+    currentBalance: z.number().min(0).optional(),
+    creditLimit: z.number().min(0).nullish(),
+    interestRate: z.number().min(0).max(100).nullish(),
+    minimumPayment: z.number().min(0).nullish(),
+    paymentDayOfMonth: dayOfMonthSchema.nullish(),
+    startDate: dateStringSchema.nullish(),
+    endDate: dateStringSchema.nullish(),
+    notes: z.string().nullish(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    (data) => Object.values(data).some((v) => v !== undefined),
+    { message: "At least one field must be provided for update" },
+  );
+
+export const balanceLogCreateSchema = z.object({
+  balance: z.number().min(0, "balance must be non-negative"),
+  paymentMade: z.number().min(0).nullish(),
+  notes: z.string().nullish(),
+  loggedAt: dateStringSchema,
+});

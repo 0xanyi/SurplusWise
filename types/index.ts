@@ -120,3 +120,52 @@ export function getErrorMessage(error: unknown): string {
   }
   return 'An unexpected error occurred'
 }
+
+// ─── Recurring Outgoings ─────────────────────────────────────────────────────
+
+export type OutgoingFrequency = 'monthly' | 'quarterly' | 'yearly'
+
+export interface ApiRecurringOutgoing {
+  id: string
+  name: string
+  amount: number
+  day_of_month: number
+  frequency: OutgoingFrequency
+  category: string | null
+  notes: string | null
+  is_active: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
+// ─── Debts & Credits ─────────────────────────────────────────────────────────
+
+export type DebtType = 'credit_card' | 'loan' | 'mortgage' | 'overdraft' | 'other'
+
+export interface ApiDebtCredit {
+  id: string
+  name: string
+  debt_type: DebtType
+  lender: string | null
+  current_balance: number
+  credit_limit: number | null
+  interest_rate: number | null
+  minimum_payment: number | null
+  payment_day_of_month: number | null
+  start_date: string | null
+  end_date: string | null
+  notes: string | null
+  is_active: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ApiBalanceLog {
+  id: string
+  debt_id: string
+  balance: number
+  payment_made: number | null
+  notes: string | null
+  logged_at: string
+  created_at: string | null
+}

@@ -29,6 +29,20 @@
       "when": 1772049600000,
       "tag": "0003_tranquil_seed_marker",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1771968781845,
+      "tag": "0004_vengeful_bloodscream",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1771971482441,
+      "tag": "0005_lean_war_machine",
+      "breakpoints": true
     }
   ]
 }

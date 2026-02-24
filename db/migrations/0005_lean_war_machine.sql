@@ -1,0 +1,2 @@
+ALTER TABLE "debts_credits" ADD CONSTRAINT "chk_debts_credits_payment_day_of_month" CHECK ("debts_credits"."payment_day_of_month" IS NULL OR "debts_credits"."payment_day_of_month" BETWEEN 1 AND 31);--> statement-breakpoint
+ALTER TABLE "recurring_outgoings" ADD CONSTRAINT "chk_recurring_outgoings_day_of_month" CHECK ("recurring_outgoings"."day_of_month" BETWEEN 1 AND 31);

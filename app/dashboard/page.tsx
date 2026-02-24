@@ -10,6 +10,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { BudgetOverview } from "@/components/dashboard/budget-overview";
+import { OutgoingsOverview } from "@/components/dashboard/outgoings-overview";
+import { DebtsOverview } from "@/components/dashboard/debts-overview";
 import type { ApiTransaction } from "@/types";
 
 function getGreeting() {
@@ -197,6 +199,11 @@ export default function DashboardPage() {
       <DashboardClient onDataChanged={loadData} />
 
       <BudgetOverview />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <OutgoingsOverview />
+        <DebtsOverview />
+      </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between pb-3">

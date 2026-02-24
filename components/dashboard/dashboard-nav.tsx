@@ -12,6 +12,8 @@ import {
   X,
   LogOut,
   Wallet,
+  Receipt,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -42,6 +44,8 @@ interface DashboardNavProps {
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/dashboard/transactions", icon: ArrowLeftRight, label: "Transactions" },
+  { href: "/dashboard/outgoings", icon: Receipt, label: "Outgoings" },
+  { href: "/dashboard/debts", icon: CreditCard, label: "Debts" },
   { href: "/dashboard/reports", icon: BarChart3, label: "Reports" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
