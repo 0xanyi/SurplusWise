@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, Pencil, Receipt, Search, Trash2, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, FileText, Pencil, Search, Trash2, TrendingUp } from "lucide-react";
 import type { TransactionType, ApiTransaction } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
@@ -207,7 +207,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
           ) : transactions.length === 0 ? (
             <div className="py-14 text-center">
               <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-muted">
-                <Receipt className="size-5 text-muted-foreground" />
+                <FileText className="size-5 text-muted-foreground" />
               </div>
               <p className="font-medium">No transactions found</p>
               <p className="mt-1 text-sm text-muted-foreground">Try another filter or search term.</p>

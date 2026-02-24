@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
-  Receipt,
+  ArrowLeftRight,
   BarChart3,
   Settings,
   Menu,
@@ -41,7 +41,7 @@ interface DashboardNavProps {
 
 const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/dashboard/transactions", icon: Receipt, label: "Transactions" },
+  { href: "/dashboard/transactions", icon: ArrowLeftRight, label: "Transactions" },
   { href: "/dashboard/reports", icon: BarChart3, label: "Reports" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];

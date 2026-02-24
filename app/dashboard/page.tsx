@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowDownRight, ArrowUpRight, Loader2, Receipt, RefreshCw, TrendingUp, Wallet } from "lucide-react";
+import { AlertCircle, ArrowDownRight, ArrowUpRight, FileText, Loader2, RefreshCw, TrendingUp, Wallet } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -174,20 +174,20 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
         {summary.map((card) => {
           const Icon = card.icon;
           return (
             <Card key={card.title}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
-                <div className={cn("rounded-lg p-2", card.bgColor)}>
-                  <Icon className={cn("size-4", card.color)} />
+              <CardHeader className="flex flex-row items-center justify-between pb-1 pt-4 px-4 sm:pb-2 sm:p-6">
+                <CardTitle className="text-xs font-medium text-muted-foreground sm:text-sm">{card.title}</CardTitle>
+                <div className={cn("rounded-lg p-1.5 sm:p-2", card.bgColor)}>
+                  <Icon className={cn("size-3.5 sm:size-4", card.color)} />
                 </div>
               </CardHeader>
-              <CardContent>
-                <div className={cn("text-2xl font-semibold tabular-nums", card.color)}>{formatCurrency(card.value)}</div>
-                {card.subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{card.subtitle}</p>}
+              <CardContent className="px-4 pb-4 sm:p-6 sm:pt-0">
+                <div className={cn("text-lg font-semibold tabular-nums sm:text-2xl", card.color)}>{formatCurrency(card.value)}</div>
+                {card.subtitle && <p className="mt-0.5 text-[10px] text-muted-foreground sm:text-xs">{card.subtitle}</p>}
               </CardContent>
             </Card>
           );
@@ -211,7 +211,7 @@ export default function DashboardPage() {
           {recent.length === 0 ? (
             <div className="py-12 text-center">
               <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-muted">
-                <Receipt className="size-5 text-muted-foreground" />
+                <FileText className="size-5 text-muted-foreground" />
               </div>
               <p className="font-medium">No transactions yet</p>
               <p className="mt-1 text-sm text-muted-foreground">Use Quick add to create your first entry.</p>
