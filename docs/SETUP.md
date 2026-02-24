@@ -103,8 +103,11 @@ In the application service → Environment:
 | `S3_ACCESS_KEY_ID` | No | S3 access key |
 | `S3_SECRET_ACCESS_KEY` | No | S3 secret key |
 | `S3_PUBLIC_URL` | No | Public CDN/URL prefix |
-| `SKIP_DB_SCHEMA_CHECK` | No | Keep `false` in production (startup migration gate) |
-| `DB_SCHEMA_CHECK_RETRIES` | No | DB readiness retries before startup fails (default 20) |
+| `SKIP_DB_AUTO_MIGRATE` | No | Keep `false` in production (enable auto migration) |
+| `DB_MIGRATE_RETRIES` | No | DB connection retries for auto-migrate (default 20) |
+| `DB_MIGRATE_RETRY_DELAY_MS` | No | Delay between migrate retries in ms (default 2000) |
+| `SKIP_DB_SCHEMA_CHECK` | No | Keep `false` in production (enable startup schema gate) |
+| `DB_SCHEMA_CHECK_RETRIES` | No | DB readiness retries for schema check (default 20) |
 | `DB_SCHEMA_CHECK_RETRY_DELAY_MS` | No | Delay between retries in ms (default 2000) |
 
 **Build args** (set in Build section):
@@ -113,48 +116,26 @@ In the application service → Environment:
 |-----|-------------|
 | `NEXT_PUBLIC_SITE_URL` | Same as runtime — needed at build time for metadata |
 
-### Step 3: Run Migrations (Required)
+### Step 3: Automatic Migration + Schema Gate (Enabled)
 
-> **Required:** migrations must be applied **before** app deploy.
-> The app container now runs a startup DB schema check and will refuse to boot
-> if required tables/columns are missing.
->
-> **Why:** the production Docker image uses Next.js standalone output and does
-> **not** include `drizzle-kit` or source files, so `npm run db:migrate` cannot
-> run inside the app runtime container.
+For single-service Dockerfile deploys, the container now performs startup steps
+in this order:
 
-Apply migrations from a machine that has the full repository checkout:
+1. `node auto-migrate.mjs` (applies pending Drizzle migrations)
+2. `node verify-db-schema.mjs` (ensures required tables/columns exist)
+3. `node server.js` (starts app)
 
-**Option A — Run from your local machine / CI (recommended)**
+So you do **not** need to run migrations manually before each deploy.
 
-```bash
-# Point DATABASE_URL at the production database.
-# Use the same internal hostname if running from the Dokploy host,
-# or an externally-reachable address otherwise.
-DATABASE_URL=postgresql://postgres:pw@<db-host>:5432/surpluswise \
-  npx drizzle-kit migrate
+Recommended production settings:
+
+```env
+SKIP_DB_AUTO_MIGRATE=false
+SKIP_DB_SCHEMA_CHECK=false
 ```
 
-In a CI pipeline (e.g., GitHub Actions), add a migration step **before** the
-deploy step so that the schema is always up-to-date when the new image starts.
-
-**Option B — Multi-stage Docker migration job**
-
-Run a one-off container from the dedicated *migrator* stage of the Dockerfile
-(which has `node_modules` + source, but skips Next build):
-
-```bash
-# Build just the migrator stage:
-docker build --target migrator -t surpluswise-migrate .
-
-# Run the migration:
-docker run --rm \
-  -e DATABASE_URL=postgresql://postgres:pw@<db-host>:5432/surpluswise \
-  surpluswise-migrate npx drizzle-kit migrate
-```
-
-Dokploy supports running one-off tasks — use this approach there if you prefer
-not to expose the database externally.
+If DB connectivity is unavailable, startup fails fast and container restarts
+until the database is reachable.
 
 ### Step 4: Deploy
 

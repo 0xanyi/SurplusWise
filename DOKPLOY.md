@@ -41,37 +41,23 @@ S3_SECRET_ACCESS_KEY=minioadmin
 NEXT_PUBLIC_SITE_URL=https://your-app-domain.com
 ```
 
-### Step 3: Run Migrations (Required)
+### Step 3: Automatic Migration on Startup (Enabled)
 
-> **Required:** migrations must be applied **before** app deploy.
-> The app container runs a startup DB schema verification and will fail to boot
-> if required schema changes are missing.
->
-> **Why:** the production Docker image uses Next.js standalone output and does
-> **not** include `drizzle-kit` or source files, so `npm run db:migrate` cannot
-> run inside the runtime container.
+For single-service Dockerfile deploys, the app now runs migrations automatically
+on startup before serving traffic:
 
-Apply migrations from a machine that has the full repository checkout:
+1. `node auto-migrate.mjs` (with PostgreSQL advisory lock)
+2. `node verify-db-schema.mjs` (schema gate)
+3. `node server.js`
 
-**Option A — From your local machine or CI (recommended)**
+This means you do **not** need to run migrations locally first for normal deploys.
 
-```bash
-# Point DATABASE_URL at the production database
-DATABASE_URL=postgresql://postgres:pw@<db-host>:5432/surpluswise \
-  npx drizzle-kit migrate
-```
+> Recommended: keep this enabled in production:
+> - `SKIP_DB_AUTO_MIGRATE=false`
+> - `SKIP_DB_SCHEMA_CHECK=false`
 
-**Option B — One-off Docker container from the migrator stage**
-
-```bash
-docker build --target migrator -t surpluswise-migrate .
-docker run --rm \
-  -e DATABASE_URL=postgresql://postgres:pw@<db-host>:5432/surpluswise \
-  surpluswise-migrate npx drizzle-kit migrate
-```
-
-Dokploy supports one-off tasks — use option B if the database is only reachable
-from the Dokploy network.
+If your DB is inaccessible at startup, the container will fail fast and restart
+until connectivity is restored.
 
 ### Step 4: Configure Domain & SSL
 
@@ -103,9 +89,12 @@ Use the exact command/order runbook here:
 | `S3_ACCESS_KEY_ID` | No | S3 access key |
 | `S3_SECRET_ACCESS_KEY` | No | S3 secret key |
 | `S3_PUBLIC_URL` | No | Public CDN prefix for stored files |
-| `SKIP_DB_SCHEMA_CHECK` | No | Keep `false` in production (startup migration gate) |
-| `DB_SCHEMA_CHECK_RETRIES` | No | DB readiness retries before startup fails (default 20) |
-| `DB_SCHEMA_CHECK_RETRY_DELAY_MS` | No | Delay between retries in ms (default 2000) |
+| `SKIP_DB_AUTO_MIGRATE` | No | Keep `false` in production (enable auto migration) |
+| `DB_MIGRATE_RETRIES` | No | DB connection retries for auto-migrate (default 20) |
+| `DB_MIGRATE_RETRY_DELAY_MS` | No | Delay between migrate retries in ms (default 2000) |
+| `SKIP_DB_SCHEMA_CHECK` | No | Keep `false` in production (enable startup schema gate) |
+| `DB_SCHEMA_CHECK_RETRIES` | No | DB readiness retries for schema check (default 20) |
+| `DB_SCHEMA_CHECK_RETRY_DELAY_MS` | No | Delay between schema-check retries in ms (default 2000) |
 
 ## Troubleshooting
 
@@ -126,8 +115,8 @@ The app may take 30-60 seconds to start. Increase the health check `start_period
 ## Updating
 
 1. Push changes to your repository.
-2. If the schema changed, run migrations **before** deploy (see Step 3 above).
-3. In Dokploy, click **Redeploy** (or enable auto-deploy from git).
+2. In Dokploy, click **Redeploy** (or enable auto-deploy from git).
+3. Confirm logs show successful `db-migrate` and `db-check` steps.
 
 ## Architecture
 

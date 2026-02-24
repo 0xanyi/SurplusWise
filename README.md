@@ -113,8 +113,9 @@ See `.env.example` for the full list including S3 storage vars.
 npm run db:migrate
 ```
 
-> Production note: Docker runtime will refuse startup if required migrations are
-> missing. See Dokploy runbook: `docs/PROD_GO_LIVE_CHECKLIST.md`.
+> Production note: Docker runtime auto-runs migrations on startup, then verifies
+> schema before serving traffic. See Dokploy runbook:
+> `docs/PROD_GO_LIVE_CHECKLIST.md`.
 
 5. Start the development server:
 ```bash

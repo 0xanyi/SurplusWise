@@ -1,6 +1,6 @@
 # SurplusWise — Production Go-Live Checklist (Dokploy)
 
-This runbook is the **exact command order** for safe deployment.
+This is the exact command/order checklist for single-service Dockerfile deploys.
 
 > Confirmed: no Convex data migration is required.
 
@@ -8,81 +8,87 @@ This runbook is the **exact command order** for safe deployment.
 
 ## 0) Preconditions
 
-- You are on branch `feat/postgres-cutover` (or the merged equivalent).
-- Dokploy Postgres service is created and reachable.
-- Dokploy App service is configured with env vars (`DATABASE_URL`, `BETTER_AUTH_SECRET`, `NEXT_PUBLIC_SITE_URL`, optional S3/OpenAI).
+- Branch is up to date (`feat/postgres-cutover` or merged equivalent).
+- Dokploy Postgres service is healthy and reachable.
+- Dokploy app service env vars are configured.
 
 ---
 
-## 1) Pull latest code locally
+## 1) Local preflight (required)
 
 ```bash
 git checkout feat/postgres-cutover
 git pull origin feat/postgres-cutover
-```
-
----
-
-## 2) Run preflight checks
-
-```bash
 npm install
 npm run lint
 npx tsc --noEmit
 node --import tsx --test lib/db/*.test.ts
 ```
 
-All commands must pass.
+---
+
+## 2) Verify Dokploy env vars
+
+Required:
+
+```env
+DATABASE_URL=postgresql://postgres:<password>@<db-host>:5432/surpluswise
+BETTER_AUTH_SECRET=<openssl rand -base64 32>
+NEXT_PUBLIC_SITE_URL=https://your-domain.com
+```
+
+Recommended safety defaults:
+
+```env
+SKIP_DB_AUTO_MIGRATE=false
+SKIP_DB_SCHEMA_CHECK=false
+DB_MIGRATE_RETRIES=20
+DB_MIGRATE_RETRY_DELAY_MS=2000
+DB_SCHEMA_CHECK_RETRIES=20
+DB_SCHEMA_CHECK_RETRY_DELAY_MS=2000
+```
+
+Optional:
+
+```env
+OPENAI_API_KEY=...
+S3_ENDPOINT=...
+S3_BUCKET=...
+S3_REGION=us-east-1
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_PUBLIC_URL=...
+```
 
 ---
 
-## 3) Set production DB connection for migration command
+## 3) Deploy in Dokploy
 
-Use the same connection string Dokploy uses for app runtime:
-
-```bash
-export DATABASE_URL='postgresql://postgres:<password>@<db-host>:5432/surpluswise'
-```
-
-Optional sanity check:
-
-```bash
-node -e "const {Client}=require('pg');(async()=>{const c=new Client({connectionString:process.env.DATABASE_URL});await c.connect();const r=await c.query('select now()');console.log('db ok',r.rows[0]);await c.end();})().catch(e=>{console.error(e);process.exit(1);});"
-```
-
----
-
-## 4) Apply migrations (**required before deploy**)
-
-```bash
-npx drizzle-kit migrate
-```
-
-If this fails, **stop here**. Do not deploy app image.
-
----
-
-## 5) Verify schema after migration
-
-```bash
-node -e "const {Client}=require('pg');(async()=>{const c=new Client({connectionString:process.env.DATABASE_URL});await c.connect();const q=await c.query(\"select table_name from information_schema.tables where table_schema='public' and table_name in ('users','sessions','accounts','verifications','transactions','categories','budgets') order by table_name\");console.table(q.rows);const q2=await c.query(\"select column_name from information_schema.columns where table_schema='public' and table_name='transactions' and column_name='receipt_storage_id'\");if(!q2.rowCount){throw new Error('missing transactions.receipt_storage_id')}await c.end();console.log('schema check ok');})().catch(e=>{console.error(e);process.exit(1);});"
-```
-
----
-
-## 6) Deploy in Dokploy
-
-1. Open Dokploy → your app service.
-2. Confirm env vars are set.
+1. Open Dokploy → app service.
+2. Confirm env vars + build arg `NEXT_PUBLIC_SITE_URL`.
 3. Click **Deploy / Redeploy**.
-4. Wait for container health to turn green.
 
-> Runtime includes DB schema verification on startup. If migrations were skipped,
-> app boot will fail fast.
+At startup, container runs automatically:
+1. `auto-migrate` (applies migrations)
+2. `db-check` (verifies schema)
+3. starts Next.js server
 
 ---
 
-## 7) Post-deploy smoke test
+## 4) Watch logs (required)
+
+In Dokploy logs, confirm these lines appear in order:
+
+- `[db-migrate] ... Running migrations...`
+- `[db-migrate] ... Migrations complete.`
+- `[db-check] ... Schema verification passed.`
+- `✓ Ready`
+
+If migration/check fails, fix DB/env and redeploy.
+
+---
+
+## 5) Smoke test
 
 ```bash
 APP_URL='https://<your-domain>'
@@ -92,26 +98,24 @@ curl -I "$APP_URL/api/auth/get-session"
 curl -I "$APP_URL/api/analytics?period=month"
 ```
 
-Then do manual checks in browser:
+Manual checks:
 - Sign up / sign in
-- Add quick transaction
+- Quick add transaction
 - Create budget/category
-- Open reports page
-- Scan a receipt (if S3/OpenAI configured)
+- Reports page loads
+- Receipt scan works (if OpenAI + S3 configured)
 
 ---
 
-## 8) Rollback protocol (if needed)
+## 6) Rollback protocol
 
 1. In Dokploy, redeploy previous known-good image/commit.
-2. If a migration caused issues, restore DB from backup/snapshot.
+2. If needed, restore DB from snapshot.
 3. Re-run smoke tests.
 
 ---
 
-## 9) Promote branch
-
-After successful smoke test:
+## 7) Promote branch
 
 ```bash
 git checkout main
@@ -120,4 +124,4 @@ git merge --ff-only feat/postgres-cutover
 git push origin main
 ```
 
-(Use PR merge flow if your repo requires it.)
+(Use PR merge flow if required by your repo settings.)
