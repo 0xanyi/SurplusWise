@@ -46,7 +46,7 @@ async function connectWithRetry() {
   throw lastError;
 }
 
-function runDrizzleMigrate() {
+function runDrizzleCommand(command) {
   return new Promise((resolve, reject) => {
     const bin = "./node_modules/.bin/drizzle-kit";
 
@@ -55,7 +55,7 @@ function runDrizzleMigrate() {
       return;
     }
 
-    const child = spawn(bin, ["migrate", "--config=drizzle.config.ts"], {
+    const child = spawn(bin, [command, "--config=drizzle.config.ts"], {
       stdio: "inherit",
       env: process.env,
     });
@@ -65,10 +65,34 @@ function runDrizzleMigrate() {
       if (code === 0) {
         resolve();
       } else {
-        reject(new Error(`drizzle-kit migrate exited with code ${code}`));
+        reject(new Error(`drizzle-kit ${command} exited with code ${code}`));
       }
     });
   });
+}
+
+/**
+ * Minimal schema check: verify a few key tables exist.
+ * Returns list of missing tables (empty = all good).
+ */
+async function quickSchemaCheck(client) {
+  const SPOT_CHECK_TABLES = [
+    "users",
+    "transactions",
+    "recurring_outgoings",
+    "debts_credits",
+    "loans_given",
+    "investments",
+  ];
+
+  const result = await client.query(
+    `SELECT table_name FROM information_schema.tables
+     WHERE table_schema = 'public' AND table_name = ANY($1)`,
+    [SPOT_CHECK_TABLES],
+  );
+
+  const found = new Set(result.rows.map((r) => r.table_name));
+  return SPOT_CHECK_TABLES.filter((t) => !found.has(t));
 }
 
 async function main() {
@@ -80,9 +104,33 @@ async function main() {
     await client.query("SELECT pg_advisory_lock($1)", [LOCK_ID]);
 
     try {
+      // Step 1: Run drizzle-kit migrate (applies pending migrations)
       console.log("[db-migrate] Running migrations...");
-      await runDrizzleMigrate();
+      await runDrizzleCommand("migrate");
       console.log("[db-migrate] Migrations complete.");
+
+      // Step 2: Quick-check if schema is actually present
+      const missing = await quickSchemaCheck(client);
+
+      if (missing.length > 0) {
+        // Migration journal was out of sync — tables still missing.
+        // Fall back to drizzle-kit push to force-sync the schema.
+        console.warn(
+          `[db-migrate] Migration journal is out of sync — missing tables: ${missing.join(", ")}`,
+        );
+        console.log("[db-migrate] Falling back to drizzle-kit push to sync schema...");
+        await runDrizzleCommand("push");
+        console.log("[db-migrate] Schema push complete.");
+
+        // Verify again
+        const stillMissing = await quickSchemaCheck(client);
+        if (stillMissing.length > 0) {
+          throw new Error(
+            `Schema still incomplete after push. Missing: ${stillMissing.join(", ")}`,
+          );
+        }
+        console.log("[db-migrate] Schema verified after push.");
+      }
     } finally {
       await client.query("SELECT pg_advisory_unlock($1)", [LOCK_ID]);
       console.log("[db-migrate] Advisory lock released.");
