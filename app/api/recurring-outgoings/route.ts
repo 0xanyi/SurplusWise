@@ -1,6 +1,7 @@
 import { requireAuth } from "@/lib/auth-server";
 import * as outgoingsService from "@/lib/db/recurring-outgoings";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
+import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
@@ -20,10 +21,7 @@ function toOutgoing(row: Record<string, unknown>) {
 }
 
 function getCurrentPeriodMonth() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}-01`;
+  return getPeriodMonthFromDate(getCurrentUtcDate());
 }
 
 export async function GET() {

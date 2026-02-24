@@ -57,6 +57,13 @@
       "when": 1771976275523,
       "tag": "0007_outgoing_payment_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1771976793730,
+      "tag": "0008_enforce_period_month_day",
+      "breakpoints": true
     }
   ]
 }

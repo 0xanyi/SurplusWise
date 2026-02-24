@@ -7,6 +7,7 @@ import type { ApiRecurringOutgoing } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
+import { getNextDueDate, isDueDatePassed } from "@/lib/outgoings-date";
 
 function getOrdinalSuffix(day: number) {
   if (day >= 11 && day <= 13) return "th";
@@ -16,23 +17,6 @@ function getOrdinalSuffix(day: number) {
     case 3: return "rd";
     default: return "th";
   }
-}
-
-function getDueDateForMonth(year: number, monthIndex: number, dayOfMonth: number): Date {
-  const lastDay = new Date(year, monthIndex + 1, 0).getDate();
-  return new Date(year, monthIndex, Math.min(dayOfMonth, lastDay));
-}
-
-function getNextDueDate(dayOfMonth: number, reference: Date): Date {
-  const startOfToday = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate());
-  const dueThisMonth = getDueDateForMonth(reference.getFullYear(), reference.getMonth(), dayOfMonth);
-  if (dueThisMonth >= startOfToday) return dueThisMonth;
-  return getDueDateForMonth(reference.getFullYear(), reference.getMonth() + 1, dayOfMonth);
-}
-
-function isDueDatePassed(dayOfMonth: number): boolean {
-  const now = new Date();
-  return now.getDate() > dayOfMonth;
 }
 
 interface OutgoingsResponse {

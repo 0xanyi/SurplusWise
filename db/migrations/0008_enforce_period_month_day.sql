@@ -1,0 +1,1 @@
+ALTER TABLE "outgoing_payment_logs" ADD CONSTRAINT "chk_outgoing_payment_logs_period_month_day" CHECK (EXTRACT(DAY FROM "outgoing_payment_logs"."period_month") = 1);

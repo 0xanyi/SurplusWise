@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth-server";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
+import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
@@ -49,10 +50,15 @@ export async function POST(
     const { id: outgoingId } = await params;
     const body = await request.json();
 
+    const requestedPaidAt = body.paidAt ?? body.paid_at;
+    const paidAt =
+      typeof requestedPaidAt === "string" ? requestedPaidAt : getCurrentUtcDate();
+
     const row = await paymentLogService.create(userId, outgoingId, {
       amount: body.amount,
-      paidAt: body.paidAt ?? body.paid_at,
-      periodMonth: body.periodMonth ?? body.period_month,
+      paidAt,
+      // Canonical period month is derived server-side from paidAt
+      periodMonth: getPeriodMonthFromDate(paidAt),
       notes: body.notes,
     });
 

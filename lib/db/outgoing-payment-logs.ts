@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, desc, sql } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { outgoingPaymentLogs, recurringOutgoings } from "@/db/schema";
 import {
@@ -51,43 +51,6 @@ export async function listForOutgoing(userId: string, outgoingId: string) {
 }
 
 /**
- * List payment logs for a user within a date range.
- * Used by analytics to include outgoing payments as expenses.
- */
-export async function listForPeriod(
-  userId: string,
-  startDate: string,
-  endDate: string,
-) {
-  userIdSchema.parse(userId);
-
-  return db
-    .select({
-      id: outgoingPaymentLogs.id,
-      outgoingId: outgoingPaymentLogs.outgoingId,
-      amount: outgoingPaymentLogs.amount,
-      paidAt: outgoingPaymentLogs.paidAt,
-      periodMonth: outgoingPaymentLogs.periodMonth,
-      notes: outgoingPaymentLogs.notes,
-      outgoingName: recurringOutgoings.name,
-      outgoingCategory: recurringOutgoings.category,
-    })
-    .from(outgoingPaymentLogs)
-    .innerJoin(
-      recurringOutgoings,
-      eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id),
-    )
-    .where(
-      and(
-        eq(outgoingPaymentLogs.userId, userId),
-        gte(outgoingPaymentLogs.paidAt, startDate),
-        lte(outgoingPaymentLogs.paidAt, endDate),
-      ),
-    )
-    .orderBy(desc(outgoingPaymentLogs.paidAt));
-}
-
-/**
  * Get payment status for all active outgoings for a specific month.
  * Returns which outgoings have been paid and which are still pending.
  */
@@ -120,36 +83,6 @@ export async function getMonthlyStatus(userId: string, periodMonth: string) {
   }
 
   return paymentMap;
-}
-
-/**
- * Get total outgoing payments within a date range (for analytics).
- */
-export async function getTotalForPeriod(
-  userId: string,
-  startDate: string,
-  endDate: string,
-) {
-  userIdSchema.parse(userId);
-
-  const [result] = await db
-    .select({
-      total: sql<string>`coalesce(sum(${outgoingPaymentLogs.amount}), 0)`,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(outgoingPaymentLogs)
-    .where(
-      and(
-        eq(outgoingPaymentLogs.userId, userId),
-        gte(outgoingPaymentLogs.paidAt, startDate),
-        lte(outgoingPaymentLogs.paidAt, endDate),
-      ),
-    );
-
-  return {
-    total: Number(result.total),
-    count: result.count,
-  };
 }
 
 /** Log a payment for a recurring outgoing. */

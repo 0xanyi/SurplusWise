@@ -248,6 +248,10 @@ export const outgoingPaymentLogs = pgTable(
   (t) => [
     index("idx_outgoing_payment_logs_user").on(t.userId, t.paidAt),
     index("idx_outgoing_payment_logs_outgoing").on(t.outgoingId, t.periodMonth),
+    check(
+      "chk_outgoing_payment_logs_period_month_day",
+      sql`EXTRACT(DAY FROM ${t.periodMonth}) = 1`,
+    ),
     // One payment per outgoing per month
     uniqueIndex("idx_outgoing_payment_logs_unique").on(t.outgoingId, t.periodMonth),
   ],

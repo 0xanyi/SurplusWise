@@ -17,6 +17,7 @@ import { useApiQuery, apiFetch } from "@/hooks/use-api";
 import type { ApiRecurringOutgoing } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { getCurrentUtcDate, isDueDatePassed } from "@/lib/outgoings-date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,21 +59,8 @@ function getOrdinalSuffix(day: number) {
   }
 }
 
-function getCurrentPeriodMonth() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}-01`;
-}
-
 function getCurrentMonthLabel() {
   return new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
-}
-
-function isDueDatePassed(dayOfMonth: number): boolean {
-  const now = new Date();
-  const today = now.getDate();
-  return today > dayOfMonth;
 }
 
 interface OutgoingsResponse {
@@ -122,16 +110,12 @@ export function RecurringOutgoingsManagement() {
   const handleLogPayment = async (item: ApiRecurringOutgoing) => {
     setLoggingPayment(item.id);
     try {
-      const today = new Date().toISOString().split("T")[0];
-      const periodMonth = getCurrentPeriodMonth();
-
       await apiFetch(`/api/recurring-outgoings/${item.id}/payment-logs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: item.amount,
-          paidAt: today,
-          periodMonth,
+          paidAt: getCurrentUtcDate(),
         }),
       });
       toast({

@@ -206,9 +206,9 @@ export function BalanceLogSection({ debtId, onChanged }: BalanceLogSectionProps)
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(log.logged_at).toLocaleDateString("en-GB")}
-                    {log.payment_made != null && (
+                    {(log.payment_made ?? 0) > 0 && (
                       <span className="ml-2">
-                        Paid: {formatCurrency(log.payment_made)}
+                        Paid: {formatCurrency(log.payment_made!)}
                         <span className="ml-1 text-emerald-600 dark:text-emerald-400">
                           → counted as expense
                         </span>
