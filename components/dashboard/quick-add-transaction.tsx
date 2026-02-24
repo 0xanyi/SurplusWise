@@ -1,25 +1,35 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
 import { Loader2, Plus } from "lucide-react";
-import { api } from "@/convex/_generated/api";
 import type { TransactionType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
+import { useApiQuery, apiFetch } from "@/hooks/use-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface QuickAddTransactionProps {
-  onOpenFullForm?: (type: TransactionType) => void;
+interface ApiCategory {
+  id: string;
+  name: string;
+  type: TransactionType;
+  color: string;
+  icon: string | null;
+  is_default: boolean;
+  created_at: string | null;
 }
 
-export function QuickAddTransaction({ onOpenFullForm }: QuickAddTransactionProps) {
+interface QuickAddTransactionProps {
+  onOpenFullForm?: (type: TransactionType) => void;
+  onTransactionAdded?: () => void;
+}
+
+export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: QuickAddTransactionProps) {
   const { toast } = useToast();
-  const categories = useQuery(api.categories.list, {});
-  const createTransaction = useMutation(api.transactions.create);
+  const { data: catData } = useApiQuery<{ categories: ApiCategory[] }>("/api/categories");
+  const categories = catData?.categories;
 
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState<TransactionType>("expense");
@@ -59,9 +69,14 @@ export function QuickAddTransaction({ onOpenFullForm }: QuickAddTransactionProps
 
     setLoading(true);
     try {
-      await createTransaction({ amount: parsedAmount, date, type, category });
+      await apiFetch("/api/transactions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: parsedAmount, date, type, category }),
+      });
       toast({ title: "Saved", description: "Transaction added" });
       setAmount("");
+      onTransactionAdded?.();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to add transaction";
       toast({ title: "Error", description: message, variant: "destructive" });
@@ -122,7 +137,7 @@ export function QuickAddTransaction({ onOpenFullForm }: QuickAddTransactionProps
                 </SelectTrigger>
                 <SelectContent>
                   {filteredCategories.map((item) => (
-                    <SelectItem key={item._id} value={item.name}>
+                    <SelectItem key={item.id} value={item.name}>
                       {item.name}
                     </SelectItem>
                   ))}

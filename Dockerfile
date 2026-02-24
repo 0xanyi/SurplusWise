@@ -26,22 +26,15 @@ COPY . .
 
 # Set environment variables for build
 # These should be provided at build time via Dokploy
-ARG NEXT_PUBLIC_CONVEX_URL
-ARG NEXT_PUBLIC_CONVEX_SITE_URL
 ARG NEXT_PUBLIC_SITE_URL
-ARG CONVEX_DEPLOY_KEY
 
-ENV NEXT_PUBLIC_CONVEX_URL=$NEXT_PUBLIC_CONVEX_URL
-ENV NEXT_PUBLIC_CONVEX_SITE_URL=$NEXT_PUBLIC_CONVEX_SITE_URL
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
-ENV CONVEX_DEPLOY_KEY=$CONVEX_DEPLOY_KEY
 
 # Disable telemetry during build
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Build the Next.js application only (Convex should be deployed separately)
-# Using npx next build directly instead of npm run build to avoid convex deploy
-RUN npx next build
+# Build the Next.js application
+RUN npm run build
 
 # ---- Runner ----
 FROM base AS runner

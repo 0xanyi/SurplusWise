@@ -1,49 +1,111 @@
--- Budget Tracking Schema
--- Add this to your Supabase SQL Editor
+-- ============================================================================
+-- SurplusWise – Postgres Schema Reference
+-- ============================================================================
+-- IMPORTANT: This file is for **documentation only**.
+-- The source of truth is db/schema.ts (Drizzle ORM).
+-- Migrations are generated via `npm run db:generate` into db/migrations/.
+-- ============================================================================
 
--- Create budgets table
-CREATE TABLE IF NOT EXISTS budgets (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  category TEXT NOT NULL,
-  amount DECIMAL(10, 2) NOT NULL,
-  period TEXT CHECK (period IN ('monthly', 'quarterly', 'yearly')) NOT NULL DEFAULT 'monthly',
-  start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
-  type TEXT CHECK (type IN ('expense', 'giving')) NOT NULL DEFAULT 'expense',
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, category, period, start_date, type)
+-- Enums
+CREATE TYPE "transaction_type" AS ENUM ('income', 'expense', 'giving');
+CREATE TYPE "budget_period"    AS ENUM ('monthly', 'quarterly', 'yearly');
+
+-- ── Better Auth tables ──────────────────────────────────────────────────────
+
+CREATE TABLE "users" (
+  "id"             TEXT PRIMARY KEY,
+  "name"           TEXT NOT NULL,
+  "email"          TEXT NOT NULL UNIQUE,
+  "email_verified" BOOLEAN NOT NULL DEFAULT FALSE,
+  "image"          TEXT,
+  "created_at"     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "updated_at"     TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Enable Row Level Security
-ALTER TABLE budgets ENABLE ROW LEVEL SECURITY;
+CREATE TABLE "sessions" (
+  "id"         TEXT PRIMARY KEY,
+  "user_id"    TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+  "token"      TEXT NOT NULL UNIQUE,
+  "expires_at" TIMESTAMPTZ NOT NULL,
+  "ip_address" TEXT,
+  "user_agent" TEXT,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
--- Create policies for budgets
-CREATE POLICY "Users can view own budgets"
-  ON budgets FOR SELECT
-  USING (auth.uid() = user_id);
+CREATE TABLE "accounts" (
+  "id"                       TEXT PRIMARY KEY,
+  "user_id"                  TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+  "account_id"               TEXT NOT NULL,
+  "provider_id"              TEXT NOT NULL,
+  "access_token"             TEXT,
+  "refresh_token"            TEXT,
+  "id_token"                 TEXT,
+  "access_token_expires_at"  TIMESTAMPTZ,
+  "refresh_token_expires_at" TIMESTAMPTZ,
+  "scope"                    TEXT,
+  "password"                 TEXT,
+  "created_at"               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "updated_at"               TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-CREATE POLICY "Users can insert own budgets"
-  ON budgets FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+CREATE TABLE "verifications" (
+  "id"         TEXT PRIMARY KEY,
+  "identifier" TEXT NOT NULL,
+  "value"      TEXT NOT NULL,
+  "expires_at" TIMESTAMPTZ NOT NULL,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
-CREATE POLICY "Users can update own budgets"
-  ON budgets FOR UPDATE
-  USING (auth.uid() = user_id);
+-- ── Domain tables ───────────────────────────────────────────────────────────
 
-CREATE POLICY "Users can delete own budgets"
-  ON budgets FOR DELETE
-  USING (auth.uid() = user_id);
+CREATE TABLE "transactions" (
+  "id"         TEXT PRIMARY KEY,
+  "user_id"    TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+  "amount"     NUMERIC(10,2) NOT NULL,
+  "date"       DATE NOT NULL,
+  "type"       "transaction_type" NOT NULL,
+  "category"   TEXT NOT NULL,
+  "notes"      TEXT,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
--- Create updated_at trigger for budgets
-CREATE TRIGGER update_budgets_updated_at
-  BEFORE UPDATE ON budgets
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+CREATE TABLE "categories" (
+  "id"         TEXT PRIMARY KEY,
+  "user_id"    TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+  "name"       TEXT NOT NULL,
+  "type"       "transaction_type" NOT NULL,
+  "color"      TEXT NOT NULL,
+  "icon"       TEXT,
+  "is_default" BOOLEAN NOT NULL DEFAULT FALSE,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
--- Create indexes for performance
-CREATE INDEX idx_budgets_user_id ON budgets(user_id);
-CREATE INDEX idx_budgets_period ON budgets(period, start_date, end_date);
-CREATE INDEX idx_budgets_category ON budgets(category);
+CREATE TABLE "budgets" (
+  "id"         TEXT PRIMARY KEY,
+  "user_id"    TEXT NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+  "category"   TEXT NOT NULL,
+  "amount"     NUMERIC(10,2) NOT NULL,
+  "period"     "budget_period" NOT NULL DEFAULT 'monthly',
+  "start_date" DATE NOT NULL,
+  "end_date"   DATE NOT NULL,
+  "type"       "transaction_type" NOT NULL DEFAULT 'expense',
+  "is_active"  BOOLEAN NOT NULL DEFAULT TRUE,
+  "created_at" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "updated_at" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ── Indexes ─────────────────────────────────────────────────────────────────
+
+-- Auth indexes
+CREATE INDEX        "idx_accounts_user_id"             ON "accounts"     ("user_id");
+CREATE INDEX        "idx_sessions_user_id"             ON "sessions"     ("user_id");
+CREATE INDEX        "idx_verifications_identifier"     ON "verifications" ("identifier");
+
+-- Domain indexes
+CREATE INDEX        "idx_transactions_user_date"       ON "transactions" ("user_id", "date" DESC);
+CREATE INDEX        "idx_transactions_user_type_date"  ON "transactions" ("user_id", "type", "date" DESC);
+CREATE UNIQUE INDEX "idx_categories_user_type_name"    ON "categories"   ("user_id", "type", "name");
+CREATE INDEX        "idx_budgets_user_active"          ON "budgets"      ("user_id", "is_active");

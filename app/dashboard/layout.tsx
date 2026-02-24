@@ -3,10 +3,8 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
-import { useMutation } from "convex/react";
 import DashboardNav from "@/components/dashboard/dashboard-nav";
 import { authClient } from "@/lib/auth-client";
-import { api } from "@/convex/_generated/api";
 
 export default function DashboardLayout({
   children,
@@ -15,7 +13,6 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
-  const ensureDefaultCategories = useMutation(api.categories.ensureDefaults);
 
   useEffect(() => {
     if (!isPending && !session) {
@@ -23,12 +20,14 @@ export default function DashboardLayout({
       return;
     }
 
+    // Default categories are now seeded server-side on the first
+    // GET /api/categories call, so no explicit mutation is needed.
     if (session?.user?.id) {
-      ensureDefaultCategories({}).catch((error) => {
+      fetch("/api/categories").catch((error) => {
         console.error("Failed to ensure default categories", error);
       });
     }
-  }, [session, isPending, router, ensureDefaultCategories]);
+  }, [session, isPending, router]);
 
   if (isPending) {
     return (

@@ -1,16 +1,16 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "convex/react";
-import { ArrowDownRight, ArrowUpRight, Loader2, Receipt, TrendingUp, Wallet } from "lucide-react";
-import { api } from "@/convex/_generated/api";
+import { AlertCircle, ArrowDownRight, ArrowUpRight, Loader2, Receipt, RefreshCw, TrendingUp, Wallet } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { formatCurrency, cn } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { BudgetOverview } from "@/components/dashboard/budget-overview";
+import type { ApiTransaction } from "@/types";
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -19,35 +19,90 @@ function getGreeting() {
   return "Good evening";
 }
 
+interface TransactionsResponse {
+  transactions: ApiTransaction[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
+
+interface AnalyticsResponse {
+  totalIncome: number;
+  totalExpenses: number;
+  totalGivings: number;
+  netBalance: number;
+}
+
+const ZERO_TOTALS: AnalyticsResponse = {
+  totalIncome: 0,
+  totalExpenses: 0,
+  totalGivings: 0,
+  netBalance: 0,
+};
+
 export default function DashboardPage() {
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
   const firstName = session?.user?.name?.split(" ")[0] || "there";
 
-  const { startDate, endDate } = useMemo(() => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  const [totals, setTotals] = useState<AnalyticsResponse | undefined>(undefined);
+  const [recentTransactions, setRecentTransactions] = useState<ApiTransaction[] | undefined>(undefined);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
-    return {
-      startDate: start.toISOString().split("T")[0],
-      endDate: end.toISOString().split("T")[0],
-    };
-  }, []);
+  const loadData = useCallback(async () => {
+    if (!userId) return;
 
-  const transactions = useQuery(
-    api.transactions.list,
-    userId
-      ? {
-          startDate,
-          endDate,
+    setAnalyticsError(null);
+
+    // Fetch analytics and transactions independently so one failure
+    // doesn't block the other, and the loading state always terminates.
+    const analyticsPromise = fetch("/api/analytics?period=month")
+      .then(async (res) => {
+        if (res.ok) {
+          const data: AnalyticsResponse = await res.json();
+          setTotals(data);
+          setAnalyticsError(null);
+        } else {
+          console.error("Analytics API error:", res.status);
+          setTotals(ZERO_TOTALS);
+          setAnalyticsError("Unable to load analytics. Showing zero totals.");
         }
-      : "skip"
-  );
+      })
+      .catch((error) => {
+        console.error("Failed to fetch analytics:", error);
+        setTotals(ZERO_TOTALS);
+        setAnalyticsError("Unable to load analytics. Showing zero totals.");
+      });
 
-  const recentTransactions = useQuery(api.transactions.listRecent, userId ? { limit: 6 } : "skip");
+    const transactionsPromise = fetch("/api/transactions?pageSize=6")
+      .then(async (res) => {
+        if (res.ok) {
+          const recentData: TransactionsResponse = await res.json();
+          setRecentTransactions(recentData.transactions);
+        } else {
+          setRecentTransactions([]);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to fetch recent transactions:", error);
+        setRecentTransactions([]);
+      });
 
-  if (!userId || transactions === undefined) {
+    await Promise.all([analyticsPromise, transactionsPromise]);
+  }, [userId]);
+
+  const handleRetry = useCallback(async () => {
+    setIsRetrying(true);
+    await loadData();
+    setIsRetrying(false);
+  }, [loadData]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  if (!userId || totals === undefined) {
     return (
       <div className="flex min-h-[320px] items-center justify-center">
         <Loader2 className="size-7 animate-spin text-muted-foreground" />
@@ -55,10 +110,7 @@ export default function DashboardPage() {
     );
   }
 
-  const totalIncome = transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
-  const totalExpenses = transactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
-  const totalGivings = transactions.filter((t) => t.type === "giving").reduce((sum, t) => sum + t.amount, 0);
-  const netBalance = totalIncome - totalExpenses - totalGivings;
+  const { totalIncome, totalExpenses, totalGivings, netBalance } = totals;
 
   const summary = [
     {
@@ -88,7 +140,7 @@ export default function DashboardPage() {
     },
   ];
 
-  const recent = recentTransactions || [];
+  const recent = recentTransactions ?? [];
 
   return (
     <div className="space-y-5 pb-6 sm:space-y-6 sm:pb-8">
@@ -100,6 +152,25 @@ export default function DashboardPage() {
           Here&apos;s your {new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })} snapshot.
         </p>
       </div>
+
+      {analyticsError && (
+        <Alert variant="destructive">
+          <AlertCircle className="size-4" />
+          <AlertDescription className="flex items-center justify-between gap-2">
+            <span>{analyticsError}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={handleRetry}
+              disabled={isRetrying}
+            >
+              {isRetrying ? <Loader2 className="mr-1 size-3 animate-spin" /> : <RefreshCw className="mr-1 size-3" />}
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {summary.map((card) => {
@@ -119,7 +190,7 @@ export default function DashboardPage() {
         })}
       </div>
 
-      <DashboardClient />
+      <DashboardClient onDataChanged={loadData} />
 
       <BudgetOverview />
 
@@ -142,7 +213,7 @@ export default function DashboardPage() {
           ) : (
             <div className="space-y-2">
               {recent.map((tx) => (
-                <div key={tx._id} className="flex items-center justify-between rounded-lg border p-3.5 sm:p-3">
+                <div key={tx.id} className="flex items-center justify-between rounded-lg border p-3.5 sm:p-3">
                   <div>
                     <p className="text-sm font-medium sm:text-base">{tx.category}</p>
                     <p className="text-xs text-muted-foreground sm:text-sm">

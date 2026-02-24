@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { useQuery } from "convex/react";
 import { AlertTriangle, Plus, TrendingDown, TrendingUp } from "lucide-react";
-import { api } from "@/convex/_generated/api";
+import { useApiQuery } from "@/hooks/use-api";
+import type { ApiBudget } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,38 +23,29 @@ function BudgetSkeleton() {
   );
 }
 
-const getStatus = (percentage: number) => {
-  if (percentage >= 100) return "exceeded" as const;
-  if (percentage >= 80) return "warning" as const;
-  return "ok" as const;
-};
-
 export function BudgetOverview() {
-  const budgets = useQuery(api.budgets.getWithSpending, { period: "monthly" });
+  const { data, loading } = useApiQuery<{ budgets: ApiBudget[] }>("/api/budgets?period=monthly");
+  const budgets = data?.budgets;
 
   const topBudgets = useMemo(() => {
     if (!budgets) return [];
 
     return budgets
-      .map((budget) => {
-        const percentage = budget.amount > 0 ? (budget.spent / budget.amount) * 100 : 0;
-        const status = getStatus(percentage);
-        return {
-          id: budget._id,
-          category: budget.category,
-          amount: budget.amount,
-          spent: budget.spent,
-          remaining: budget.remaining,
-          type: budget.type,
-          percentage,
-          status,
-        };
-      })
+      .map((budget) => ({
+        id: budget.id,
+        category: budget.category,
+        amount: budget.amount,
+        spent: budget.spent,
+        remaining: budget.remaining,
+        type: budget.type,
+        percentage: budget.percentage,
+        status: budget.status,
+      }))
       .sort((a, b) => b.percentage - a.percentage)
       .slice(0, 3);
   }, [budgets]);
 
-  if (budgets === undefined) {
+  if (loading || budgets === undefined) {
     return (
       <Card className="border shadow-sm">
         <CardHeader className="pb-4">
