@@ -1,10 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
 import { Plus, Edit2, Trash2, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react";
-import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import { useApiQuery, apiFetch } from "@/hooks/use-api";
+import type { ApiBudget, TransactionType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,17 +21,14 @@ import {
 type BudgetType = "expense" | "giving" | "income";
 type BudgetPeriod = "monthly" | "quarterly" | "yearly";
 
-interface BudgetRow {
-  _id: Id<"budgets">;
-  category: string;
-  amount: number;
-  period: BudgetPeriod;
-  startDate: string;
-  endDate: string;
-  type: BudgetType;
-  spent: number;
-  remaining: number;
-  percentUsed: number;
+interface ApiCategory {
+  id: string;
+  name: string;
+  type: TransactionType;
+  color: string;
+  icon: string | null;
+  is_default: boolean;
+  created_at: string | null;
 }
 
 const getBudgetStatus = (percentage: number) => {
@@ -43,16 +39,20 @@ const getBudgetStatus = (percentage: number) => {
 
 export function BudgetManagement() {
   const { toast } = useToast();
-  const budgets = useQuery(api.budgets.getWithSpending, {}) as BudgetRow[] | undefined;
-  const categories = useQuery(api.categories.list, {});
-  const createBudget = useMutation(api.budgets.create);
-  const updateBudget = useMutation(api.budgets.update);
-  const removeBudget = useMutation(api.budgets.remove);
+  const {
+    data: budgetData,
+    loading: budgetsLoading,
+    refresh: refreshBudgets,
+  } = useApiQuery<{ budgets: ApiBudget[] }>("/api/budgets");
+  const { data: catData, loading: categoriesLoading } = useApiQuery<{ categories: ApiCategory[] }>("/api/categories");
+
+  const budgets = budgetData?.budgets;
+  const categories = catData?.categories;
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [editingBudget, setEditingBudget] = useState<BudgetRow | null>(null);
+  const [editingBudget, setEditingBudget] = useState<ApiBudget | null>(null);
 
   const [formData, setFormData] = useState({
     category: "",
@@ -108,18 +108,23 @@ export function BudgetManagement() {
     setSaving(true);
     try {
       const { startDate, endDate } = calculateDateRange(formData.period);
-      await createBudget({
-        category: formData.category,
-        amount,
-        period: formData.period,
-        startDate,
-        endDate,
-        type: formData.type,
+      await apiFetch("/api/budgets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: formData.category,
+          amount,
+          period: formData.period,
+          startDate,
+          endDate,
+          type: formData.type,
+        }),
       });
 
       toast({ title: "Success", description: "Budget created" });
       setIsAddDialogOpen(false);
       resetForm();
+      refreshBudgets();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to create budget";
       toast({ title: "Error", description: message, variant: "destructive" });
@@ -140,10 +145,15 @@ export function BudgetManagement() {
 
     setSaving(true);
     try {
-      await updateBudget({ id: editingBudget._id, amount });
+      await apiFetch(`/api/budgets/${editingBudget.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount }),
+      });
       toast({ title: "Success", description: "Budget updated" });
       setIsEditDialogOpen(false);
       resetForm();
+      refreshBudgets();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to update budget";
       toast({ title: "Error", description: message, variant: "destructive" });
@@ -152,19 +162,20 @@ export function BudgetManagement() {
     }
   };
 
-  const handleDeleteBudget = async (budget: BudgetRow) => {
+  const handleDeleteBudget = async (budget: ApiBudget) => {
     if (!confirm(`Delete budget for "${budget.category}"?`)) return;
 
     try {
-      await removeBudget({ id: budget._id });
+      await apiFetch(`/api/budgets/${budget.id}`, { method: "DELETE" });
       toast({ title: "Success", description: "Budget deleted" });
+      refreshBudgets();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to delete budget";
       toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
-  const openEditDialog = (budget: BudgetRow) => {
+  const openEditDialog = (budget: ApiBudget) => {
     setEditingBudget(budget);
     setFormData({
       category: budget.category,
@@ -175,7 +186,7 @@ export function BudgetManagement() {
     setIsEditDialogOpen(true);
   };
 
-  if (budgets === undefined || categories === undefined) {
+  if (budgetsLoading || categoriesLoading || budgets === undefined || categories === undefined) {
     return <p className="text-sm text-muted-foreground">Loading budgets...</p>;
   }
 
@@ -225,7 +236,7 @@ export function BudgetManagement() {
               >
                 <option value="">Select category</option>
                 {filteredCategories.map((cat) => (
-                  <option key={cat._id} value={cat.name}>
+                  <option key={cat.id} value={cat.name}>
                     {cat.name}
                   </option>
                 ))}
@@ -323,9 +334,9 @@ export function BudgetManagement() {
           </Card>
         ) : (
           budgets.map((budget) => {
-            const status = getBudgetStatus(budget.percentUsed);
+            const status = getBudgetStatus(budget.percentage);
             return (
-              <Card key={budget._id}>
+              <Card key={budget.id}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -379,7 +390,7 @@ export function BudgetManagement() {
                           ? "bg-amber-500"
                           : "bg-emerald-500"
                       }`}
-                      style={{ width: `${Math.min(budget.percentUsed, 100)}%` }}
+                      style={{ width: `${Math.min(budget.percentage, 100)}%` }}
                     />
                   </div>
 

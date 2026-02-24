@@ -1,0 +1,99 @@
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { randomUUID } from "crypto";
+
+// ---------------------------------------------------------------------------
+// S3-compatible storage helper
+// ---------------------------------------------------------------------------
+
+/** Lazily-initialised singleton – avoids recreating the client per request. */
+let _s3Client: S3Client | null = null;
+
+function getS3Client(): S3Client {
+  if (_s3Client) return _s3Client;
+
+  const endpoint = process.env.S3_ENDPOINT;
+  const region = process.env.S3_REGION ?? "us-east-1";
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY;
+
+  if (!endpoint || !accessKeyId || !secretAccessKey) {
+    throw new Error(
+      "Missing S3 configuration – set S3_ENDPOINT, S3_ACCESS_KEY_ID, and S3_SECRET_ACCESS_KEY.",
+    );
+  }
+
+  _s3Client = new S3Client({
+    endpoint,
+    region,
+    credentials: { accessKeyId, secretAccessKey },
+    forcePathStyle: true, // required for most S3-compatible providers (MinIO, R2, etc.)
+  });
+
+  return _s3Client;
+}
+
+function getBucket(): string {
+  const bucket = process.env.S3_BUCKET;
+  if (!bucket) {
+    throw new Error("Missing S3_BUCKET environment variable.");
+  }
+  return bucket;
+}
+
+/** Map common image MIME types to file extensions. */
+function extForMime(mime: string): string {
+  const map: Record<string, string> = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+  };
+  return map[mime] ?? "";
+}
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+export interface UploadResult {
+  /** Unique object key in the bucket (acts as storageId). */
+  key: string;
+  /**
+   * Stable URL for the object.
+   *
+   * - If `S3_PUBLIC_URL` is set (e.g. a CDN or public bucket base URL), the
+   *   URL is built from that: `<S3_PUBLIC_URL>/<key>`.
+   * - Otherwise, the key itself is returned so that callers never receive a
+   *   potentially private/internal endpoint URL.
+   */
+  url: string;
+}
+
+/**
+ * Upload a buffer to S3-compatible storage and return the object key + URL.
+ */
+export async function uploadReceipt(
+  buffer: Buffer,
+  mimeType: string,
+): Promise<UploadResult> {
+  const client = getS3Client();
+  const bucket = getBucket();
+
+  const key = `receipts/${randomUUID()}${extForMime(mimeType)}`;
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: mimeType,
+    }),
+  );
+
+  // Build a public URL only when an explicit public base URL is configured.
+  // This avoids leaking internal S3 endpoint addresses to the client.
+  const publicBase = process.env.S3_PUBLIC_URL?.replace(/\/$/, "");
+  const url = publicBase ? `${publicBase}/${key}` : key;
+
+  return { key, url };
+}

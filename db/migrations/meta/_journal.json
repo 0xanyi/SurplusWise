@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1771942198933,
+      "tag": "0000_superb_tony_stark",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771942753177,
+      "tag": "0001_supreme_mister_fear",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1771947759829,
+      "tag": "0002_perpetual_wrecker",
+      "breakpoints": true
+    }
+  ]
+}

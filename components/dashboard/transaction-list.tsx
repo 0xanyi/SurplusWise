@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useMutation, usePaginatedQuery } from "convex/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Pencil, Receipt, Search, Trash2, TrendingUp } from "lucide-react";
-import { api } from "@/convex/_generated/api";
-import type { Doc, Id } from "@/convex/_generated/dataModel";
-import type { TransactionType } from "@/types";
+import type { TransactionType, ApiTransaction } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
+import { apiFetch } from "@/hooks/use-api";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,61 +25,88 @@ const typeFilterOptions: { label: string; value: TypeFilter }[] = [
   { label: "Giving", value: "giving" },
 ];
 
-export function TransactionList() {
-  const { toast } = useToast();
-  const removeTransaction = useMutation(api.transactions.remove);
+interface TransactionsResponse {
+  transactions: ApiTransaction[];
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+}
 
-  const [selectedTransaction, setSelectedTransaction] = useState<Doc<"transactions"> | null>(null);
+interface TransactionListProps {
+  /** Increment to force a re-fetch from page 0 */
+  refreshKey?: number;
+}
+
+export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
+  const { toast } = useToast();
+
+  const [transactions, setTransactions] = useState<ApiTransaction[]>([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingFirst, setLoadingFirst] = useState(true);
+  const [loadingPage, setLoadingPage] = useState(false);
+
+  const [selectedTransaction, setSelectedTransaction] = useState<ApiTransaction | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [deleteId, setDeleteId] = useState<Id<"transactions"> | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const debouncedSearch = useDebounce(searchQuery, 250);
 
-  const queryArgs = useMemo(
-    () => ({
-      type: typeFilter === "all" ? undefined : typeFilter,
-      search: debouncedSearch || undefined,
-    }),
-    [typeFilter, debouncedSearch]
+  const buildUrl = useCallback(
+    (pageNum: number) => {
+      const params = new URLSearchParams();
+      params.set("page", String(pageNum));
+      params.set("pageSize", String(PAGE_SIZE));
+      if (typeFilter !== "all") params.set("type", typeFilter);
+      if (debouncedSearch) params.set("search", debouncedSearch);
+      return `/api/transactions?${params.toString()}`;
+    },
+    [typeFilter, debouncedSearch],
   );
 
-  const { results, status, loadMore } = usePaginatedQuery(
-    api.transactions.listPaginated,
-    queryArgs,
-    { initialNumItems: PAGE_SIZE }
+  const loadPage = useCallback(
+    async (pageNum: number, isFirstPage = false) => {
+      if (isFirstPage) setLoadingFirst(true);
+      else setLoadingPage(true);
+
+      try {
+        const data = await apiFetch<TransactionsResponse>(buildUrl(pageNum));
+        setTransactions(data.transactions);
+        setPage(data.page);
+        setHasMore(data.hasMore);
+      } catch (error) {
+        console.error("Failed to load transactions:", error);
+      } finally {
+        setLoadingFirst(false);
+        setLoadingPage(false);
+      }
+    },
+    [buildUrl],
   );
 
+  // Reset to page 0 when filters change
   useEffect(() => {
-    setCurrentPage(1);
-  }, [queryArgs]);
+    setPage(0);
+    loadPage(0, true);
+  }, [typeFilter, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
-
+  // Re-fetch current page when an external refresh is triggered
   useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
+    if (refreshKey > 0) {
+      loadPage(0, true);
     }
-  }, [currentPage, totalPages]);
+  }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const pageStart = (currentPage - 1) * PAGE_SIZE;
-  const pageTransactions = results.slice(pageStart, pageStart + PAGE_SIZE);
-
-  const isLoadingFirstPage = status === "LoadingFirstPage";
-  const isLoadingMore = status === "LoadingMore";
-  const isLoadingNextPage = isLoadingMore && pageTransactions.length === 0;
-  const canLoadMore = status === "CanLoadMore";
-
-  const handleEdit = (transaction: Doc<"transactions">) => {
+  const handleEdit = (transaction: ApiTransaction) => {
     setSelectedTransaction(transaction);
     setIsFormOpen(true);
   };
 
-  const handleDelete = (id: Id<"transactions">) => {
+  const handleDelete = (id: string) => {
     setDeleteId(id);
     setShowDeleteConfirm(true);
   };
@@ -90,8 +115,12 @@ export function TransactionList() {
     if (!deleteId) return;
 
     try {
-      await removeTransaction({ id: deleteId });
+      await apiFetch(`/api/transactions/${deleteId}`, { method: "DELETE" });
       toast({ title: "Success", description: "Transaction deleted" });
+      // If this was the last item on a non-first page, go back one page
+      // so the user isn't stuck on an empty page with no controls.
+      const targetPage = transactions.length <= 1 && page > 0 ? page - 1 : page;
+      loadPage(targetPage);
     } catch {
       toast({ title: "Error", description: "Failed to delete transaction", variant: "destructive" });
     } finally {
@@ -99,17 +128,15 @@ export function TransactionList() {
     }
   };
 
-  const handleNext = () => {
-    const nextPage = currentPage + 1;
-
-    if (nextPage <= totalPages) {
-      setCurrentPage(nextPage);
-      return;
+  const handlePrev = () => {
+    if (page > 0) {
+      loadPage(page - 1);
     }
+  };
 
-    if (status === "CanLoadMore") {
-      loadMore(PAGE_SIZE);
-      setCurrentPage(nextPage);
+  const handleNext = () => {
+    if (hasMore) {
+      loadPage(page + 1);
     }
   };
 
@@ -130,6 +157,9 @@ export function TransactionList() {
     if (type === "income") return "text-blue-600";
     return "text-emerald-600";
   };
+
+  // Display page number is 1-indexed for the user
+  const displayPage = page + 1;
 
   return (
     <>
@@ -166,7 +196,7 @@ export function TransactionList() {
             </div>
           </div>
 
-          {isLoadingFirstPage ? (
+          {loadingFirst ? (
             <div className="space-y-2">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
@@ -179,7 +209,7 @@ export function TransactionList() {
                 </div>
               ))}
             </div>
-          ) : pageTransactions.length === 0 ? (
+          ) : transactions.length === 0 ? (
             <div className="py-12 text-center">
               <Receipt className="mx-auto mb-2 size-7 text-muted-foreground" />
               <p className="font-medium">No transactions found</p>
@@ -187,8 +217,8 @@ export function TransactionList() {
             </div>
           ) : (
             <div className="space-y-2">
-              {pageTransactions.map((transaction) => (
-                <div key={transaction._id} className="rounded-lg border p-3 sm:p-4">
+              {transactions.map((transaction) => (
+                <div key={transaction.id} className="rounded-lg border p-3 sm:p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
                       <div className={cn("mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg", getIconBg(transaction.type))}>
@@ -222,7 +252,7 @@ export function TransactionList() {
                       size="sm"
                       variant="outline"
                       className="h-9 flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 sm:flex-none"
-                      onClick={() => handleDelete(transaction._id)}
+                      onClick={() => handleDelete(transaction.id)}
                     >
                       <Trash2 className="mr-2 size-4" />
                       Delete
@@ -233,24 +263,24 @@ export function TransactionList() {
             </div>
           )}
 
-          {isLoadingNextPage && <p className="mt-3 text-xs text-muted-foreground">Loading next page...</p>}
+          {loadingPage && <p className="mt-3 text-xs text-muted-foreground">Loading...</p>}
 
-          {(pageTransactions.length > 0 || isLoadingNextPage) && (
+          {(transactions.length > 0 || loadingPage) && (
             <div className="mt-5 flex items-center justify-between">
-              <Button variant="outline" size="sm" className="h-9" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1 || isLoadingFirstPage}>
+              <Button variant="outline" size="sm" className="h-9" onClick={handlePrev} disabled={page <= 0 || loadingFirst || loadingPage}>
                 Prev
               </Button>
               <span className="text-sm text-muted-foreground">
-                Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ""}
+                Page {displayPage}
               </span>
               <Button
                 variant="outline"
                 size="sm"
                 className="h-9"
                 onClick={handleNext}
-                disabled={isLoadingMore || (!canLoadMore && currentPage >= totalPages)}
+                disabled={!hasMore || loadingFirst || loadingPage}
               >
-                {isLoadingMore ? "Loading..." : "Next"}
+                {loadingPage ? "Loading..." : "Next"}
               </Button>
             </div>
           )}
@@ -264,6 +294,7 @@ export function TransactionList() {
           if (!open) setSelectedTransaction(null);
         }}
         transaction={selectedTransaction}
+        onSuccess={() => loadPage(page)}
       />
 
       <ConfirmDialog

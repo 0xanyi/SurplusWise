@@ -12,19 +12,18 @@ A modern personal finance management application designed to help users track th
 - ✅ Email/password authentication
 
 **Transaction Management**
-- ✅ Manual transaction entry (expenses and givings)
+- ✅ Manual transaction entry (expenses, income, and givings)
 - ✅ CRUD operations for all transactions
 - ✅ Search and filter transactions
 - ✅ Date range filtering with database-level optimization
 - 🤖 AI-powered receipt scanning with OpenAI Vision
-- ✅ Receipt upload and storage via Convex
+- ✅ Receipt upload and storage via S3-compatible storage
 
 **Budget Tracking**
 - ✅ Create budgets for expense and giving categories
 - ✅ Monthly, quarterly, and yearly budget periods
 - ✅ Real-time budget vs actual spending tracking
 - ✅ Budget progress indicators with color coding
-- ✅ Optimized spending calculations with date-range queries
 
 **Analytics & Reports**
 - 📊 Interactive analytics dashboard with charts
@@ -33,7 +32,6 @@ A modern personal finance management application designed to help users track th
 - 📅 Period-based filtering (weekly, monthly, quarterly, yearly, custom)
 - 💾 CSV data export
 - 📄 PDF report generation
-- ✅ Real-time financial summaries
 
 **Category Management**
 - ✅ Default expense categories (10 categories)
@@ -51,7 +49,6 @@ A modern personal finance management application designed to help users track th
 - ✅ Mobile-friendly design
 
 ### Upcoming Features
-- 💾 PDF report generation
 - 🔔 Push notifications
 - 📱 Advanced filtering options
 - 🏦 Bank integration
@@ -59,24 +56,26 @@ A modern personal finance management application designed to help users track th
 
 ## Tech Stack
 
-- **Framework**: Next.js 16.1.4 (App Router with Turbopack)
+- **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
-- **Runtime**: React 19.2.3
-- **Database**: Convex (real-time document database)
-- **Authentication**: Better Auth with Convex adapter
+- **Runtime**: React 19
+- **Database**: PostgreSQL + Drizzle ORM
+- **Authentication**: Better Auth (Postgres adapter)
 - **AI/OCR**: OpenAI Vision API
+- **File Storage**: S3-compatible (AWS S3, MinIO, R2, etc.)
 - **UI Components**: shadcn/ui + Radix UI
 - **Styling**: Tailwind CSS
 - **Charts**: Recharts
-- **Deployment**: Vercel
+- **Deployment**: Dokploy (self-hosted) or any Docker host
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ and npm
-- A Convex account ([signup here](https://convex.dev))
+- Node.js 20+ and npm
+- PostgreSQL 16+ (local, Neon, Supabase, or Dokploy-managed)
 - An OpenAI API key ([get one here](https://platform.openai.com))
+- S3-compatible storage for receipt images (optional)
 
 ### Installation
 
@@ -93,115 +92,107 @@ npm install
 
 3. Set up environment variables:
 
-Create a `.env.local` file in the root directory:
+Copy `.env.example` to `.env.local` and fill in your values:
 
+```bash
+cp .env.example .env.local
+```
+
+Key variables:
 ```env
-# Convex Configuration
-CONVEX_DEPLOYMENT=your_convex_deployment
-NEXT_PUBLIC_CONVEX_URL=your_convex_url
-NEXT_PUBLIC_CONVEX_SITE_URL=your_convex_site_url
-
-# Better Auth Configuration
-SITE_URL=http://localhost:3000
-BETTER_AUTH_SECRET=your_secret_key
-
-# OpenAI Configuration
+DATABASE_URL=postgresql://user:password@localhost:5432/surpluswise
+BETTER_AUTH_SECRET=<openssl rand -base64 32>
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 OPENAI_API_KEY=your_openai_api_key
 ```
 
-4. Initialize Convex:
+See `.env.example` for the full list including S3 storage vars.
 
+4. Run database migrations (**required**):
 ```bash
-npx convex dev
+npm run db:migrate
 ```
 
-This will set up your Convex database with the schema defined in `convex/schema.ts`.
+> Production note: Docker runtime auto-runs migrations on startup, then verifies
+> schema before serving traffic. See Dokploy runbook:
+> `docs/PROD_GO_LIVE_CHECKLIST.md`.
 
-5. Run the development server:
+5. Start the development server:
 ```bash
 npm run dev
 ```
 
 6. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+> For detailed setup instructions (including Dokploy deployment), see [docs/SETUP.md](docs/SETUP.md).
+> For production release command order, use [docs/PROD_GO_LIVE_CHECKLIST.md](docs/PROD_GO_LIVE_CHECKLIST.md).
+
 ## Project Structure
 
 ```
 SurplusWise/
 ├── app/
-│   ├── auth/           # Authentication pages (login, signup)
+│   ├── api/            # API route handlers
+│   │   ├── auth/       # Better Auth endpoints
+│   │   ├── transactions/
+│   │   ├── categories/
+│   │   ├── budgets/
+│   │   ├── analytics/
+│   │   └── receipts/
 │   ├── dashboard/      # Dashboard pages
-│   ├── api/            # API routes (shims wrapping Convex)
 │   ├── globals.css     # Global styles
 │   ├── layout.tsx      # Root layout
-│   └── page.tsx        # Home page
+│   └── page.tsx        # Home / landing page
 ├── components/
 │   ├── ui/             # shadcn/ui components
 │   └── dashboard/      # Dashboard-specific components
-├── convex/
-│   ├── schema.ts       # Database schema
-│   ├── transactions.ts # Transaction queries/mutations
-│   ├── categories.ts   # Category queries/mutations
-│   ├── budgets.ts      # Budget queries/mutations
-│   ├── receipts.ts     # Receipt storage functions
-│   ├── auth.ts         # Better Auth integration
-│   └── auth.config.ts  # Auth configuration
+├── db/
+│   ├── schema.ts       # Drizzle ORM schema
+│   ├── client.ts       # Postgres connection pool
+│   └── migrations/     # SQL migration files
 ├── lib/
-│   ├── openai/         # OpenAI client configuration
+│   ├── db/             # Data-access layer (transactions, budgets, etc.)
+│   ├── auth.ts         # Better Auth server config
 │   ├── auth-client.ts  # Better Auth client
-│   ├── auth-server.ts  # Better Auth server utilities
+│   ├── auth-server.ts  # Auth server helpers
+│   ├── storage.ts      # S3 storage helpers
 │   └── utils.ts        # Utility functions
-├── types/
-│   └── index.ts        # Shared types
 ├── hooks/              # Custom React hooks
+├── types/              # Shared TypeScript types
 └── public/             # Static assets
 ```
 
-## Database Schema (Convex)
+## Database
 
-The application uses three main collections:
+The application uses PostgreSQL with Drizzle ORM. Main tables:
 
-- **transactions**: User financial transactions with indexed queries by userId, date, type, and category
-- **categories**: User-defined and default categories for organizing transactions
-- **budgets**: Budget allocations with period-based tracking
+- **users / sessions / accounts** — managed by Better Auth
+- **transactions** — user financial transactions (indexed by user, date, type, category)
+- **categories** — user-defined and default categories
+- **budgets** — budget allocations with period-based tracking
 
-Authentication tables (users, sessions, accounts) are managed by the Better Auth component.
+### Database Commands
 
-## API Architecture
-
-The app uses a hybrid approach:
-- **Direct Convex queries/mutations**: Used in client components via `useQuery` and `useMutation` hooks
-- **API route shims**: Preserved for backward compatibility, wrapping Convex functions
+```bash
+npm run db:generate   # Generate SQL migrations from schema changes
+npm run db:migrate    # Apply pending migrations
+npm run db:studio     # Open Drizzle Studio GUI
+```
 
 ## Development Roadmap
 
-### Phase 1: Foundation ✅
-- [x] Project setup and configuration
-- [x] Authentication system
-- [x] Basic UI components
-- [x] Dashboard layout
+### Completed ✅
+- Project setup, auth, UI foundation
+- Transaction, category, and budget management
+- AI receipt scanning
+- Analytics and reports (CSV + PDF export)
+- Dark mode, PWA configuration
+- **PostgreSQL migration (Convex → Postgres + Drizzle)**
 
-### Phase 2: Core Features ✅
-- [x] Transaction management (CRUD)
-- [x] Category management
-- [x] Receipt scanning with AI
-- [x] Dashboard statistics
-
-### Phase 3: Analytics & Reports ✅
-- [x] Visual charts and graphs
-- [x] Period-based filtering
-- [x] Data export (CSV)
-- [x] Custom category management
-
-### Phase 4: Polish & Enhancements ✅
-- [x] Dark mode
-- [x] Budget tracking
-- [x] **Migration to Convex + Better Auth**
-
-### Phase 5: Advanced Features
-- [ ] Bank integration
-- [ ] Spending predictions
-- [ ] Multi-user support
+### Next Up
+- Bank integration
+- Spending predictions
+- Multi-user / household support
 
 ## Contributing
 
@@ -210,7 +201,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 This project is licensed under the MIT License.
-
-## Support
-
-For support, open an issue in the repository.

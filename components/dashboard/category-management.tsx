@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
 import { Plus, Edit2, Trash2, AlertCircle } from "lucide-react";
-import type { Id } from "@/convex/_generated/dataModel";
-import { api } from "@/convex/_generated/api";
+import { useApiQuery, apiFetch } from "@/hooks/use-api";
+import type { TransactionType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -20,25 +19,29 @@ import {
 
 type CategoryType = "expense" | "giving" | "income";
 
-interface CategoryItem {
-  _id: Id<"categories">;
+interface ApiCategory {
+  id: string;
   name: string;
   type: CategoryType;
   color: string;
-  isDefault: boolean;
+  icon: string | null;
+  is_default: boolean;
+  created_at: string | null;
 }
 
 export function CategoryManagement() {
-  const categories = useQuery(api.categories.list, {}) as CategoryItem[] | undefined;
-  const createCategory = useMutation(api.categories.create);
-  const updateCategory = useMutation(api.categories.update);
-  const removeCategory = useMutation(api.categories.remove);
+  const {
+    data: catData,
+    loading: categoriesLoading,
+    refresh: refreshCategories,
+  } = useApiQuery<{ categories: ApiCategory[] }>("/api/categories");
+  const categories = catData?.categories;
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
+  const [editingCategory, setEditingCategory] = useState<ApiCategory | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -56,10 +59,15 @@ export function CategoryManagement() {
     setLoading(true);
 
     try {
-      await createCategory(formData);
+      await apiFetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
       toast({ title: "Success", description: "Category created" });
       setIsAddDialogOpen(false);
       resetForm();
+      refreshCategories();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to create category";
       toast({ title: "Error", description: message, variant: "destructive" });
@@ -74,14 +82,18 @@ export function CategoryManagement() {
 
     setLoading(true);
     try {
-      await updateCategory({
-        id: editingCategory._id,
-        name: formData.name,
-        color: formData.color,
+      await apiFetch(`/api/categories/${editingCategory.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          color: formData.color,
+        }),
       });
       toast({ title: "Success", description: "Category updated" });
       setIsEditDialogOpen(false);
       resetForm();
+      refreshCategories();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to update category";
       toast({ title: "Error", description: message, variant: "destructive" });
@@ -90,8 +102,8 @@ export function CategoryManagement() {
     }
   };
 
-  const handleDeleteCategory = async (category: CategoryItem) => {
-    if (category.isDefault) {
+  const handleDeleteCategory = async (category: ApiCategory) => {
+    if (category.is_default) {
       toast({ title: "Error", description: "Default categories cannot be deleted", variant: "destructive" });
       return;
     }
@@ -99,15 +111,16 @@ export function CategoryManagement() {
     if (!confirm(`Delete "${category.name}"?`)) return;
 
     try {
-      await removeCategory({ id: category._id });
+      await apiFetch(`/api/categories/${category.id}`, { method: "DELETE" });
       toast({ title: "Success", description: "Category deleted" });
+      refreshCategories();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to delete category";
       toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
-  const openEditDialog = (category: CategoryItem) => {
+  const openEditDialog = (category: ApiCategory) => {
     setEditingCategory(category);
     setFormData({
       name: category.name,
@@ -117,7 +130,7 @@ export function CategoryManagement() {
     setIsEditDialogOpen(true);
   };
 
-  if (categories === undefined) {
+  if (categoriesLoading || categories === undefined) {
     return <p className="text-sm text-muted-foreground">Loading categories...</p>;
   }
 
@@ -209,9 +222,9 @@ export function CategoryManagement() {
                 value={formData.name}
                 onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                 required
-                disabled={editingCategory?.isDefault}
+                disabled={editingCategory?.is_default}
               />
-              {editingCategory?.isDefault && (
+              {editingCategory?.is_default && (
                 <p className="mt-1 text-xs text-muted-foreground">
                   Default category names cannot be changed.
                 </p>
@@ -227,14 +240,14 @@ export function CategoryManagement() {
                   value={formData.color}
                   onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
                   className="h-10 w-20 rounded-md border"
-                  disabled={editingCategory?.isDefault}
+                  disabled={editingCategory?.is_default}
                 />
                 <Input value={formData.color} readOnly />
               </div>
             </div>
 
             <div className="flex gap-2">
-              <Button type="submit" className="flex-1" disabled={loading || !!editingCategory?.isDefault}>
+              <Button type="submit" className="flex-1" disabled={loading || !!editingCategory?.is_default}>
                 {loading ? "Saving..." : "Save Changes"}
               </Button>
               <Button
@@ -268,7 +281,7 @@ export function CategoryManagement() {
                   <p className="py-4 text-center text-sm text-muted-foreground">No categories</p>
                 ) : (
                   list.map((category) => (
-                    <div key={category._id} className="flex items-center justify-between rounded-lg border p-3">
+                    <div key={category.id} className="flex items-center justify-between rounded-lg border p-3">
                       <div className="flex items-center gap-3">
                         <span
                           className="h-5 w-5 rounded-full border"
@@ -276,19 +289,19 @@ export function CategoryManagement() {
                         />
                         <div>
                           <p className="text-sm font-medium">{category.name}</p>
-                          {category.isDefault && (
+                          {category.is_default && (
                             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Default</p>
                           )}
                         </div>
                       </div>
 
                       <div className="flex gap-1">
-                        {!category.isDefault && (
+                        {!category.is_default && (
                           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDialog(category)}>
                             <Edit2 className="h-4 w-4" />
                           </Button>
                         )}
-                        {!category.isDefault && (
+                        {!category.is_default && (
                           <Button
                             size="icon"
                             variant="ghost"

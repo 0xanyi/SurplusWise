@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TransactionForm } from "@/components/dashboard/transaction-form";
@@ -9,6 +9,11 @@ import { QuickAddTransaction } from "@/components/dashboard/quick-add-transactio
 
 export default function TransactionsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const triggerRefresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
 
   return (
     <div className="space-y-5 pb-6 sm:space-y-6">
@@ -25,11 +30,11 @@ export default function TransactionsPage() {
         </Button>
       </div>
 
-      <QuickAddTransaction onOpenFullForm={() => setIsFormOpen(true)} />
+      <QuickAddTransaction onOpenFullForm={() => setIsFormOpen(true)} onTransactionAdded={triggerRefresh} />
 
-      <TransactionList />
+      <TransactionList refreshKey={refreshKey} />
 
-      <TransactionForm open={isFormOpen} onOpenChange={setIsFormOpen} />
+      <TransactionForm open={isFormOpen} onOpenChange={setIsFormOpen} onSuccess={triggerRefresh} />
     </div>
   );
 }

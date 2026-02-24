@@ -1,8 +1,6 @@
 # SurplusWise - Project Summary
 
-## 🎉 Migration to Convex + Better Auth Complete!
-
-Your SurplusWise personal finance management application has been migrated from Supabase to **Convex** (database) + **Better Auth** (authentication). The app now features real-time updates, optimized database queries, and a modern document-based architecture.
+A modern personal finance management application built with Next.js, PostgreSQL, and Better Auth. Features AI-powered receipt scanning, budget tracking, and analytics.
 
 ## What Has Been Built
 
@@ -28,209 +26,121 @@ Your SurplusWise personal finance management application has been migrated from 
 
 3. **Transaction Management**
    - Add, edit, and delete transactions
-   - Support for expenses and givings
+   - Support for income, expenses, and givings
    - Transaction form with validation
-   - Category selection
-   - Date picker
-   - Real-time list updates via Convex
+   - Category selection and date picker
+   - Search & filter by type, category, and date range (database-level optimization)
 
 4. **Category System**
-   - 10 default expense categories
-   - 8 default giving categories
-   - Color-coded categories
-   - Custom category creation
+   - 10 default expense categories + 8 default giving categories
+   - Color-coded categories with custom category creation
 
-5. **Search & Filtering**
-   - Search by transaction notes and category
-   - Filter by transaction type (expense/giving)
-   - Filter by category
-   - Filter by date range (database-level optimization)
+5. **AI-Powered Receipt Scanning**
+   - OpenAI Vision API integration
+   - Automatic data extraction from receipts
+   - Receipt upload to S3-compatible storage
+   - Auto-populate transaction form
 
 **Phase 3: Analytics & Reports**
 
 6. **Analytics Dashboard**
    - Interactive charts with Recharts
-   - Spending trends visualization (line charts)
-   - Category breakdown (pie charts)
+   - Spending trends (line charts) and category breakdown (pie charts)
    - Period filtering (weekly, monthly, quarterly, yearly, custom)
-   - CSV export functionality
+   - CSV export and PDF report generation
 
-7. **AI-Powered Receipt Scanning**
-   - OpenAI Vision API integration
-   - Automatic data extraction from receipts
-   - Receipt upload to Convex Storage
-   - Auto-populate transaction form
+**Phase 4: Budget Tracking**
 
-8. **Category Management**
-   - Create custom expense and giving categories
-   - Edit category colors and names
-   - Delete unused custom categories
-
-**Phase 4: Polish & Migration**
-
-9. **Budget Tracking**
+7. **Budget Management**
    - Create budgets for expense and giving categories
    - Monthly, quarterly, and yearly budget periods
    - Real-time budget vs actual spending tracking
    - Budget progress indicators with color coding
 
-10. **Backend Migration**
-    - Migrated from Supabase to Convex
-    - Replaced Supabase Auth with Better Auth
-    - Optimized database queries with proper indexing
-    - Real-time data synchronization
+**Phase 5: Postgres Migration (Complete)**
 
-## File Structure
+8. **Infrastructure Cutover**
+   - Migrated from Convex to PostgreSQL + Drizzle ORM
+   - Better Auth switched to Postgres adapter
+   - Receipt storage moved to S3-compatible backend
+   - Self-hosted deployment via Dokploy
 
-```
-SurplusWise/
-├── 📄 Documentation
-│   ├── README.md              # Main documentation
-│   ├── CHANGELOG.md           # Version history
-│   ├── docs/
-│   │   ├── MIGRATION_GUIDE.md # Convex migration guide
-│   │   ├── PROJECT_SUMMARY.md # This file
-│   │   └── SETUP.md           # Setup instructions
-│   └── prd.md                 # Original requirements
-│
-├── 🎨 Application Code
-│   ├── app/
-│   │   ├── auth/              # Authentication pages
-│   │   ├── dashboard/         # Dashboard pages
-│   │   ├── api/               # API route shims (backward compat)
-│   │   ├── layout.tsx         # Root layout
-│   │   ├── page.tsx           # Landing page
-│   │   └── globals.css        # Global styles
-│   │
-│   ├── components/
-│   │   ├── ui/                # shadcn/ui components
-│   │   └── dashboard/         # Dashboard components
-│   │
-│   ├── convex/
-│   │   ├── schema.ts          # Database schema
-│   │   ├── transactions.ts    # Transaction functions
-│   │   ├── categories.ts      # Category functions
-│   │   ├── budgets.ts         # Budget functions
-│   │   ├── receipts.ts        # Receipt storage
-│   │   ├── auth.ts            # Better Auth integration
-│   │   └── auth.config.ts     # Auth configuration
-│   │
-│   ├── lib/
-│   │   ├── openai/            # OpenAI client config
-│   │   ├── auth-client.ts     # Better Auth client
-│   │   ├── auth-server.ts     # Better Auth server utils
-│   │   └── utils.ts           # Utility functions
-│   │
-│   ├── types/
-│   │   └── index.ts           # Shared types
-│   │
-│   └── hooks/
-│       └── use-toast.ts       # Toast hook
-│
-├── ⚙️ Configuration
-│   ├── package.json           # Dependencies
-│   ├── tsconfig.json          # TypeScript config
-│   ├── tailwind.config.ts     # Tailwind config
-│   ├── next.config.js         # Next.js config
-│   └── .env.example           # Environment template
-│
-└── 📱 Public Assets
-    └── manifest.json          # PWA manifest
-```
-
-## Tech Stack Overview
+## Tech Stack
 
 | Category | Technology | Purpose |
 |----------|-----------|---------|
 | Framework | Next.js 16 | Full-stack React framework |
 | Runtime | React 19 | Latest React with modern features |
 | Language | TypeScript | Type-safe development |
-| Build Tool | Turbopack | Ultra-fast bundler |
-| Database | Convex | Real-time document database |
-| Auth | Better Auth | Flexible authentication |
+| Database | PostgreSQL 16 + Drizzle ORM | Relational database |
+| Auth | Better Auth | Email/password authentication |
 | Styling | Tailwind CSS | Utility-first CSS |
-| UI Components | shadcn/ui | Accessible component library |
-| Icons | Lucide React | Icon library |
+| UI Components | shadcn/ui + Radix UI | Accessible component library |
 | Charts | Recharts | Data visualization |
-| AI/OCR | OpenAI | Receipt scanning |
-| Hosting | Vercel | Deployment platform |
+| AI/OCR | OpenAI Vision | Receipt scanning |
+| File Storage | S3-compatible | Receipt image storage |
+| Deployment | Dokploy | Self-hosted Docker deployment |
+
+## File Structure
+
+```
+SurplusWise/
+├── app/
+│   ├── api/               # API route handlers
+│   │   ├── auth/          # Better Auth endpoints
+│   │   ├── transactions/  # Transaction CRUD
+│   │   ├── categories/    # Category CRUD
+│   │   ├── budgets/       # Budget CRUD
+│   │   ├── analytics/     # Analytics queries
+│   │   └── receipts/      # Receipt scanning & storage
+│   ├── dashboard/         # Dashboard pages
+│   ├── layout.tsx         # Root layout
+│   └── page.tsx           # Landing page
+├── components/
+│   ├── ui/                # shadcn/ui components
+│   └── dashboard/         # Dashboard components
+├── db/
+│   ├── schema.ts          # Drizzle ORM schema
+│   ├── client.ts          # Postgres connection pool
+│   └── migrations/        # SQL migrations
+├── lib/
+│   ├── db/                # Data-access layer
+│   ├── auth.ts            # Better Auth server config
+│   ├── auth-client.ts     # Better Auth client
+│   ├── auth-server.ts     # Auth server helpers
+│   ├── storage.ts         # S3 storage helpers
+│   └── utils.ts           # Utility functions
+├── hooks/                 # Custom React hooks
+├── types/                 # Shared TypeScript types
+└── docs/                  # Documentation
+```
 
 ## Getting Started
 
-### 1. Initialize Convex
 ```bash
-npx convex dev
-```
-
-### 2. Set Environment Variables
-
-In Convex Dashboard:
-```
-BETTER_AUTH_SECRET=<run: openssl rand -base64 32>
-SITE_URL=http://localhost:3000
-OPENAI_API_KEY=<your OpenAI key>
-```
-
-In `.env.local`:
-```env
-CONVEX_DEPLOYMENT=dev:your-deployment-name
-NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-NEXT_PUBLIC_SITE_URL=http://localhost:3000
-```
-
-### 3. Start Development Server
-```bash
+npm install
+cp .env.example .env.local   # edit with your values
+npm run db:migrate
 npm run dev
 ```
 
-### 4. Test the Application
-- Visit http://localhost:3000
-- Sign up for an account
-- Log in and explore the dashboard
-
-## Performance Optimizations
-
-1. **Database-level date filtering**: Uses `by_userId_date` index with `gte`/`lte` bounds
-2. **Efficient recent transactions**: `listRecent` query uses `.order("desc").take(5)`
-3. **Budget spending calculations**: Queries only relevant date ranges per budget
+See [SETUP.md](./SETUP.md) for detailed instructions including Dokploy deployment.
 
 ## Development Commands
 
 ```bash
-# Start development (Next.js + Convex)
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
-
-# Run linting
-npm run lint
+npm run dev          # Start dev server
+npm run build        # Production build
+npm run start        # Start production server
+npm run lint         # Run ESLint
+npm run db:generate  # Generate migrations from schema changes
+npm run db:migrate   # Apply pending migrations
+npm run db:studio    # Open Drizzle Studio
 ```
-
-## Key Files
-
-### For Configuration
-- `.env.local` - Environment variables
-- `convex/schema.ts` - Database schema
-- `convex/auth.ts` - Auth configuration
-
-### For Features
-- `convex/transactions.ts` - Transaction logic
-- `convex/budgets.ts` - Budget tracking
-- `app/dashboard/` - Dashboard pages
-
-## Resources
-
-- **Migration Guide:** See `docs/MIGRATION_GUIDE.md`
-- **Full Documentation:** See `README.md`
-- **Version History:** See `CHANGELOG.md`
 
 ---
 
 **Built with ❤️ using modern web technologies**
 
-Last Updated: January 21, 2025
-Version: 0.6.0 (Convex + Better Auth Migration Complete)
+Last Updated: February 2026
+Version: 0.9.0 (PostgreSQL + Drizzle ORM)

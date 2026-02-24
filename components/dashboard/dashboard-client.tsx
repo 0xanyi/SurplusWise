@@ -7,7 +7,11 @@ import { Button } from "@/components/ui/button";
 import { TransactionForm } from "./transaction-form";
 import { QuickAddTransaction } from "./quick-add-transaction";
 
-export function DashboardClient() {
+interface DashboardClientProps {
+  onDataChanged?: () => void;
+}
+
+export function DashboardClient({ onDataChanged }: DashboardClientProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [formType, setFormType] = useState<TransactionType>("expense");
   const [formMode, setFormMode] = useState<"manual" | "scan">("manual");
@@ -21,7 +25,10 @@ export function DashboardClient() {
   return (
     <>
       <div className="space-y-3">
-        <QuickAddTransaction onOpenFullForm={(type) => openForm(type, "manual")} />
+        <QuickAddTransaction
+          onOpenFullForm={(type) => openForm(type, "manual")}
+          onTransactionAdded={onDataChanged}
+        />
 
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="h-11 w-full sm:w-auto" onClick={() => openForm("expense", "scan")}>
@@ -36,6 +43,7 @@ export function DashboardClient() {
         onOpenChange={setFormOpen}
         defaultType={formType}
         defaultMode={formMode}
+        onSuccess={onDataChanged}
       />
     </>
   );

@@ -1,133 +1,130 @@
 # SurplusWise - Dokploy Deployment Guide
 
-This guide will help you deploy SurplusWise on your self-hosted Dokploy instance.
+> For a more detailed walkthrough, see [docs/SETUP.md](docs/SETUP.md#dokploy-deployment).
 
 ## Prerequisites
 
 1. A running Dokploy instance
-2. A Convex account with a deployed project (https://convex.dev)
-3. Your Convex deployment credentials
+2. A PostgreSQL 16+ service (use Dokploy's built-in Postgres template)
+3. (Optional) MinIO or S3-compatible storage for receipt images
 
 ## Deployment Steps
 
-### Step 1: Prepare Convex for Production
+### Step 1: Create Services
 
-Before deploying, you need to deploy your Convex functions to production:
+1. **PostgreSQL** — Dokploy → Create Service → Database → PostgreSQL.
+2. **Application** — Dokploy → Create Service → Application → Docker.
+   - Connect your Git repository, select branch.
+   - Dockerfile path: `Dockerfile`, context: `.`
 
-```bash
-# Install Convex CLI if not already
-npm install -g convex
+### Step 2: Set Environment Variables
 
-# Deploy Convex functions to production
-npx convex deploy
+**Runtime env vars** (Application → Environment):
+
+```
+DATABASE_URL=postgresql://postgres:pw@surpluswise-db:5432/surpluswise
+BETTER_AUTH_SECRET=<openssl rand -base64 32>
+NEXT_PUBLIC_SITE_URL=https://your-app-domain.com
+OPENAI_API_KEY=your_openai_api_key
+
+# S3 storage (optional)
+S3_ENDPOINT=http://minio:9000
+S3_BUCKET=surpluswise-receipts
+S3_REGION=us-east-1
+S3_ACCESS_KEY_ID=minioadmin
+S3_SECRET_ACCESS_KEY=minioadmin
 ```
 
-This will give you your production Convex URL.
+**Build args** (Application → Build):
 
-### Step 2: Create Application in Dokploy
-
-1. Log into your Dokploy dashboard
-2. Click **"Create Project"** (or select an existing project)
-3. Click **"Create Service"** → **"Application"**
-4. Choose **"Docker"** as the build type
-
-### Step 3: Connect Your Repository
-
-1. Select **Git** as the source
-2. Connect your GitHub/GitLab repository or use a Git URL
-3. Select the branch you want to deploy (e.g., `main`)
-
-### Step 4: Configure Build Settings
-
-In the **Build** settings:
-
-- **Dockerfile Path**: `Dockerfile` (default)
-- **Build Context**: `.` (default)
-
-### Step 5: Set Environment Variables
-
-Navigate to **Environment** and add the following variables:
-
-#### Required Build Args (set in Build section):
 ```
-NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-NEXT_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
 NEXT_PUBLIC_SITE_URL=https://your-app-domain.com
 ```
 
-#### Runtime Environment Variables:
-```
-NODE_ENV=production
-NEXT_PUBLIC_CONVEX_URL=https://your-deployment.convex.cloud
-NEXT_PUBLIC_CONVEX_SITE_URL=https://your-deployment.convex.site
-NEXT_PUBLIC_SITE_URL=https://your-app-domain.com
-```
+### Step 3: Automatic Migration on Startup (Enabled)
 
-### Step 6: Configure Domain & SSL
+For single-service Dockerfile deploys, the app now runs migrations automatically
+on startup before serving traffic:
 
-1. Go to **Domains** tab
-2. Add your custom domain (e.g., `finance.yourdomain.com`)
-3. Enable **HTTPS** (Let's Encrypt will auto-provision SSL)
-4. Set the container port to `3000`
+1. `node auto-migrate.mjs` (with PostgreSQL advisory lock)
+2. `node verify-db-schema.mjs` (schema gate)
+3. `node server.js`
 
-### Step 7: Configure Resources (Optional)
+This means you do **not** need to run migrations locally first for normal deploys.
 
-Recommended resource limits:
-- **Memory**: 512MB - 1GB
-- **CPU**: 0.5 - 1 core
+> Recommended: keep this enabled in production:
+> - `SKIP_DB_AUTO_MIGRATE=false`
+> - `SKIP_DB_SCHEMA_CHECK=false`
 
-### Step 8: Deploy
+If your DB is inaccessible at startup, the container will fail fast and restart
+until connectivity is restored.
 
-1. Click **Deploy** 
-2. Monitor the build logs for any errors
-3. Once complete, access your app via your configured domain
+### Step 4: Configure Domain & SSL
+
+1. Go to **Domains** tab.
+2. Add your custom domain.
+3. Enable HTTPS (Let's Encrypt).
+4. Container port: `3000`.
+
+### Step 5: Deploy
+
+Click **Deploy** and monitor build logs.
+
+### Production Protocol Checklist
+
+Use the exact command/order runbook here:
+- [docs/PROD_GO_LIVE_CHECKLIST.md](docs/PROD_GO_LIVE_CHECKLIST.md)
 
 ## Environment Variables Reference
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `NEXT_PUBLIC_CONVEX_URL` | Yes | Your Convex deployment URL (ends in `.convex.cloud`) |
-| `NEXT_PUBLIC_CONVEX_SITE_URL` | Yes | Your Convex site URL (ends in `.convex.site`) |
-| `NEXT_PUBLIC_SITE_URL` | Yes | Your production app URL (for auth callbacks) |
-| `NODE_ENV` | Yes | Set to `production` |
-
-## Convex Dashboard Configuration
-
-Make sure these are set in your **Convex Dashboard** → **Settings** → **Environment Variables**:
-
-| Variable | Description |
-|----------|-------------|
-| `BETTER_AUTH_SECRET` | Generate with: `openssl rand -base64 32` |
-| `SITE_URL` | Your production URL (same as `NEXT_PUBLIC_SITE_URL`) |
-| `OPENAI_API_KEY` | For AI-powered receipt scanning (optional) |
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `BETTER_AUTH_SECRET` | Yes | Auth secret (`openssl rand -base64 32`) |
+| `NEXT_PUBLIC_SITE_URL` | Yes | Public app URL (for auth callbacks & metadata) |
+| `OPENAI_API_KEY` | No | For AI-powered receipt scanning |
+| `S3_ENDPOINT` | No | S3/MinIO endpoint URL |
+| `S3_BUCKET` | No | Storage bucket name |
+| `S3_REGION` | No | Bucket region |
+| `S3_ACCESS_KEY_ID` | No | S3 access key |
+| `S3_SECRET_ACCESS_KEY` | No | S3 secret key |
+| `S3_PUBLIC_URL` | No | Public CDN prefix for stored files |
+| `SKIP_DB_AUTO_MIGRATE` | No | Keep `false` in production (enable auto migration) |
+| `DB_MIGRATE_RETRIES` | No | DB connection retries for auto-migrate (default 20) |
+| `DB_MIGRATE_RETRY_DELAY_MS` | No | Delay between migrate retries in ms (default 2000) |
+| `SKIP_DB_SCHEMA_CHECK` | No | Keep `false` in production (enable startup schema gate) |
+| `DB_SCHEMA_CHECK_RETRIES` | No | DB readiness retries for schema check (default 20) |
+| `DB_SCHEMA_CHECK_RETRY_DELAY_MS` | No | Delay between schema-check retries in ms (default 2000) |
 
 ## Troubleshooting
 
-### Build fails with "standalone" error
-Ensure `next.config.js` has `output: "standalone"` set.
+### Build fails
+- Ensure `NEXT_PUBLIC_SITE_URL` is set in build args.
 
-### App can't connect to Convex
-- Verify `NEXT_PUBLIC_CONVEX_URL` is correct
-- Ensure Convex functions are deployed to production
+### Database connection errors
+- Verify `DATABASE_URL` uses the correct internal hostname for the Postgres service.
+- Ensure the database has been created.
 
 ### Authentication issues
-- Verify `NEXT_PUBLIC_SITE_URL` matches your actual domain
-- Check `SITE_URL` is set correctly in Convex dashboard
-- Ensure `BETTER_AUTH_SECRET` is set in Convex dashboard
+- Verify `NEXT_PUBLIC_SITE_URL` matches your actual domain.
+- Ensure `BETTER_AUTH_SECRET` is set.
 
 ### Health check failing
 The app may take 30-60 seconds to start. Increase the health check `start_period` if needed.
 
-## Updating the App
+## Updating
 
-1. Push changes to your repository
-2. In Dokploy, click **Redeploy** or enable auto-deploy from git
+1. Push changes to your repository.
+2. In Dokploy, click **Redeploy** (or enable auto-deploy from git).
+3. Confirm logs show successful `db-migrate` and `db-check` steps.
 
-## Architecture Notes
+## Architecture
 
-- **Frontend**: Next.js 16 (runs in Docker on Dokploy)
-- **Backend**: Convex (hosted on convex.cloud - serverless)
-- **Auth**: Better Auth with Convex adapter
-- **Database**: Convex (real-time document database)
+```
+┌─────────────────────┐     ┌──────────────┐     ┌──────────────┐
+│  Next.js Container  │────▶│  PostgreSQL   │     │  S3 / MinIO  │
+│  (App + API routes) │     │  (persistent) │     │  (receipts)  │
+└─────────────────────┘     └──────────────┘     └──────────────┘
+```
 
-The Docker container only runs the Next.js frontend. All backend logic runs on Convex's serverless infrastructure.
+All services run on a single Dokploy host. No external SaaS dependencies required (except OpenAI for receipt scanning).

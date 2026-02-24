@@ -1,0 +1,1 @@
+ALTER TABLE "transactions" ADD COLUMN "receipt_storage_id" text;

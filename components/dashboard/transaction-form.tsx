@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
 import { Loader2, Camera, Pencil } from "lucide-react";
 import {
   Dialog,
@@ -18,9 +17,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReceiptScanner } from "./receipt-scanner";
 import { useToast } from "@/hooks/use-toast";
-import { api } from "@/convex/_generated/api";
-import type { Doc, Id } from "@/convex/_generated/dataModel";
-import type { TransactionType } from "@/types";
+import { useApiQuery, apiFetch } from "@/hooks/use-api";
+import type { TransactionType, ApiTransaction } from "@/types";
+
+interface ApiCategory {
+  id: string;
+  name: string;
+  type: TransactionType;
+  color: string;
+  icon: string | null;
+  is_default: boolean;
+  created_at: string | null;
+}
 
 interface ReceiptScanResult {
   amount?: number;
@@ -34,7 +42,7 @@ interface ReceiptScanResult {
 interface TransactionFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  transaction?: Doc<"transactions"> | null;
+  transaction?: ApiTransaction | null;
   onSuccess?: () => void;
   defaultType?: TransactionType;
   defaultMode?: "manual" | "scan";
@@ -49,13 +57,12 @@ export function TransactionForm({
   defaultMode = "manual",
 }: TransactionFormProps) {
   const { toast } = useToast();
-  const createTransaction = useMutation(api.transactions.create);
-  const updateTransaction = useMutation(api.transactions.update);
-  const categories = useQuery(api.categories.list, {});
+  const { data: catData } = useApiQuery<{ categories: ApiCategory[] }>("/api/categories");
+  const categories = catData?.categories;
 
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"manual" | "scan">(defaultMode);
-  const [receiptStorageId, setReceiptStorageId] = useState<Id<"_storage"> | null>(null);
+  const [receiptStorageId, setReceiptStorageId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     amount: "",
     date: new Date().toISOString().split("T")[0],
@@ -75,7 +82,7 @@ export function TransactionForm({
         category: transaction.category,
         notes: transaction.notes ?? "",
       });
-      setReceiptStorageId(transaction.receiptStorageId ?? null);
+      setReceiptStorageId(transaction.receipt_url ?? null);
       setMode("manual");
       return;
     }
@@ -106,7 +113,7 @@ export function TransactionForm({
       notes: data.vendor ? `Vendor: ${data.vendor}` : prev.notes,
     }));
 
-    const storageId = (data.storageId ?? data.receiptUrl) as Id<"_storage"> | undefined;
+    const storageId = data.storageId ?? data.receiptUrl;
     setReceiptStorageId(storageId ?? null);
     setMode("manual");
   };
@@ -127,24 +134,26 @@ export function TransactionForm({
 
     setLoading(true);
     try {
-      if (transaction?._id) {
-        await updateTransaction({
-          id: transaction._id,
-          amount,
-          date: formData.date,
-          type: formData.type,
-          category: formData.category,
-          notes: formData.notes || undefined,
-          receiptStorageId: receiptStorageId ?? undefined,
+      const payload = {
+        amount,
+        date: formData.date,
+        type: formData.type,
+        category: formData.category,
+        notes: formData.notes || undefined,
+        receiptStorageId: receiptStorageId ?? undefined,
+      };
+
+      if (transaction?.id) {
+        await apiFetch(`/api/transactions/${transaction.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
       } else {
-        await createTransaction({
-          amount,
-          date: formData.date,
-          type: formData.type,
-          category: formData.category,
-          notes: formData.notes || undefined,
-          receiptStorageId: receiptStorageId ?? undefined,
+        await apiFetch("/api/transactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         });
       }
 
@@ -256,7 +265,7 @@ export function TransactionForm({
                   </SelectTrigger>
                   <SelectContent>
                     {filteredCategories.map((cat) => (
-                      <SelectItem key={cat._id} value={cat.name}>
+                      <SelectItem key={cat.id} value={cat.name}>
                         {cat.name}
                       </SelectItem>
                     ))}
