@@ -51,8 +51,14 @@ export async function POST(
     const body = await request.json();
 
     const requestedPaidAt = body.paidAt ?? body.paid_at;
-    const paidAt =
-      typeof requestedPaidAt === "string" ? requestedPaidAt : getCurrentUtcDate();
+    const paidAt = requestedPaidAt ?? getCurrentUtcDate();
+
+    if (typeof paidAt !== "string") {
+      return NextResponse.json(
+        { error: "paidAt must be a date string (YYYY-MM-DD)" },
+        { status: 400 },
+      );
+    }
 
     const row = await paymentLogService.create(userId, outgoingId, {
       amount: body.amount,
