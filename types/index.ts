@@ -169,3 +169,63 @@ export interface ApiBalanceLog {
   logged_at: string
   created_at: string | null
 }
+
+// ─── Loans Given ─────────────────────────────────────────────────────────────
+
+export type LoanStatus = 'active' | 'partially_repaid' | 'fully_repaid' | 'defaulted'
+
+export interface ApiLoanGiven {
+  id: string
+  borrower_name: string
+  amount: number
+  outstanding_balance: number
+  loan_date: string
+  expected_payback_date: string | null
+  status: LoanStatus
+  interest_rate: number | null
+  notes: string | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ApiLoanRepayment {
+  id: string
+  loan_id: string
+  amount: number
+  repayment_date: string
+  notes: string | null
+  created_at: string | null
+}
+
+// ─── Investments & Assets ────────────────────────────────────────────────────
+
+export type InvestmentType = 'stock' | 'crypto' | 'forex' | 'property' | 'business' | 'savings' | 'other'
+
+export type InvestmentEventType = 'return' | 'dividend' | 'sale' | 'partial_sale' | 'loss' | 'fee'
+
+export interface ApiInvestment {
+  id: string
+  name: string
+  investment_type: InvestmentType
+  platform: string | null
+  cost_basis: number
+  current_value: number
+  quantity: number | null
+  purchase_date: string
+  gain_loss: number
+  gain_loss_pct: number
+  notes: string | null
+  is_active: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ApiInvestmentEvent {
+  id: string
+  investment_id: string
+  event_type: InvestmentEventType
+  amount: number
+  event_date: string
+  notes: string | null
+  created_at: string | null
+}

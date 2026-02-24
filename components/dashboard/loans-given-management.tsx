@@ -1,0 +1,791 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  HandCoins,
+  Clock,
+  Users,
+  CalendarDays,
+  History,
+  Loader2,
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
+} from "lucide-react";
+import { useApiQuery, apiFetch } from "@/hooks/use-api";
+import type { ApiLoanGiven, ApiLoanRepayment, LoanStatus } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+const STATUS_CONFIG: Record<LoanStatus, { label: string; color: string; bg: string }> = {
+  active: {
+    label: "Active",
+    color: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-50 dark:bg-blue-950/30",
+  },
+  partially_repaid: {
+    label: "Partially Repaid",
+    color: "text-amber-600 dark:text-amber-400",
+    bg: "bg-amber-50 dark:bg-amber-950/30",
+  },
+  fully_repaid: {
+    label: "Fully Repaid",
+    color: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-50 dark:bg-emerald-950/30",
+  },
+  defaulted: {
+    label: "Defaulted",
+    color: "text-rose-600 dark:text-rose-400",
+    bg: "bg-rose-50 dark:bg-rose-950/30",
+  },
+};
+
+interface LoansGivenResponse {
+  loans: ApiLoanGiven[];
+  total_lent: number;
+  total_outstanding: number;
+  active_count: number;
+}
+
+interface LoanFormData {
+  borrowerName: string;
+  amount: string;
+  loanDate: string;
+  expectedPaybackDate: string;
+  interestRate: string;
+  notes: string;
+}
+
+// ─── Repayment Section (inline) ──────────────────────────────────────────────
+
+interface RepaymentSectionProps {
+  loanId: string;
+  onChanged: () => void;
+}
+
+function RepaymentSection({ loanId, onChanged }: RepaymentSectionProps) {
+  const { toast } = useToast();
+  const {
+    data,
+    loading,
+    error,
+    refresh,
+  } = useApiQuery<{ repayments: ApiLoanRepayment[] }>(
+    `/api/loans-given/${loanId}/repayments`,
+  );
+
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    amount: "",
+    repaymentDate: new Date().toISOString().split("T")[0],
+    notes: "",
+  });
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amount = Number.parseFloat(formData.amount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      toast({ title: "Error", description: "Enter a valid amount", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await apiFetch(`/api/loans-given/${loanId}/repayments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount,
+          repaymentDate: formData.repaymentDate,
+          notes: formData.notes || null,
+        }),
+      });
+
+      toast({ title: "Success", description: "Repayment recorded" });
+      setIsAddOpen(false);
+      setFormData({
+        amount: "",
+        repaymentDate: new Date().toISOString().split("T")[0],
+        notes: "",
+      });
+      refresh();
+      onChanged();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to record repayment";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const repayments = data?.repayments ?? [];
+
+  return (
+    <div className="space-y-3 border-t border-border/50 pt-3 mt-3">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium flex items-center gap-1.5">
+          <History className="size-3.5" />
+          Repayment History
+        </h4>
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="h-7 text-xs">
+              <Plus className="size-3 mr-1" />
+              Add Repayment
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Record Repayment</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleAdd} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="repayment-amount">Amount</Label>
+                <Input
+                  id="repayment-amount"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={formData.amount}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, amount: e.target.value }))
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repayment-date">Repayment Date</Label>
+                <Input
+                  id="repayment-date"
+                  type="date"
+                  value={formData.repaymentDate}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, repaymentDate: e.target.value }))
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="repayment-notes">Notes (optional)</Label>
+                <Input
+                  id="repayment-notes"
+                  placeholder="e.g. Bank transfer"
+                  value={formData.notes}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, notes: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" className="flex-1" disabled={saving}>
+                  {saving ? "Saving..." : "Record Repayment"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsAddOpen(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-3">
+          <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        </div>
+      ) : error ? (
+        <div className="text-center py-3">
+          <p className="text-xs text-muted-foreground">{error}</p>
+          <Button variant="outline" size="sm" className="mt-2 h-7 text-xs" onClick={refresh}>
+            Retry
+          </Button>
+        </div>
+      ) : repayments.length === 0 ? (
+        <p className="text-xs text-muted-foreground text-center py-2">
+          No repayments recorded yet
+        </p>
+      ) : (
+        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+          {repayments.slice(0, 6).map((repayment, i) => {
+            const prevRepayment = repayments[i + 1];
+            const change = prevRepayment
+              ? repayment.amount - prevRepayment.amount
+              : null;
+            return (
+              <div
+                key={repayment.id}
+                className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm"
+              >
+                <div>
+                  <p className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+                    {formatCurrency(repayment.amount)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {new Date(repayment.repayment_date).toLocaleDateString("en-GB")}
+                    {repayment.notes && (
+                      <span className="ml-2">{repayment.notes}</span>
+                    )}
+                  </p>
+                </div>
+                {change !== null && (
+                  <span
+                    className={`text-xs font-medium tabular-nums flex items-center gap-0.5 ${
+                      change > 0
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : change < 0
+                        ? "text-rose-600 dark:text-rose-400"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    {change > 0 ? (
+                      <ChevronUp className="size-3" />
+                    ) : change < 0 ? (
+                      <ChevronDown className="size-3" />
+                    ) : null}
+                    {change !== 0
+                      ? formatCurrency(Math.abs(change))
+                      : "No change"}
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+export function LoansGivenManagement() {
+  const { toast } = useToast();
+  const {
+    data,
+    loading,
+    error,
+    refresh,
+  } = useApiQuery<LoansGivenResponse>("/api/loans-given");
+
+  const loans = data?.loans;
+
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingItem, setEditingItem] = useState<ApiLoanGiven | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const [formData, setFormData] = useState<LoanFormData>({
+    borrowerName: "",
+    amount: "",
+    loanDate: new Date().toISOString().split("T")[0],
+    expectedPaybackDate: "",
+    interestRate: "",
+    notes: "",
+  });
+
+  const resetForm = () => {
+    setFormData({
+      borrowerName: "",
+      amount: "",
+      loanDate: new Date().toISOString().split("T")[0],
+      expectedPaybackDate: "",
+      interestRate: "",
+      notes: "",
+    });
+    setEditingItem(null);
+  };
+
+  const buildPayload = () => {
+    const amount = Number.parseFloat(formData.amount);
+    if (Number.isNaN(amount) || amount <= 0) return null;
+
+    return {
+      borrowerName: formData.borrowerName,
+      amount,
+      loanDate: formData.loanDate,
+      expectedPaybackDate: formData.expectedPaybackDate || null,
+      interestRate: formData.interestRate
+        ? Number.parseFloat(formData.interestRate)
+        : null,
+      notes: formData.notes || null,
+    };
+  };
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload = buildPayload();
+    if (!payload) {
+      toast({ title: "Error", description: "Enter a valid amount", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await apiFetch("/api/loans-given", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      toast({ title: "Success", description: "Loan added" });
+      setIsAddOpen(false);
+      resetForm();
+      refresh();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to add";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingItem) return;
+    const payload = buildPayload();
+    if (!payload) {
+      toast({ title: "Error", description: "Enter a valid amount", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await apiFetch(`/api/loans-given/${editingItem.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      toast({ title: "Success", description: "Loan updated" });
+      setIsEditOpen(false);
+      resetForm();
+      refresh();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to update";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (item: ApiLoanGiven) => {
+    if (!confirm(`Delete loan to "${item.borrower_name}"? This will also remove all repayment history.`)) return;
+    try {
+      await apiFetch(`/api/loans-given/${item.id}`, { method: "DELETE" });
+      toast({ title: "Success", description: "Loan deleted" });
+      refresh();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    }
+  };
+
+  const openEditDialog = (item: ApiLoanGiven) => {
+    setEditingItem(item);
+    setFormData({
+      borrowerName: item.borrower_name,
+      amount: item.amount.toString(),
+      loanDate: item.loan_date,
+      expectedPaybackDate: item.expected_payback_date ?? "",
+      interestRate: item.interest_rate?.toString() ?? "",
+      notes: item.notes ?? "",
+    });
+    setIsEditOpen(true);
+  };
+
+  const isOverdue = (item: ApiLoanGiven) => {
+    if (!item.expected_payback_date) return false;
+    if (item.status === "fully_repaid") return false;
+    return new Date(item.expected_payback_date) < new Date();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || loans === undefined) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <p className="text-sm text-muted-foreground">{error ?? "Failed to load loans given."}</p>
+          <Button variant="outline" size="sm" className="mt-3" onClick={refresh}>
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const formFields = (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="loan-borrower">Borrower Name</Label>
+        <Input
+          id="loan-borrower"
+          placeholder="e.g. John Smith"
+          value={formData.borrowerName}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, borrowerName: e.target.value }))
+          }
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="loan-amount">Amount</Label>
+        <Input
+          id="loan-amount"
+          type="number"
+          min="0.01"
+          step="0.01"
+          placeholder="0.00"
+          value={formData.amount}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, amount: e.target.value }))
+          }
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="loan-date">Loan Date</Label>
+        <Input
+          id="loan-date"
+          type="date"
+          value={formData.loanDate}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, loanDate: e.target.value }))
+          }
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="loan-payback-date">Expected Payback Date (optional)</Label>
+        <Input
+          id="loan-payback-date"
+          type="date"
+          value={formData.expectedPaybackDate}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, expectedPaybackDate: e.target.value }))
+          }
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="loan-interest">Interest Rate % (optional)</Label>
+        <Input
+          id="loan-interest"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="0.00"
+          value={formData.interestRate}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, interestRate: e.target.value }))
+          }
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="loan-notes">Notes (optional)</Label>
+        <Input
+          id="loan-notes"
+          placeholder="e.g. Emergency loan, cash"
+          value={formData.notes}
+          onChange={(e) =>
+            setFormData((prev) => ({ ...prev, notes: e.target.value }))
+          }
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      {/* Summary cards */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Lent</p>
+                <p className="text-2xl font-semibold text-blue-600 dark:text-blue-400 tabular-nums">
+                  {formatCurrency(data?.total_lent ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-blue-50 dark:bg-blue-950/30 p-3">
+                <HandCoins className="size-6 text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Outstanding</p>
+                <p className="text-2xl font-semibold text-amber-600 dark:text-amber-400 tabular-nums">
+                  {formatCurrency(data?.total_outstanding ?? 0)}
+                </p>
+              </div>
+              <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 p-3">
+                <Clock className="size-6 text-amber-600 dark:text-amber-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Active Loans</p>
+                <p className="text-2xl font-semibold tabular-nums">
+                  {data?.active_count ?? 0}
+                </p>
+              </div>
+              <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 p-3">
+                <Users className="size-6 text-emerald-600 dark:text-emerald-400" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Add button + dialogs */}
+      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+        <DialogTrigger asChild>
+          <Button className="w-full sm:w-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Loan
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Add Loan Given</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAdd} className="space-y-4">
+            {formFields}
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" className="flex-1" disabled={saving}>
+                {saving ? "Adding..." : "Add"}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Loan</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleEdit} className="space-y-4">
+            {formFields}
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" className="flex-1" disabled={saving}>
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsEditOpen(false);
+                  resetForm();
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Loans list */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {loans.length === 0 ? (
+          <Card>
+            <CardContent className="pt-6 text-center text-muted-foreground">
+              <p className="font-medium text-foreground">No loans given</p>
+              <p className="text-sm mt-1">Track money you&apos;ve lent to others.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          loans.map((item) => {
+            const statusConfig = STATUS_CONFIG[item.status];
+            const repaidPercent =
+              item.amount > 0
+                ? Math.min(
+                    ((item.amount - item.outstanding_balance) / item.amount) * 100,
+                    100,
+                  )
+                : 0;
+            const overdue = isOverdue(item);
+
+            return (
+              <Card
+                key={item.id}
+                className={item.status === "fully_repaid" ? "opacity-60" : ""}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`rounded-xl p-2 ${statusConfig.bg}`}>
+                        <HandCoins className={`size-4 ${statusConfig.color}`} />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{item.borrower_name}</CardTitle>
+                        <span
+                          className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${statusConfig.bg} ${statusConfig.color}`}
+                        >
+                          {statusConfig.label}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={() => openEditDialog(item)}
+                      >
+                        <Edit2 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(item)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Amount Lent</span>
+                    <span className="font-semibold tabular-nums text-blue-600 dark:text-blue-400">
+                      {formatCurrency(item.amount)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Outstanding</span>
+                    <span className="font-semibold tabular-nums text-amber-600 dark:text-amber-400">
+                      {formatCurrency(item.outstanding_balance)}
+                    </span>
+                  </div>
+
+                  {/* Repayment progress bar */}
+                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        repaidPercent >= 100
+                          ? "bg-emerald-500"
+                          : repaidPercent >= 50
+                          ? "bg-blue-500"
+                          : "bg-amber-500"
+                      }`}
+                      style={{ width: `${repaidPercent}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {repaidPercent.toFixed(0)}% repaid
+                  </p>
+
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground flex items-center gap-1.5">
+                      <CalendarDays className="size-3.5" />
+                      Loan Date
+                    </span>
+                    <span className="font-medium">
+                      {new Date(item.loan_date).toLocaleDateString("en-GB")}
+                    </span>
+                  </div>
+
+                  {item.expected_payback_date && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-1.5">
+                        <Clock className="size-3.5" />
+                        Expected Payback
+                      </span>
+                      <span
+                        className={`font-medium flex items-center gap-1 ${
+                          overdue ? "text-rose-600 dark:text-rose-400" : ""
+                        }`}
+                      >
+                        {overdue && <AlertTriangle className="size-3" />}
+                        {new Date(item.expected_payback_date).toLocaleDateString("en-GB")}
+                        {overdue && (
+                          <span className="text-xs ml-1">(overdue)</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+
+                  {item.interest_rate != null && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Interest Rate</span>
+                      <span className="font-medium tabular-nums">{item.interest_rate}%</span>
+                    </div>
+                  )}
+
+                  {item.notes && (
+                    <p className="text-xs text-muted-foreground italic pt-1">
+                      {item.notes}
+                    </p>
+                  )}
+
+                  {/* Expand/collapse repayment history */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-8 text-xs text-muted-foreground mt-2"
+                    onClick={() =>
+                      setExpandedId(expandedId === item.id ? null : item.id)
+                    }
+                  >
+                    <History className="size-3 mr-1" />
+                    {expandedId === item.id ? "Hide" : "Show"} Repayment History
+                    {expandedId === item.id ? (
+                      <ChevronUp className="size-3 ml-1" />
+                    ) : (
+                      <ChevronDown className="size-3 ml-1" />
+                    )}
+                  </Button>
+
+                  {expandedId === item.id && (
+                    <RepaymentSection loanId={item.id} onChanged={refresh} />
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}

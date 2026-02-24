@@ -1,0 +1,32 @@
+import { requireAuth } from "@/lib/auth-server";
+import * as investmentsService from "@/lib/db/investments";
+import { NextRequest, NextResponse } from "next/server";
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string; eventId: string }> },
+) {
+  try {
+    const userId = await requireAuth();
+    const { id, eventId } = await params;
+
+    await investmentsService.removeEvent(userId, id, eventId);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (
+      error instanceof Error &&
+      (error.message.includes("not found") || error.message.includes("unauthorized"))
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    console.error("Failed to delete investment event:", error);
+    return NextResponse.json(
+      { error: "Failed to delete investment event" },
+      { status: 500 },
+    );
+  }
+}

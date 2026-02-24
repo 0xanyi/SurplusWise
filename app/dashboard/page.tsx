@@ -12,6 +12,8 @@ import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { BudgetOverview } from "@/components/dashboard/budget-overview";
 import { OutgoingsOverview } from "@/components/dashboard/outgoings-overview";
 import { DebtsOverview } from "@/components/dashboard/debts-overview";
+import { LoansOverview } from "@/components/dashboard/loans-overview";
+import { InvestmentsOverview } from "@/components/dashboard/investments-overview";
 import type { ApiTransaction } from "@/types";
 
 function getGreeting() {
@@ -203,6 +205,11 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2">
         <OutgoingsOverview />
         <DebtsOverview />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <LoansOverview />
+        <InvestmentsOverview />
       </div>
 
       <Card>

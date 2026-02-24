@@ -43,6 +43,13 @@
       "when": 1771971482441,
       "tag": "0005_lean_war_machine",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1771972498383,
+      "tag": "0006_unusual_mantis",
+      "breakpoints": true
     }
   ]
 }

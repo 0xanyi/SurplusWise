@@ -300,3 +300,99 @@ export const balanceLogCreateSchema = z.object({
   notes: z.string().nullish(),
   loggedAt: dateStringSchema,
 });
+
+// ─── Loans Given ─────────────────────────────────────────────────────────────
+
+export const loanStatusSchema = z.enum([
+  "active",
+  "partially_repaid",
+  "fully_repaid",
+  "defaulted",
+]);
+
+export const loanGivenCreateSchema = z.object({
+  borrowerName: z.string().min(1, "borrower name is required").max(200),
+  amount: z.number().positive("amount must be positive"),
+  loanDate: dateStringSchema,
+  expectedPaybackDate: dateStringSchema.nullish(),
+  interestRate: z.number().min(0).max(100).nullish(),
+  notes: z.string().nullish(),
+});
+
+export const loanGivenUpdateSchema = z
+  .object({
+    borrowerName: z.string().min(1).max(200).optional(),
+    amount: z.number().positive().optional(),
+    outstandingBalance: z.number().min(0).optional(),
+    loanDate: dateStringSchema.optional(),
+    expectedPaybackDate: dateStringSchema.nullish(),
+    status: loanStatusSchema.optional(),
+    interestRate: z.number().min(0).max(100).nullish(),
+    notes: z.string().nullish(),
+  })
+  .refine(
+    (data) => Object.values(data).some((v) => v !== undefined),
+    { message: "At least one field must be provided for update" },
+  );
+
+export const loanRepaymentCreateSchema = z.object({
+  amount: z.number().positive("amount must be positive"),
+  repaymentDate: dateStringSchema,
+  notes: z.string().nullish(),
+});
+
+// ─── Investments & Assets ────────────────────────────────────────────────────
+
+export const investmentTypeSchema = z.enum([
+  "stock",
+  "crypto",
+  "forex",
+  "property",
+  "business",
+  "savings",
+  "other",
+]);
+
+export const investmentEventTypeSchema = z.enum([
+  "return",
+  "dividend",
+  "sale",
+  "partial_sale",
+  "loss",
+  "fee",
+]);
+
+export const investmentCreateSchema = z.object({
+  name: z.string().min(1, "name is required").max(200),
+  investmentType: investmentTypeSchema,
+  platform: z.string().max(200).nullish(),
+  costBasis: z.number().positive("cost basis must be positive"),
+  currentValue: z.number().min(0, "current value must be non-negative"),
+  quantity: z.number().positive().nullish(),
+  purchaseDate: dateStringSchema,
+  notes: z.string().nullish(),
+});
+
+export const investmentUpdateSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    investmentType: investmentTypeSchema.optional(),
+    platform: z.string().max(200).nullish(),
+    costBasis: z.number().positive().optional(),
+    currentValue: z.number().min(0).optional(),
+    quantity: z.number().positive().nullish(),
+    purchaseDate: dateStringSchema.optional(),
+    notes: z.string().nullish(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    (data) => Object.values(data).some((v) => v !== undefined),
+    { message: "At least one field must be provided for update" },
+  );
+
+export const investmentEventCreateSchema = z.object({
+  eventType: investmentEventTypeSchema,
+  amount: z.number().positive("amount must be positive"),
+  eventDate: dateStringSchema,
+  notes: z.string().nullish(),
+});

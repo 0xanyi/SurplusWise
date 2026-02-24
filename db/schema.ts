@@ -41,6 +41,32 @@ export const debtTypeEnum = pgEnum("debt_type", [
   "other",
 ]);
 
+export const loanStatusEnum = pgEnum("loan_status", [
+  "active",
+  "partially_repaid",
+  "fully_repaid",
+  "defaulted",
+]);
+
+export const investmentTypeEnum = pgEnum("investment_type", [
+  "stock",
+  "crypto",
+  "forex",
+  "property",
+  "business",
+  "savings",
+  "other",
+]);
+
+export const investmentEventTypeEnum = pgEnum("investment_event_type", [
+  "return",
+  "dividend",
+  "sale",
+  "partial_sale",
+  "loss",
+  "fee",
+]);
+
 // ─── Better Auth tables ──────────────────────────────────────────────────────
 
 export const users = pgTable("users", {
@@ -249,5 +275,99 @@ export const debtBalanceLogs = pgTable(
   (t) => [
     index("idx_debt_balance_logs_debt").on(t.debtId, t.loggedAt),
     index("idx_debt_balance_logs_user").on(t.userId),
+  ],
+);
+
+// ─── Loans Given (Receivables) ───────────────────────────────────────────────
+
+export const loansGiven = pgTable(
+  "loans_given",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    borrowerName: text("borrower_name").notNull(),
+    amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+    outstandingBalance: decimal("outstanding_balance", { precision: 12, scale: 2 }).notNull(),
+    loanDate: date("loan_date", { mode: "string" }).notNull(),
+    expectedPaybackDate: date("expected_payback_date", { mode: "string" }),
+    status: loanStatusEnum("status").notNull().default("active"),
+    interestRate: decimal("interest_rate", { precision: 5, scale: 2 }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_loans_given_user").on(t.userId, t.status),
+  ],
+);
+
+export const loanRepayments = pgTable(
+  "loan_repayments",
+  {
+    id: text("id").primaryKey(),
+    loanId: text("loan_id")
+      .notNull()
+      .references(() => loansGiven.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+    repaymentDate: date("repayment_date", { mode: "string" }).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_loan_repayments_loan").on(t.loanId, t.repaymentDate),
+    index("idx_loan_repayments_user").on(t.userId),
+  ],
+);
+
+// ─── Investments & Assets ────────────────────────────────────────────────────
+
+export const investments = pgTable(
+  "investments",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    investmentType: investmentTypeEnum("investment_type").notNull(),
+    platform: text("platform"),
+    costBasis: decimal("cost_basis", { precision: 14, scale: 2 }).notNull(),
+    currentValue: decimal("current_value", { precision: 14, scale: 2 }).notNull(),
+    quantity: decimal("quantity", { precision: 18, scale: 8 }),
+    purchaseDate: date("purchase_date", { mode: "string" }).notNull(),
+    notes: text("notes"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_investments_user").on(t.userId, t.isActive),
+  ],
+);
+
+export const investmentEvents = pgTable(
+  "investment_events",
+  {
+    id: text("id").primaryKey(),
+    investmentId: text("investment_id")
+      .notNull()
+      .references(() => investments.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    eventType: investmentEventTypeEnum("event_type").notNull(),
+    amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+    eventDate: date("event_date", { mode: "string" }).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_investment_events_investment").on(t.investmentId, t.eventDate),
+    index("idx_investment_events_user").on(t.userId),
   ],
 );

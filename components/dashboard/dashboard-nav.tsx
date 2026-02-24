@@ -14,6 +14,8 @@ import {
   Wallet,
   Receipt,
   CreditCard,
+  HandCoins,
+  Landmark,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -46,6 +48,8 @@ const navItems = [
   { href: "/dashboard/transactions", icon: ArrowLeftRight, label: "Transactions" },
   { href: "/dashboard/outgoings", icon: Receipt, label: "Outgoings" },
   { href: "/dashboard/debts", icon: CreditCard, label: "Debts" },
+  { href: "/dashboard/loans", icon: HandCoins, label: "Loans" },
+  { href: "/dashboard/investments", icon: Landmark, label: "Investments" },
   { href: "/dashboard/reports", icon: BarChart3, label: "Reports" },
   { href: "/dashboard/settings", icon: Settings, label: "Settings" },
 ];
