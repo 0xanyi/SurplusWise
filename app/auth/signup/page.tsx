@@ -50,22 +50,22 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10">
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="mx-auto w-full max-w-md">
-        <Link href="/" className="mb-8 flex items-center justify-center gap-2">
-          <div className="rounded-lg bg-primary/10 p-2">
-            <Wallet className="size-5 text-primary" />
+        <Link href="/" className="mb-10 flex items-center justify-center gap-2.5">
+          <div className="rounded-xl bg-primary p-2">
+            <Wallet className="size-5 text-primary-foreground" />
           </div>
           <span className="text-lg font-semibold">SurplusWise</span>
         </Link>
 
-        <div className="rounded-2xl border p-6 sm:p-8">
+        <div className="rounded-2xl border border-border/60 bg-card p-7 shadow-sm shadow-black/[0.02] sm:p-8">
           <h1 className="text-2xl font-semibold tracking-tight">Create account</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-sm text-muted-foreground">
             Start tracking your income, expenses, and giving.
           </p>
 
-          <form onSubmit={handleSignup} className="mt-6 space-y-4">
+          <form onSubmit={handleSignup} className="mt-7 space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Name</Label>
               <Input
@@ -74,6 +74,7 @@ export default function SignupPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your name"
+                className="h-11"
                 required
               />
             </div>
@@ -86,6 +87,7 @@ export default function SignupPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
+                className="h-11"
                 required
               />
             </div>
@@ -98,6 +100,7 @@ export default function SignupPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="At least 6 characters"
+                className="h-11"
                 required
               />
             </div>
@@ -110,17 +113,18 @@ export default function SignupPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Repeat password"
+                className="h-11"
                 required
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full h-11" disabled={loading}>
               {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
               Create account
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm text-muted-foreground">
+          <p className="mt-7 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link href="/auth/login" className="font-medium text-primary hover:underline">
               Sign in

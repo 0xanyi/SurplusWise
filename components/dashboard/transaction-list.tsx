@@ -88,13 +88,11 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
     [buildUrl],
   );
 
-  // Reset to page 0 when filters change
   useEffect(() => {
     setPage(0);
     loadPage(0, true);
   }, [typeFilter, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Re-fetch current page when an external refresh is triggered
   useEffect(() => {
     if (refreshKey > 0) {
       loadPage(0, true);
@@ -117,8 +115,6 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
     try {
       await apiFetch(`/api/transactions/${deleteId}`, { method: "DELETE" });
       toast({ title: "Success", description: "Transaction deleted" });
-      // If this was the last item on a non-first page, go back one page
-      // so the user isn't stuck on an empty page with no controls.
       const targetPage = transactions.length <= 1 && page > 0 ? page - 1 : page;
       loadPage(targetPage);
     } catch {
@@ -141,24 +137,23 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   };
 
   const getIcon = (type: TransactionType) => {
-    if (type === "expense") return <ArrowDownRight className="size-5 text-rose-600" />;
-    if (type === "income") return <TrendingUp className="size-5 text-blue-600" />;
-    return <ArrowUpRight className="size-5 text-emerald-600" />;
+    if (type === "expense") return <ArrowDownRight className="size-4 text-rose-600 dark:text-rose-400" />;
+    if (type === "income") return <TrendingUp className="size-4 text-blue-600 dark:text-blue-400" />;
+    return <ArrowUpRight className="size-4 text-emerald-600 dark:text-emerald-400" />;
   };
 
   const getIconBg = (type: TransactionType) => {
-    if (type === "expense") return "bg-rose-100 dark:bg-rose-900/30";
-    if (type === "income") return "bg-blue-100 dark:bg-blue-900/30";
-    return "bg-emerald-100 dark:bg-emerald-900/30";
+    if (type === "expense") return "bg-rose-50 dark:bg-rose-950/30";
+    if (type === "income") return "bg-blue-50 dark:bg-blue-950/30";
+    return "bg-emerald-50 dark:bg-emerald-950/30";
   };
 
   const getAmountColor = (type: TransactionType) => {
-    if (type === "expense") return "text-rose-600";
-    if (type === "income") return "text-blue-600";
-    return "text-emerald-600";
+    if (type === "expense") return "text-rose-600 dark:text-rose-400";
+    if (type === "income") return "text-blue-600 dark:text-blue-400";
+    return "text-emerald-600 dark:text-emerald-400";
   };
 
-  // Display page number is 1-indexed for the user
   const displayPage = page + 1;
 
   return (
@@ -169,7 +164,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
         </CardHeader>
 
         <CardContent>
-          <div className="mb-4 space-y-3">
+          <div className="mb-5 space-y-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -199,9 +194,9 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
           {loadingFirst ? (
             <div className="space-y-2">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
-                  <Skeleton className="size-10 rounded-lg" />
-                  <div className="flex-1 space-y-1">
+                <div key={i} className="flex items-center gap-3 rounded-xl border border-border/50 p-3.5">
+                  <Skeleton className="size-10 rounded-xl" />
+                  <div className="flex-1 space-y-1.5">
                     <Skeleton className="h-4 w-28" />
                     <Skeleton className="h-3 w-24" />
                   </div>
@@ -210,25 +205,27 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
               ))}
             </div>
           ) : transactions.length === 0 ? (
-            <div className="py-12 text-center">
-              <Receipt className="mx-auto mb-2 size-7 text-muted-foreground" />
+            <div className="py-14 text-center">
+              <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-muted">
+                <Receipt className="size-5 text-muted-foreground" />
+              </div>
               <p className="font-medium">No transactions found</p>
-              <p className="text-sm text-muted-foreground">Try another filter or search term.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Try another filter or search term.</p>
             </div>
           ) : (
             <div className="space-y-2">
               {transactions.map((transaction) => (
-                <div key={transaction.id} className="rounded-lg border p-3 sm:p-4">
+                <div key={transaction.id} className="rounded-xl border border-border/50 p-3.5 transition-colors hover:bg-accent/30 sm:p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
-                      <div className={cn("mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg", getIconBg(transaction.type))}>
+                      <div className={cn("mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl", getIconBg(transaction.type))}>
                         {getIcon(transaction.type)}
                       </div>
 
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium sm:text-base">{transaction.category}</p>
                         <p className="text-xs text-muted-foreground sm:text-sm">
-                          {transaction.type} • {new Date(transaction.date).toLocaleDateString("en-GB")}
+                          {transaction.type} · {new Date(transaction.date).toLocaleDateString("en-GB")}
                         </p>
                         {transaction.notes && (
                           <p className="mt-1 line-clamp-1 text-xs text-muted-foreground sm:text-sm">{transaction.notes}</p>
@@ -236,7 +233,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                       </div>
                     </div>
 
-                    <p className={cn("shrink-0 text-sm font-semibold sm:text-base", getAmountColor(transaction.type))}>
+                    <p className={cn("shrink-0 text-sm font-semibold tabular-nums sm:text-base", getAmountColor(transaction.type))}>
                       {transaction.type === "expense" ? "-" : "+"}
                       {formatCurrency(transaction.amount)}
                     </p>
@@ -244,17 +241,17 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
 
                   <div className="mt-3 flex gap-2 sm:justify-end">
                     <Button type="button" size="sm" variant="outline" className="h-9 flex-1 sm:flex-none" onClick={() => handleEdit(transaction)}>
-                      <Pencil className="mr-2 size-4" />
+                      <Pencil className="mr-2 size-3.5" />
                       Edit
                     </Button>
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="h-9 flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 sm:flex-none"
+                      className="h-9 flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 dark:border-rose-900 dark:hover:bg-rose-950/30 sm:flex-none"
                       onClick={() => handleDelete(transaction.id)}
                     >
-                      <Trash2 className="mr-2 size-4" />
+                      <Trash2 className="mr-2 size-3.5" />
                       Delete
                     </Button>
                   </div>
@@ -270,7 +267,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
               <Button variant="outline" size="sm" className="h-9" onClick={handlePrev} disabled={page <= 0 || loadingFirst || loadingPage}>
                 Prev
               </Button>
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-muted-foreground tabular-nums">
                 Page {displayPage}
               </span>
               <Button

@@ -12,12 +12,12 @@ import { formatCurrency } from "@/lib/utils";
 
 function BudgetSkeleton() {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       <div className="flex items-center justify-between">
         <Skeleton className="h-4 w-32" />
         <Skeleton className="h-4 w-28" />
       </div>
-      <Skeleton className="h-2 w-full" />
+      <Skeleton className="h-2.5 w-full rounded-full" />
       <Skeleton className="h-3 w-24" />
     </div>
   );
@@ -47,11 +47,11 @@ export function BudgetOverview() {
 
   if (loading || budgets === undefined) {
     return (
-      <Card className="border shadow-sm">
+      <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold">Budget Overview</CardTitle>
+          <CardTitle>Budget Overview</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5">
           <BudgetSkeleton />
           <BudgetSkeleton />
           <BudgetSkeleton />
@@ -62,11 +62,14 @@ export function BudgetOverview() {
 
   if (topBudgets.length === 0) {
     return (
-      <Card className="border shadow-sm">
+      <Card>
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold">Budget Overview</CardTitle>
+          <CardTitle>Budget Overview</CardTitle>
         </CardHeader>
-        <CardContent className="text-center py-8">
+        <CardContent className="text-center py-10">
+          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-muted">
+            <TrendingDown className="size-5 text-muted-foreground" />
+          </div>
           <p className="font-medium">No budgets set</p>
           <p className="mt-1 text-sm text-muted-foreground">Create your first budget to track progress.</p>
           <Link href="/dashboard/settings" className="mt-4 inline-flex">
@@ -81,26 +84,30 @@ export function BudgetOverview() {
   }
 
   return (
-    <Card className="border shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg font-semibold">Budget Overview</CardTitle>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle>Budget Overview</CardTitle>
         <Link href="/dashboard/settings">
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" className="text-muted-foreground">
             View All
           </Button>
         </Link>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         {topBudgets.map((budget) => (
-          <div key={budget.id} className="space-y-2">
+          <div key={budget.id} className="space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-sm font-medium">
                 {budget.type === "expense" ? (
-                  <TrendingDown className="size-4 text-rose-500" />
+                  <div className="rounded-lg p-1.5 bg-rose-50 dark:bg-rose-950/30">
+                    <TrendingDown className="size-3.5 text-rose-500" />
+                  </div>
                 ) : (
-                  <TrendingUp
-                    className={`size-4 ${budget.type === "income" ? "text-blue-500" : "text-emerald-500"}`}
-                  />
+                  <div className={`rounded-lg p-1.5 ${budget.type === "income" ? "bg-blue-50 dark:bg-blue-950/30" : "bg-emerald-50 dark:bg-emerald-950/30"}`}>
+                    <TrendingUp
+                      className={`size-3.5 ${budget.type === "income" ? "text-blue-500" : "text-emerald-500"}`}
+                    />
+                  </div>
                 )}
                 {budget.category}
               </div>
@@ -108,18 +115,18 @@ export function BudgetOverview() {
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 {(budget.status === "warning" || budget.status === "exceeded") && (
                   <AlertTriangle
-                    className={`size-4 ${budget.status === "exceeded" ? "text-rose-600" : "text-amber-500"}`}
+                    className={`size-3.5 ${budget.status === "exceeded" ? "text-rose-600" : "text-amber-500"}`}
                   />
                 )}
-                <span>
+                <span className="tabular-nums">
                   {formatCurrency(budget.spent)} / {formatCurrency(budget.amount)}
                 </span>
               </div>
             </div>
 
-            <div className="h-2 overflow-hidden rounded-full bg-muted">
+            <div className="h-2.5 overflow-hidden rounded-full bg-muted">
               <div
-                className={`h-full rounded-full ${
+                className={`h-full rounded-full transition-all duration-500 ${
                   budget.status === "exceeded"
                     ? "bg-rose-500"
                     : budget.status === "warning"

@@ -7,7 +7,7 @@ const config = {
     './components/**/*.{ts,tsx}',
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
-	],
+  ],
   prefix: "",
   theme: {
     container: {
@@ -18,7 +18,7 @@ const config = {
       },
     },
     fontFamily: {
-      sans: ["var(--font-ibm-plex)", "'IBM Plex Sans'", "system-ui", "-apple-system", "sans-serif"],
+      sans: ["var(--font-jakarta)", "'Plus Jakarta Sans'", "system-ui", "-apple-system", "sans-serif"],
     },
     extend: {
       colors: {

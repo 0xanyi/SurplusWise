@@ -55,8 +55,6 @@ export default function DashboardPage() {
 
     setAnalyticsError(null);
 
-    // Fetch analytics and transactions independently so one failure
-    // doesn't block the other, and the loading state always terminates.
     const analyticsPromise = fetch("/api/analytics?period=month")
       .then(async (res) => {
         if (res.ok) {
@@ -116,26 +114,30 @@ export default function DashboardPage() {
     {
       title: "Income",
       value: totalIncome,
-      color: "text-blue-600",
+      color: "text-blue-600 dark:text-blue-400",
+      bgColor: "bg-blue-50 dark:bg-blue-950/30",
       icon: TrendingUp,
     },
     {
       title: "Expenses",
       value: totalExpenses,
-      color: "text-rose-600",
+      color: "text-rose-600 dark:text-rose-400",
+      bgColor: "bg-rose-50 dark:bg-rose-950/30",
       icon: ArrowDownRight,
     },
     {
       title: "Giving",
       value: totalGivings,
-      color: "text-emerald-600",
+      color: "text-emerald-600 dark:text-emerald-400",
+      bgColor: "bg-emerald-50 dark:bg-emerald-950/30",
       icon: ArrowUpRight,
     },
     {
       title: "Net balance",
       value: Math.abs(netBalance),
       subtitle: netBalance >= 0 ? "Surplus" : "Deficit",
-      color: netBalance >= 0 ? "text-emerald-600" : "text-rose-600",
+      color: netBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
+      bgColor: netBalance >= 0 ? "bg-emerald-50 dark:bg-emerald-950/30" : "bg-rose-50 dark:bg-rose-950/30",
       icon: Wallet,
     },
   ];
@@ -143,9 +145,9 @@ export default function DashboardPage() {
   const recent = recentTransactions ?? [];
 
   return (
-    <div className="space-y-5 pb-6 sm:space-y-6 sm:pb-8">
+    <div className="space-y-6 pb-8">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight sm:text-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           {getGreeting()}, {firstName}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground sm:text-base">
@@ -178,12 +180,14 @@ export default function DashboardPage() {
           return (
             <Card key={card.title}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm text-muted-foreground">{card.title}</CardTitle>
-                <Icon className={cn("size-4", card.color)} />
+                <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
+                <div className={cn("rounded-lg p-2", card.bgColor)}>
+                  <Icon className={cn("size-4", card.color)} />
+                </div>
               </CardHeader>
               <CardContent>
-                <div className={cn("text-2xl font-semibold", card.color)}>{formatCurrency(card.value)}</div>
-                {card.subtitle && <p className="text-xs text-muted-foreground">{card.subtitle}</p>}
+                <div className={cn("text-2xl font-semibold tabular-nums", card.color)}>{formatCurrency(card.value)}</div>
+                {card.subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{card.subtitle}</p>}
               </CardContent>
             </Card>
           );
@@ -195,39 +199,41 @@ export default function DashboardPage() {
       <BudgetOverview />
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+        <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base sm:text-lg">Recent transactions</CardTitle>
           <Link href="/dashboard/transactions">
-            <Button variant="ghost" size="sm" className="h-9">
+            <Button variant="ghost" size="sm" className="h-9 text-muted-foreground">
               View all
             </Button>
           </Link>
         </CardHeader>
         <CardContent>
           {recent.length === 0 ? (
-            <div className="py-10 text-center">
-              <Receipt className="mx-auto mb-3 size-8 text-muted-foreground" />
+            <div className="py-12 text-center">
+              <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-muted">
+                <Receipt className="size-5 text-muted-foreground" />
+              </div>
               <p className="font-medium">No transactions yet</p>
-              <p className="text-sm text-muted-foreground">Use Quick add to create your first entry.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Use Quick add to create your first entry.</p>
             </div>
           ) : (
             <div className="space-y-2">
               {recent.map((tx) => (
-                <div key={tx.id} className="flex items-center justify-between rounded-lg border p-3.5 sm:p-3">
+                <div key={tx.id} className="flex items-center justify-between rounded-xl border border-border/50 p-3.5 transition-colors hover:bg-accent/30">
                   <div>
                     <p className="text-sm font-medium sm:text-base">{tx.category}</p>
                     <p className="text-xs text-muted-foreground sm:text-sm">
-                      {tx.type} • {new Date(tx.date).toLocaleDateString("en-GB")}
+                      {tx.type} · {new Date(tx.date).toLocaleDateString("en-GB")}
                     </p>
                   </div>
                   <p
                     className={cn(
-                      "font-semibold",
+                      "font-semibold tabular-nums",
                       tx.type === "income"
-                        ? "text-blue-600"
+                        ? "text-blue-600 dark:text-blue-400"
                         : tx.type === "giving"
-                        ? "text-emerald-600"
-                        : "text-rose-600"
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-rose-600 dark:text-rose-400"
                     )}
                   >
                     {tx.type === "expense" ? "-" : "+"}

@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -205,45 +206,49 @@ export function BudgetManagement() {
           </DialogHeader>
 
           <form onSubmit={handleAddBudget} className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="budget-type">Type</Label>
-              <select
-                id="budget-type"
+              <Select
                 value={formData.type}
-                onChange={(e) =>
+                onValueChange={(value: BudgetType) =>
                   setFormData((prev) => ({
                     ...prev,
-                    type: e.target.value as BudgetType,
+                    type: value,
                     category: "",
                   }))
                 }
-                className="w-full rounded-md border bg-background px-3 py-2"
               >
-                <option value="income">Income</option>
-                <option value="expense">Expense</option>
-                <option value="giving">Giving</option>
-              </select>
+                <SelectTrigger id="budget-type">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="giving">Giving</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="budget-category">Category</Label>
-              <select
-                id="budget-category"
+              <Select
                 value={formData.category}
-                onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
-                className="w-full rounded-md border bg-background px-3 py-2"
-                required
+                onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
               >
-                <option value="">Select category</option>
-                {filteredCategories.map((cat) => (
-                  <option key={cat.id} value={cat.name}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="budget-category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.name}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="budget-amount">Amount</Label>
               <Input
                 id="budget-amount"
@@ -256,21 +261,24 @@ export function BudgetManagement() {
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="budget-period">Period</Label>
-              <select
-                id="budget-period"
+              <Select
                 value={formData.period}
-                onChange={(e) => setFormData((prev) => ({ ...prev, period: e.target.value as BudgetPeriod }))}
-                className="w-full rounded-md border bg-background px-3 py-2"
+                onValueChange={(value: BudgetPeriod) => setFormData((prev) => ({ ...prev, period: value }))}
               >
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly</option>
-                <option value="yearly">Yearly</option>
-              </select>
+                <SelectTrigger id="budget-period">
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="quarterly">Quarterly</SelectItem>
+                  <SelectItem value="yearly">Yearly</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               <Button type="submit" className="flex-1" disabled={saving}>
                 {saving ? "Creating..." : "Create Budget"}
               </Button>
@@ -289,11 +297,11 @@ export function BudgetManagement() {
           </DialogHeader>
 
           <form onSubmit={handleEditBudget} className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label>Category</Label>
               <Input value={formData.category} disabled />
             </div>
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="edit-budget-amount">Amount</Label>
               <Input
                 id="edit-budget-amount"
@@ -305,7 +313,7 @@ export function BudgetManagement() {
                 required
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               <Button type="submit" className="flex-1" disabled={saving}>
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
@@ -340,11 +348,11 @@ export function BudgetManagement() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`rounded-lg p-2 ${budget.type === "expense" ? "bg-rose-500/10" : "bg-emerald-500/10"}`}>
+                      <div className={`rounded-xl p-2 ${budget.type === "expense" ? "bg-rose-50 dark:bg-rose-950/30" : budget.type === "income" ? "bg-blue-50 dark:bg-blue-950/30" : "bg-emerald-50 dark:bg-emerald-950/30"}`}>
                         {budget.type === "expense" ? (
-                          <TrendingDown className="size-4 text-rose-600" />
+                          <TrendingDown className="size-4 text-rose-600 dark:text-rose-400" />
                         ) : (
-                          <TrendingUp className={`size-4 ${budget.type === "income" ? "text-blue-600" : "text-emerald-600"}`} />
+                          <TrendingUp className={`size-4 ${budget.type === "income" ? "text-blue-600 dark:text-blue-400" : "text-emerald-600 dark:text-emerald-400"}`} />
                         )}
                       </div>
                       <div>
@@ -357,7 +365,7 @@ export function BudgetManagement() {
 
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDialog(budget)}>
-                        <Edit2 className="h-4 w-4" />
+                        <Edit2 className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         size="icon"
@@ -365,7 +373,7 @@ export function BudgetManagement() {
                         className="h-8 w-8 text-destructive hover:text-destructive"
                         onClick={() => handleDeleteBudget(budget)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </div>
                   </div>
@@ -374,16 +382,16 @@ export function BudgetManagement() {
                 <CardContent className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Spent</span>
-                    <span className="font-semibold">{formatCurrency(budget.spent)}</span>
+                    <span className="font-semibold tabular-nums">{formatCurrency(budget.spent)}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Budget</span>
-                    <span className="font-semibold">{formatCurrency(budget.amount)}</span>
+                    <span className="font-semibold tabular-nums">{formatCurrency(budget.amount)}</span>
                   </div>
 
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
                     <div
-                      className={`h-full rounded-full ${
+                      className={`h-full rounded-full transition-all duration-500 ${
                         status === "exceeded"
                           ? "bg-rose-500"
                           : status === "warning"

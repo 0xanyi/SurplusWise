@@ -51,7 +51,7 @@ export async function PATCH(
     }
     if (
       error instanceof Error &&
-      error.message.includes("Cannot modify")
+      error.message.includes("already exists")
     ) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
@@ -85,12 +85,7 @@ export async function DELETE(
     ) {
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
-    if (
-      error instanceof Error &&
-      error.message.includes("Cannot delete")
-    ) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
+
     console.error("Failed to delete category:", error);
     return NextResponse.json(
       { error: "Failed to delete category" },

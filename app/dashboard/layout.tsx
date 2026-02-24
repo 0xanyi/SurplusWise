@@ -20,18 +20,16 @@ export default function DashboardLayout({
       return;
     }
 
-    // Default categories are now seeded server-side on the first
-    // GET /api/categories call, so no explicit mutation is needed.
     if (session?.user?.id) {
-      fetch("/api/categories").catch((error) => {
-        console.error("Failed to ensure default categories", error);
+      fetch("/api/categories/seed", { method: "POST" }).catch((error) => {
+        console.error("Failed to seed default categories", error);
       });
     }
   }, [session, isPending, router]);
 
   if (isPending) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
@@ -50,7 +48,7 @@ export default function DashboardLayout({
           name: session.user.name,
         }}
       />
-      <main className="container mx-auto max-w-7xl flex-1 px-4 py-6 sm:px-6">{children}</main>
+      <main className="container mx-auto max-w-7xl flex-1 px-4 py-8 sm:px-6">{children}</main>
     </div>
   );
 }

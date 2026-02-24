@@ -1,6 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { categories } from "@/db/schema";
+import { categories, users } from "@/db/schema";
 import {
   ALL_DEFAULTS,
   type TransactionType,
@@ -52,13 +52,25 @@ export async function list(userId: string, type?: TransactionType) {
 }
 
 /**
- * Idempotent: insert default categories that don't yet exist for this user.
- * Uses conflict-safe inserts to avoid race condition crashes when
- * multiple requests seed defaults concurrently.
- * Returns the count of newly-inserted rows.
+ * One-time seed per user.
+ *
+ * Uses users.categoriesSeeded as a durable marker so defaults are never
+ * re-created after a user renames/deletes them (even if all categories are removed).
  */
 export async function ensureDefaults(userId: string) {
   userIdSchema.parse(userId);
+
+  const [user] = await db
+    .select({ id: users.id, categoriesSeeded: users.categoriesSeeded })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user) throw new Error("User not found or unauthorized");
+
+  // Seed has already happened once for this user.
+  if (user.categoriesSeeded) return { inserted: 0 };
+
   let inserted = 0;
 
   for (const [type, defaults] of Object.entries(ALL_DEFAULTS) as [TransactionType, typeof ALL_DEFAULTS[TransactionType]][]) {
@@ -91,6 +103,12 @@ export async function ensureDefaults(userId: string) {
       if (result.length > 0) inserted++;
     }
   }
+
+  // Mark seeded even if zero inserted (e.g. legacy users already had categories).
+  await db
+    .update(users)
+    .set({ categoriesSeeded: true })
+    .where(eq(users.id, userId));
 
   return { inserted };
 }
@@ -128,7 +146,7 @@ export async function create(userId: string, input: CreateInput) {
   return row;
 }
 
-/** Update a non-default category. Throws if default or unauthorized. */
+/** Update a category. Throws if unauthorized. */
 export async function update(userId: string, id: string, input: UpdateInput) {
   userIdSchema.parse(userId);
   idSchema.parse(id);
@@ -140,7 +158,22 @@ export async function update(userId: string, id: string, input: UpdateInput) {
     .limit(1);
 
   if (!cat) throw new Error("Category not found or unauthorized");
-  if (cat.isDefault) throw new Error("Cannot modify default categories");
+
+  if (input.name && input.name !== cat.name) {
+    const [existing] = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(
+        and(
+          eq(categories.userId, userId),
+          eq(categories.type, cat.type),
+          eq(categories.name, input.name),
+        ),
+      )
+      .limit(1);
+
+    if (existing) throw new Error("Category with this name already exists");
+  }
 
   const [row] = await db
     .update(categories)
@@ -154,7 +187,7 @@ export async function update(userId: string, id: string, input: UpdateInput) {
   return row;
 }
 
-/** Delete a non-default category. Throws if default or unauthorized. */
+/** Delete a category. Throws if unauthorized. */
 export async function remove(userId: string, id: string) {
   userIdSchema.parse(userId);
   idSchema.parse(id);
@@ -165,7 +198,6 @@ export async function remove(userId: string, id: string) {
     .limit(1);
 
   if (!cat) throw new Error("Category not found or unauthorized");
-  if (cat.isDefault) throw new Error("Cannot delete default categories");
 
   await db
     .delete(categories)

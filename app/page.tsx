@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Wallet, CheckCircle2, ArrowRight } from "lucide-react";
+import { Wallet, CheckCircle2, ArrowRight, TrendingUp, Receipt, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isAuthenticated } from "@/lib/auth-server";
 
@@ -13,11 +13,11 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-background">
-      <header className="border-b border-border/60">
+      <header className="border-b border-border/40">
         <div className="container mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <div className="rounded-lg bg-primary/10 p-2">
-              <Wallet className="size-5 text-primary" />
+          <div className="flex items-center gap-2.5">
+            <div className="rounded-xl bg-primary p-2">
+              <Wallet className="size-5 text-primary-foreground" />
             </div>
             <span className="font-semibold text-lg">SurplusWise</span>
           </div>
@@ -33,54 +33,66 @@ export default async function Home() {
         </div>
       </header>
 
-      <section className="container mx-auto max-w-5xl px-4 py-16 sm:py-24">
+      <section className="container mx-auto max-w-5xl px-4 py-20 sm:py-28">
         <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">
+          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
             Simple money tracking for everyday life
           </h1>
-          <p className="mt-4 text-base text-muted-foreground sm:text-lg">
+          <p className="mt-5 text-base text-muted-foreground sm:text-lg max-w-2xl mx-auto">
             Track your income, expenses, and giving in one place. No clutter, no noise —
             just the numbers you need to stay consistent.
           </p>
 
-          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+          <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
             <Link href="/auth/signup">
-              <Button size="lg" className="w-full sm:w-auto">
+              <Button size="lg" className="w-full sm:w-auto h-12 px-8 text-base">
                 Create free account
                 <ArrowRight className="ml-2 size-4" />
               </Button>
             </Link>
             <Link href="/auth/login">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto h-12 px-8 text-base">
                 I already have an account
               </Button>
             </Link>
           </div>
         </div>
 
-        <div className="mt-14 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border p-5">
-            <h2 className="font-medium">Quick entry</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Add income, expenses, or giving in seconds.
-            </p>
-          </div>
-          <div className="rounded-xl border p-5">
-            <h2 className="font-medium">Clear overview</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              See this month&apos;s totals and your current balance at a glance.
-            </p>
-          </div>
-          <div className="rounded-xl border p-5">
-            <h2 className="font-medium">Optional receipt scan</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Use AI receipt scanning when you need it.
-            </p>
-          </div>
+        <div className="mt-16 grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              icon: TrendingUp,
+              title: "Quick entry",
+              description: "Add income, expenses, or giving in seconds.",
+            },
+            {
+              icon: Receipt,
+              title: "Clear overview",
+              description: "See this month's totals and your current balance at a glance.",
+            },
+            {
+              icon: ScanLine,
+              title: "Optional receipt scan",
+              description: "Use AI receipt scanning when you need it.",
+            },
+          ].map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <div key={feature.title} className="rounded-2xl border border-border/50 p-6 transition-colors hover:bg-accent/30">
+                <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-primary/10">
+                  <Icon className="size-5 text-primary" />
+                </div>
+                <h2 className="font-medium">{feature.title}</h2>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            );
+          })}
         </div>
 
-        <div className="mt-8 rounded-xl border bg-muted/30 p-4 text-sm text-muted-foreground">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center sm:gap-6">
+        <div className="mt-10 rounded-2xl border border-border/40 bg-muted/30 p-5 text-sm text-muted-foreground">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-8">
             <span className="inline-flex items-center gap-2">
               <CheckCircle2 className="size-4 text-emerald-500" />
               Personal finance focused
@@ -91,7 +103,7 @@ export default async function Home() {
             </span>
             <span className="inline-flex items-center gap-2">
               <CheckCircle2 className="size-4 text-emerald-500" />
-              Income • Expense • Giving
+              Income · Expense · Giving
             </span>
           </div>
         </div>

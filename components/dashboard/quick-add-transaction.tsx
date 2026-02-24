@@ -87,15 +87,15 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <CardTitle className="text-base">Quick add</CardTitle>
       </CardHeader>
 
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            <div className="space-y-1">
-              <Label htmlFor="quick-type" className="text-xs text-muted-foreground">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="quick-type" className="text-xs font-medium text-muted-foreground">
                 Type
               </Label>
               <Select value={type} onValueChange={(value: TransactionType) => setType(value)}>
@@ -110,8 +110,8 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
               </Select>
             </div>
 
-            <div className="space-y-1">
-              <Label htmlFor="quick-amount" className="text-xs text-muted-foreground">
+            <div className="space-y-1.5">
+              <Label htmlFor="quick-amount" className="text-xs font-medium text-muted-foreground">
                 Amount
               </Label>
               <Input
@@ -127,8 +127,8 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
               />
             </div>
 
-            <div className="col-span-2 space-y-1 sm:col-span-1">
-              <Label htmlFor="quick-category" className="text-xs text-muted-foreground">
+            <div className="col-span-2 space-y-1.5 sm:col-span-1">
+              <Label htmlFor="quick-category" className="text-xs font-medium text-muted-foreground">
                 Category
               </Label>
               <Select value={category} onValueChange={setCategory}>
@@ -145,8 +145,8 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
               </Select>
             </div>
 
-            <div className="col-span-2 space-y-1 sm:col-span-1">
-              <Label htmlFor="quick-date" className="text-xs text-muted-foreground">
+            <div className="col-span-2 space-y-1.5 sm:col-span-1">
+              <Label htmlFor="quick-date" className="text-xs font-medium text-muted-foreground">
                 Date
               </Label>
               <Input

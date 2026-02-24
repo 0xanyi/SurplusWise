@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -103,12 +104,7 @@ export function CategoryManagement() {
   };
 
   const handleDeleteCategory = async (category: ApiCategory) => {
-    if (category.is_default) {
-      toast({ title: "Error", description: "Default categories cannot be deleted", variant: "destructive" });
-      return;
-    }
-
-    if (!confirm(`Delete "${category.name}"?`)) return;
+    if (!confirm(`Delete "${category.name}"? Any transactions using this category will keep their current category label.`)) return;
 
     try {
       await apiFetch(`/api/categories/${category.id}`, { method: "DELETE" });
@@ -155,7 +151,7 @@ export function CategoryManagement() {
           </DialogHeader>
 
           <form onSubmit={handleAddCategory} className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="category-name">Category Name</Label>
               <Input
                 id="category-name"
@@ -166,23 +162,26 @@ export function CategoryManagement() {
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="category-type">Type</Label>
-              <select
-                id="category-type"
+              <Select
                 value={formData.type}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, type: e.target.value as CategoryType }))
+                onValueChange={(value: CategoryType) =>
+                  setFormData((prev) => ({ ...prev, type: value }))
                 }
-                className="w-full rounded-md border bg-background px-3 py-2"
               >
-                <option value="income">Income</option>
-                <option value="expense">Expense</option>
-                <option value="giving">Giving</option>
-              </select>
+                <SelectTrigger id="category-type">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">Income</SelectItem>
+                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="giving">Giving</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="category-color">Color</Label>
               <div className="flex items-center gap-2">
                 <input
@@ -190,13 +189,13 @@ export function CategoryManagement() {
                   type="color"
                   value={formData.color}
                   onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
-                  className="h-10 w-20 rounded-md border"
+                  className="h-10 w-20 cursor-pointer rounded-lg border"
                 />
                 <Input value={formData.color} readOnly />
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-2">
               <Button type="submit" className="flex-1" disabled={loading}>
                 {loading ? "Adding..." : "Add Category"}
               </Button>
@@ -215,23 +214,17 @@ export function CategoryManagement() {
           </DialogHeader>
 
           <form onSubmit={handleEditCategory} className="space-y-4">
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="edit-category-name">Category Name</Label>
               <Input
                 id="edit-category-name"
                 value={formData.name}
                 onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                 required
-                disabled={editingCategory?.is_default}
               />
-              {editingCategory?.is_default && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Default category names cannot be changed.
-                </p>
-              )}
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label htmlFor="edit-category-color">Color</Label>
               <div className="flex items-center gap-2">
                 <input
@@ -239,15 +232,14 @@ export function CategoryManagement() {
                   type="color"
                   value={formData.color}
                   onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
-                  className="h-10 w-20 rounded-md border"
-                  disabled={editingCategory?.is_default}
+                  className="h-10 w-20 cursor-pointer rounded-lg border"
                 />
                 <Input value={formData.color} readOnly />
               </div>
             </div>
 
-            <div className="flex gap-2">
-              <Button type="submit" className="flex-1" disabled={loading || !!editingCategory?.is_default}>
+            <div className="flex gap-2 pt-2">
+              <Button type="submit" className="flex-1" disabled={loading}>
                 {loading ? "Saving..." : "Save Changes"}
               </Button>
               <Button
@@ -273,7 +265,7 @@ export function CategoryManagement() {
         ] as const).map(([title, list]) => (
           <Card key={title}>
             <CardHeader>
-              <CardTitle>{title} Categories</CardTitle>
+              <CardTitle className="text-base">{title} Categories</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -281,7 +273,7 @@ export function CategoryManagement() {
                   <p className="py-4 text-center text-sm text-muted-foreground">No categories</p>
                 ) : (
                   list.map((category) => (
-                    <div key={category.id} className="flex items-center justify-between rounded-lg border p-3">
+                    <div key={category.id} className="flex items-center justify-between rounded-xl border border-border/50 p-3 transition-colors hover:bg-accent/30">
                       <div className="flex items-center gap-3">
                         <span
                           className="h-5 w-5 rounded-full border"
@@ -290,27 +282,32 @@ export function CategoryManagement() {
                         <div>
                           <p className="text-sm font-medium">{category.name}</p>
                           {category.is_default && (
-                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Default</p>
+                            <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">Default</p>
                           )}
                         </div>
                       </div>
 
                       <div className="flex gap-1">
-                        {!category.is_default && (
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDialog(category)}>
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {!category.is_default && (
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteCategory(category)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          aria-label={`Edit category ${category.name}`}
+                          onClick={() => openEditDialog(category)}
+                        >
+                          <Edit2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          aria-label={`Delete category ${category.name}`}
+                          onClick={() => handleDeleteCategory(category)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </div>
                   ))
@@ -321,13 +318,13 @@ export function CategoryManagement() {
         ))}
       </div>
 
-      <Card className="bg-muted/30">
+      <Card className="bg-muted/30 border-border/40">
         <CardContent className="pt-6 text-sm text-muted-foreground">
           <div className="flex gap-2">
-            <AlertCircle className="mt-0.5 h-4 w-4 text-primary" />
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <p>
-              Default categories are protected. Add your own categories when you need a more
-              personal breakdown.
+              You can edit or delete any category. Deleting a category won&apos;t remove
+              existing transactions — they&apos;ll keep their current label.
             </p>
           </div>
         </CardContent>

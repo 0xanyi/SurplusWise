@@ -24,13 +24,10 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const rawType = searchParams.get("type");
 
-    // Validate type before any DB writes
+    // Validate optional type filter
     const type = rawType
       ? transactionTypeSchema.parse(rawType)
       : undefined;
-
-    // Ensure defaults exist on first fetch
-    await categoriesService.ensureDefaults(userId);
 
     const categories = await categoriesService.list(
       userId,

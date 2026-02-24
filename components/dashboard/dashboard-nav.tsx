@@ -60,12 +60,12 @@ export default function DashboardNav({ user }: DashboardNavProps) {
   };
 
   return (
-    <nav className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
+    <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="container mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-6">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="rounded-lg bg-primary/10 p-2">
-              <Wallet className="size-4 text-primary" />
+        <div className="flex items-center gap-8">
+          <Link href="/dashboard" className="flex items-center gap-2.5">
+            <div className="rounded-xl bg-primary p-2">
+              <Wallet className="size-4 text-primary-foreground" />
             </div>
             <span className="hidden text-lg font-semibold sm:block">SurplusWise</span>
           </Link>
@@ -79,10 +79,10 @@ export default function DashboardNav({ user }: DashboardNavProps) {
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm",
+                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                     active
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                   )}
                 >
                   <Icon className="size-4" />
@@ -93,7 +93,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <ThemeToggle />
 
           <DropdownMenu>
@@ -105,7 +105,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
                     {(user.name || user.email).charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <span className="hidden max-w-[120px] truncate text-sm sm:block">
+                <span className="hidden max-w-[120px] truncate text-sm font-medium sm:block">
                   {user.name || "User"}
                 </span>
               </Button>
@@ -121,6 +121,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+                <LogOut className="mr-2 size-4" />
                 Log out
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -139,7 +140,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
       </div>
 
       {mobileMenuOpen && (
-        <div className="border-t px-4 py-3 md:hidden">
+        <div className="border-t border-border/50 px-4 py-3 md:hidden bg-background">
           <div className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -150,10 +151,10 @@ export default function DashboardNav({ user }: DashboardNavProps) {
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm",
+                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     active
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-accent text-foreground"
+                      : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
                   )}
                 >
                   <Icon className="size-4" />
@@ -164,7 +165,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
 
             <button
               onClick={handleLogout}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-destructive hover:bg-muted"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive hover:bg-accent/50 transition-colors"
             >
               <LogOut className="size-4" />
               Log out
