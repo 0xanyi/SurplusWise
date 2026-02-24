@@ -68,6 +68,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 # Migration/startup gate assets
 COPY --from=migrator --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=migrator --chown=nextjs:nodejs /app/db/migrations ./db/migrations
+COPY --from=migrator --chown=nextjs:nodejs /app/db/schema.ts ./db/schema.ts
 COPY --from=migrator --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=migrator --chown=nextjs:nodejs /app/scripts/auto-migrate.mjs ./auto-migrate.mjs
 COPY --from=migrator --chown=nextjs:nodejs /app/scripts/verify-db-schema.mjs ./verify-db-schema.mjs
