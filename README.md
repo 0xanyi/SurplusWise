@@ -126,6 +126,7 @@ npm run dev
 
 > For detailed setup instructions (including Dokploy deployment), see [docs/SETUP.md](docs/SETUP.md).
 > For production release command order, use [docs/PROD_GO_LIVE_CHECKLIST.md](docs/PROD_GO_LIVE_CHECKLIST.md).
+> For future DB changes, use [docs/NEXT_DB_MIGRATION_TEMPLATE.md](docs/NEXT_DB_MIGRATION_TEMPLATE.md).
 
 ## Project Structure
 
