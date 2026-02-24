@@ -2,7 +2,15 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "./auth";
 
-const DEFAULT_EXPENSE_CATEGORIES = [
+type CategoryType = "expense" | "giving" | "income";
+
+type DefaultCategory = {
+  name: string;
+  color: string;
+  icon: string;
+};
+
+const DEFAULT_EXPENSE_CATEGORIES: DefaultCategory[] = [
   { name: "Food & Dining", color: "#ef4444", icon: "utensils" },
   { name: "Transportation", color: "#f97316", icon: "car" },
   { name: "Shopping", color: "#eab308", icon: "shopping-bag" },
@@ -15,18 +23,18 @@ const DEFAULT_EXPENSE_CATEGORIES = [
   { name: "Other", color: "#6b7280", icon: "more-horizontal" },
 ];
 
-const DEFAULT_GIVING_CATEGORIES = [
+const DEFAULT_GIVING_CATEGORIES: DefaultCategory[] = [
   { name: "Tithe", color: "#8b5cf6", icon: "church" },
   { name: "Offering", color: "#3b82f6", icon: "gift" },
-  { name: "Partnership", color: "#22c55e", icon: "handshake" },
   { name: "Missions", color: "#f97316", icon: "globe" },
-  { name: "Building Fund", color: "#ef4444", icon: "building" },
-  { name: "Youth Ministry", color: "#eab308", icon: "users" },
-  { name: "Charity", color: "#ec4899", icon: "heart" },
+  { name: "Benevolence", color: "#ec4899", icon: "heart-handshake" },
+  { name: "First Fruits", color: "#22c55e", icon: "leaf" },
+  { name: "Building Project", color: "#ef4444", icon: "building" },
+  { name: "Pastoral Support", color: "#06b6d4", icon: "hand-heart" },
   { name: "Other Giving", color: "#6b7280", icon: "more-horizontal" },
 ];
 
-const DEFAULT_INCOME_CATEGORIES = [
+const DEFAULT_INCOME_CATEGORIES: DefaultCategory[] = [
   { name: "Salary", color: "#10b981", icon: "banknote" },
   { name: "Freelance", color: "#06b6d4", icon: "laptop" },
   { name: "Business", color: "#8b5cf6", icon: "briefcase" },
@@ -48,9 +56,7 @@ export const list = query({
     if (args.type) {
       categories = await ctx.db
         .query("categories")
-        .withIndex("by_userId_type", (q) =>
-          q.eq("userId", userId).eq("type", args.type!)
-        )
+        .withIndex("by_userId_type", (q) => q.eq("userId", userId).eq("type", args.type!))
         .collect();
     } else {
       categories = await ctx.db
@@ -66,82 +72,49 @@ export const list = query({
 });
 
 export const ensureDefaults = mutation({
-  args: {
-  },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
-    const existing = await ctx.db
-      .query("categories")
-      .withIndex("by_userId", (q) => q.eq("userId", userId))
-      .first();
 
-    if (existing) {
-      // Check if income categories exist yet (for existing users upgrading)
-      const existingIncome = await ctx.db
+    const defaultSets: Record<CategoryType, DefaultCategory[]> = {
+      expense: DEFAULT_EXPENSE_CATEGORIES,
+      giving: DEFAULT_GIVING_CATEGORIES,
+      income: DEFAULT_INCOME_CATEGORIES,
+    };
+
+    let inserted = 0;
+
+    for (const [type, defaults] of Object.entries(defaultSets) as [CategoryType, DefaultCategory[]][]) {
+      const existing = await ctx.db
         .query("categories")
-        .withIndex("by_userId_type", (q) =>
-          q.eq("userId", userId).eq("type", "income")
-        )
-        .first();
+        .withIndex("by_userId_type", (q) => q.eq("userId", userId).eq("type", type))
+        .collect();
 
-      if (!existingIncome) {
-        const now = Date.now();
-        for (const cat of DEFAULT_INCOME_CATEGORIES) {
-          await ctx.db.insert("categories", {
-            userId,
-            name: cat.name,
-            type: "income",
-            color: cat.color,
-            icon: cat.icon,
-            isDefault: true,
-            createdAt: now,
-          });
+      const existingNames = new Set(existing.map((category) => category.name.toLowerCase()));
+
+      for (const category of defaults) {
+        if (existingNames.has(category.name.toLowerCase())) {
+          continue;
         }
-        return { created: true, message: "Income categories added" };
+
+        await ctx.db.insert("categories", {
+          userId,
+          name: category.name,
+          type,
+          color: category.color,
+          icon: category.icon,
+          isDefault: true,
+          createdAt: Date.now(),
+        });
+
+        inserted += 1;
       }
-
-      return { created: false, message: "Categories already exist" };
     }
 
-    const now = Date.now();
-
-    for (const cat of DEFAULT_EXPENSE_CATEGORIES) {
-      await ctx.db.insert("categories", {
-        userId,
-        name: cat.name,
-        type: "expense",
-        color: cat.color,
-        icon: cat.icon,
-        isDefault: true,
-        createdAt: now,
-      });
-    }
-
-    for (const cat of DEFAULT_GIVING_CATEGORIES) {
-      await ctx.db.insert("categories", {
-        userId,
-        name: cat.name,
-        type: "giving",
-        color: cat.color,
-        icon: cat.icon,
-        isDefault: true,
-        createdAt: now,
-      });
-    }
-
-    for (const cat of DEFAULT_INCOME_CATEGORIES) {
-      await ctx.db.insert("categories", {
-        userId,
-        name: cat.name,
-        type: "income",
-        color: cat.color,
-        icon: cat.icon,
-        isDefault: true,
-        createdAt: now,
-      });
-    }
-
-    return { created: true, message: "Default categories created" };
+    return {
+      created: inserted > 0,
+      message: inserted > 0 ? `Added ${inserted} default categories` : "Categories already up to date",
+    };
   },
 });
 

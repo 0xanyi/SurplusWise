@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { Plus, Edit2, Trash2, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react";
+import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
+import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,66 +18,55 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Edit2, Trash2, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 
-interface Budget {
-  id: string;
+type BudgetType = "expense" | "giving" | "income";
+type BudgetPeriod = "monthly" | "quarterly" | "yearly";
+
+interface BudgetRow {
+  _id: Id<"budgets">;
   category: string;
   amount: number;
-  period: "monthly" | "quarterly" | "yearly";
-  start_date: string;
-  end_date: string;
-  type: "expense" | "giving" | "income";
-  is_active: boolean;
+  period: BudgetPeriod;
+  startDate: string;
+  endDate: string;
+  type: BudgetType;
   spent: number;
   remaining: number;
-  percentage: number;
-  status: "ok" | "warning" | "exceeded";
+  percentUsed: number;
 }
 
+const getBudgetStatus = (percentage: number) => {
+  if (percentage >= 100) return "exceeded" as const;
+  if (percentage >= 80) return "warning" as const;
+  return "ok" as const;
+};
+
 export function BudgetManagement() {
-  const [budgets, setBudgets] = useState<Budget[]>([]);
+  const { toast } = useToast();
+  const budgets = useQuery(api.budgets.getWithSpending, {}) as BudgetRow[] | undefined;
   const categories = useQuery(api.categories.list, {});
-  const [loading, setLoading] = useState(true);
+  const createBudget = useMutation(api.budgets.create);
+  const updateBudget = useMutation(api.budgets.update);
+  const removeBudget = useMutation(api.budgets.remove);
+
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
-  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [editingBudget, setEditingBudget] = useState<BudgetRow | null>(null);
 
   const [formData, setFormData] = useState({
     category: "",
     amount: "",
-    period: "monthly" as "monthly" | "quarterly" | "yearly",
-    type: "expense" as "expense" | "giving" | "income",
+    period: "monthly" as BudgetPeriod,
+    type: "expense" as BudgetType,
   });
 
-  const fetchBudgets = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("/api/budgets");
-      const data = await response.json();
-      setBudgets(data.budgets || []);
-    } catch (error) {
-      console.error("Failed to fetch budgets:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load budgets",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const filteredCategories = useMemo(
+    () => (categories ?? []).filter((c) => c.type === formData.type),
+    [categories, formData.type]
+  );
 
-  useEffect(() => {
-    fetchBudgets();
-  }, [fetchBudgets]);
-
-  const calculateDateRange = (period: string) => {
+  const calculateDateRange = (period: BudgetPeriod) => {
     const now = new Date();
     const start = new Date(now.getFullYear(), now.getMonth(), 1);
     let end: Date;
@@ -80,58 +75,56 @@ export function BudgetManagement() {
       case "monthly":
         end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         break;
-      case "quarterly":
+      case "quarterly": {
         const quarter = Math.floor(now.getMonth() / 3);
         end = new Date(now.getFullYear(), (quarter + 1) * 3, 0);
         break;
+      }
       case "yearly":
         end = new Date(now.getFullYear(), 11, 31);
         break;
-      default:
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     }
 
     return {
-      start_date: start.toISOString().split("T")[0],
-      end_date: end.toISOString().split("T")[0],
+      startDate: start.toISOString().split("T")[0],
+      endDate: end.toISOString().split("T")[0],
     };
+  };
+
+  const resetForm = () => {
+    setFormData({ category: "", amount: "", period: "monthly", type: "expense" });
+    setEditingBudget(null);
   };
 
   const handleAddBudget = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const amount = Number.parseFloat(formData.amount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      toast({ title: "Error", description: "Enter a valid amount", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
     try {
-      const dateRange = calculateDateRange(formData.period);
-
-      const response = await fetch("/api/budgets", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          amount: parseFloat(formData.amount),
-          ...dateRange,
-        }),
+      const { startDate, endDate } = calculateDateRange(formData.period);
+      await createBudget({
+        category: formData.category,
+        amount,
+        period: formData.period,
+        startDate,
+        endDate,
+        type: formData.type,
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create budget");
-      }
-
-      toast({
-        title: "Success",
-        description: "Budget created successfully",
-      });
-
+      toast({ title: "Success", description: "Budget created" });
       setIsAddDialogOpen(false);
-      setFormData({ category: "", amount: "", period: "monthly", type: "expense" });
-      fetchBudgets();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      resetForm();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to create budget";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -139,69 +132,39 @@ export function BudgetManagement() {
     e.preventDefault();
     if (!editingBudget) return;
 
-    try {
-      const response = await fetch(`/api/budgets/${editingBudget.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: parseFloat(formData.amount),
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update budget");
-      }
-
-      toast({
-        title: "Success",
-        description: "Budget updated successfully",
-      });
-
-      setIsEditDialogOpen(false);
-      setEditingBudget(null);
-      setFormData({ category: "", amount: "", period: "monthly", type: "expense" });
-      fetchBudgets();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDeleteBudget = async (budget: Budget) => {
-    if (!confirm(`Are you sure you want to delete the budget for "${budget.category}"?`)) {
+    const amount = Number.parseFloat(formData.amount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      toast({ title: "Error", description: "Enter a valid amount", variant: "destructive" });
       return;
     }
 
+    setSaving(true);
     try {
-      const response = await fetch(`/api/budgets/${budget.id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete budget");
-      }
-
-      toast({
-        title: "Success",
-        description: "Budget deleted successfully",
-      });
-
-      fetchBudgets();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      await updateBudget({ id: editingBudget._id, amount });
+      toast({ title: "Success", description: "Budget updated" });
+      setIsEditDialogOpen(false);
+      resetForm();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to update budget";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setSaving(false);
     }
   };
 
-  const openEditDialog = (budget: Budget) => {
+  const handleDeleteBudget = async (budget: BudgetRow) => {
+    if (!confirm(`Delete budget for "${budget.category}"?`)) return;
+
+    try {
+      await removeBudget({ id: budget._id });
+      toast({ title: "Success", description: "Budget deleted" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete budget";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    }
+  };
+
+  const openEditDialog = (budget: BudgetRow) => {
     setEditingBudget(budget);
     setFormData({
       category: budget.category,
@@ -212,19 +175,12 @@ export function BudgetManagement() {
     setIsEditDialogOpen(true);
   };
 
-  const filteredCategories = (categories ?? []).filter((c) => c.type === formData.type);
-
-  if (loading) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-muted-foreground">Loading budgets...</p>
-      </div>
-    );
+  if (budgets === undefined || categories === undefined) {
+    return <p className="text-sm text-muted-foreground">Loading budgets...</p>;
   }
 
   return (
     <div className="space-y-6">
-      {/* Add Budget Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
           <Button className="w-full sm:w-auto">
@@ -234,22 +190,23 @@ export function BudgetManagement() {
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create New Budget</DialogTitle>
+            <DialogTitle>Create Budget</DialogTitle>
           </DialogHeader>
+
           <form onSubmit={handleAddBudget} className="space-y-4">
             <div>
-              <Label htmlFor="type">Type</Label>
+              <Label htmlFor="budget-type">Type</Label>
               <select
-                id="type"
+                id="budget-type"
                 value={formData.type}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    type: e.target.value as "expense" | "giving" | "income",
+                  setFormData((prev) => ({
+                    ...prev,
+                    type: e.target.value as BudgetType,
                     category: "",
-                  })
+                  }))
                 }
-                className="w-full px-3 py-2 border rounded-md bg-background"
+                className="w-full rounded-md border bg-background px-3 py-2"
               >
                 <option value="income">Income</option>
                 <option value="expense">Expense</option>
@@ -258,15 +215,15 @@ export function BudgetManagement() {
             </div>
 
             <div>
-              <Label htmlFor="category">Category</Label>
+              <Label htmlFor="budget-category">Category</Label>
               <select
-                id="category"
+                id="budget-category"
                 value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-3 py-2 border rounded-md bg-background"
+                onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
+                className="w-full rounded-md border bg-background px-3 py-2"
                 required
               >
-                <option value="">Select a category</option>
+                <option value="">Select category</option>
                 {filteredCategories.map((cat) => (
                   <option key={cat._id} value={cat.name}>
                     {cat.name}
@@ -276,31 +233,25 @@ export function BudgetManagement() {
             </div>
 
             <div>
-              <Label htmlFor="amount">Budget Amount</Label>
+              <Label htmlFor="budget-amount">Amount</Label>
               <Input
-                id="amount"
+                id="budget-amount"
                 type="number"
-                step="0.01"
                 min="0.01"
-                placeholder="0.00"
+                step="0.01"
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                onChange={(e) => setFormData((prev) => ({ ...prev, amount: e.target.value }))}
                 required
               />
             </div>
 
             <div>
-              <Label htmlFor="period">Period</Label>
+              <Label htmlFor="budget-period">Period</Label>
               <select
-                id="period"
+                id="budget-period"
                 value={formData.period}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    period: e.target.value as "monthly" | "quarterly" | "yearly",
-                  })
-                }
-                className="w-full px-3 py-2 border rounded-md bg-background"
+                onChange={(e) => setFormData((prev) => ({ ...prev, period: e.target.value as BudgetPeriod }))}
+                className="w-full rounded-md border bg-background px-3 py-2"
               >
                 <option value="monthly">Monthly</option>
                 <option value="quarterly">Quarterly</option>
@@ -309,14 +260,10 @@ export function BudgetManagement() {
             </div>
 
             <div className="flex gap-2">
-              <Button type="submit" className="flex-1">
-                Create Budget
+              <Button type="submit" className="flex-1" disabled={saving}>
+                {saving ? "Creating..." : "Create Budget"}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsAddDialogOpen(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
               </Button>
             </div>
@@ -324,42 +271,39 @@ export function BudgetManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Budget Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Budget</DialogTitle>
           </DialogHeader>
+
           <form onSubmit={handleEditBudget} className="space-y-4">
             <div>
               <Label>Category</Label>
               <Input value={formData.category} disabled />
             </div>
-
             <div>
-              <Label htmlFor="edit-amount">Budget Amount</Label>
+              <Label htmlFor="edit-budget-amount">Amount</Label>
               <Input
-                id="edit-amount"
+                id="edit-budget-amount"
                 type="number"
-                step="0.01"
                 min="0.01"
-                placeholder="0.00"
+                step="0.01"
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                onChange={(e) => setFormData((prev) => ({ ...prev, amount: e.target.value }))}
                 required
               />
             </div>
-
             <div className="flex gap-2">
-              <Button type="submit" className="flex-1">
-                Save Changes
+              <Button type="submit" className="flex-1" disabled={saving}>
+                {saving ? "Saving..." : "Save Changes"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => {
                   setIsEditDialogOpen(false);
-                  setEditingBudget(null);
+                  resetForm();
                 }}
               >
                 Cancel
@@ -369,113 +313,93 @@ export function BudgetManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Budgets List */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {budgets.length === 0 ? (
-          <div className="col-span-full">
-            <Card>
-                <CardContent className="pt-6">
-                <div className="text-center py-12 text-muted-foreground">
-                    <p className="font-medium">No budgets created yet</p>
-                    <p className="text-sm mt-2">
-                    Create your first budget to start tracking your spending
-                    </p>
-                </div>
-                </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardContent className="pt-6 text-center text-muted-foreground">
+              <p className="font-medium text-foreground">No budgets yet</p>
+              <p className="text-sm mt-1">Create one to track your progress.</p>
+            </CardContent>
+          </Card>
         ) : (
-          budgets.map((budget) => (
-            <Card key={budget.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${budget.type === "expense" ? "bg-red-500/10" : "bg-green-500/10"}`}>
+          budgets.map((budget) => {
+            const status = getBudgetStatus(budget.percentUsed);
+            return (
+              <Card key={budget._id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`rounded-lg p-2 ${budget.type === "expense" ? "bg-rose-500/10" : "bg-emerald-500/10"}`}>
                         {budget.type === "expense" ? (
-                        <TrendingDown className="h-5 w-5 text-red-500" />
+                          <TrendingDown className="size-4 text-rose-600" />
                         ) : (
-                        <TrendingUp className="h-5 w-5 text-green-500" />
+                          <TrendingUp className={`size-4 ${budget.type === "income" ? "text-blue-600" : "text-emerald-600"}`} />
                         )}
-                    </div>
-                    <div>
-                      <CardTitle className="text-base font-semibold">{budget.category}</CardTitle>
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {budget.period} {budget.type}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDialog(budget)}>
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDeleteBudget(budget)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <p className="text-xs text-muted-foreground mb-1">Spent</p>
-                            <p className={`font-semibold ${budget.status === 'exceeded' ? 'text-red-600' : budget.status === 'warning' ? 'text-amber-600' : ''}`}>
-                                {formatCurrency(budget.spent)}
-                            </p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-xs text-muted-foreground mb-1">Budget</p>
-                            <p className="font-semibold">{formatCurrency(budget.amount)}</p>
-                        </div>
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{budget.category}</CardTitle>
+                        <p className="text-xs text-muted-foreground capitalize">
+                          {budget.period} {budget.type}
+                        </p>
+                      </div>
                     </div>
 
-                  {/* Progress Bar */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-xs font-medium">
-                      <span>{Math.min(budget.percentage, 100).toFixed(1)}%</span>
-                      {budget.status === 'exceeded' && (
-                        <span className="flex items-center gap-1 text-red-600">
-                          <AlertTriangle className="h-3 w-3" />
-                          Over budget
-                        </span>
-                      )}
-                      {budget.status === 'warning' && (
-                        <span className="flex items-center gap-1 text-amber-600">
-                          <AlertTriangle className="h-3 w-3" />
-                          Near limit
-                        </span>
-                      )}
-                      {budget.status === 'ok' && (
-                          <span className="text-green-600">On track</span>
-                      )}
-                    </div>
-                    <div className="w-full bg-muted/50 rounded-full h-2 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ease-out ${
-                          budget.status === 'exceeded'
-                            ? 'bg-red-500'
-                            : budget.status === 'warning'
-                            ? 'bg-amber-500'
-                            : 'bg-green-500'
-                        }`}
-                        style={{ width: `${Math.min(budget.percentage, 100)}%` }}
-                      />
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDialog(budget)}>
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteBudget(budget)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  
-                  <div className="pt-2 border-t border-border/50 flex justify-between items-center text-xs text-muted-foreground">
-                    <span>Remaining: <span className={budget.remaining < 0 ? 'text-red-500 font-medium' : 'text-green-500 font-medium'}>{formatCurrency(Math.abs(budget.remaining))}</span></span>
-                    <span>Ends: {new Date(budget.end_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                </CardHeader>
+
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Spent</span>
+                    <span className="font-semibold">{formatCurrency(budget.spent)}</span>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Budget</span>
+                    <span className="font-semibold">{formatCurrency(budget.amount)}</span>
+                  </div>
+
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={`h-full rounded-full ${
+                        status === "exceeded"
+                          ? "bg-rose-500"
+                          : status === "warning"
+                          ? "bg-amber-500"
+                          : "bg-emerald-500"
+                      }`}
+                      style={{ width: `${Math.min(budget.percentUsed, 100)}%` }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">
+                      {budget.remaining >= 0
+                        ? `${formatCurrency(budget.remaining)} remaining`
+                        : `${formatCurrency(Math.abs(budget.remaining))} over budget`}
+                    </span>
+                    {(status === "warning" || status === "exceeded") && (
+                      <span className={`inline-flex items-center gap-1 ${status === "exceeded" ? "text-rose-600" : "text-amber-600"}`}>
+                        <AlertTriangle className="h-3 w-3" />
+                        {status === "exceeded" ? "Over" : "Near limit"}
+                      </span>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>

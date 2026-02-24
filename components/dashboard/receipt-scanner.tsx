@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Upload, Loader2, Camera, X, FileText, ImageIcon } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
 import Image from "next/image";
+import { Upload, Loader2, Camera, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 interface ReceiptData {
@@ -29,34 +29,20 @@ export function ReceiptScanner({ onScanComplete, onCancel }: ReceiptScannerProps
   const { toast } = useToast();
 
   const processFile = async (file: File) => {
-    // Validate file type
     if (!file.type.startsWith("image/")) {
-      toast({
-        title: "Invalid file",
-        description: "Please select an image file",
-        variant: "destructive",
-      });
+      toast({ title: "Invalid file", description: "Please select an image", variant: "destructive" });
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      toast({
-        title: "File too large",
-        description: "Please select an image smaller than 5MB",
-        variant: "destructive",
-      });
+      toast({ title: "File too large", description: "Max file size is 5MB", variant: "destructive" });
       return;
     }
 
-    // Show preview
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setPreview(reader.result as string);
-    };
+    reader.onloadend = () => setPreview(reader.result as string);
     reader.readAsDataURL(file);
 
-    // Scan receipt
     setScanning(true);
     try {
       const formData = new FormData();
@@ -73,20 +59,11 @@ export function ReceiptScanner({ onScanComplete, onCancel }: ReceiptScannerProps
       }
 
       const data = await response.json();
-
-      toast({
-        title: "Receipt scanned successfully",
-        description: "Transaction data has been extracted",
-      });
-
+      toast({ title: "Receipt scanned", description: "Details extracted successfully" });
       onScanComplete(data);
-    } catch (error: any) {
-      console.error("Receipt scan error:", error);
-      toast({
-        title: "Scan failed",
-        description: error.message || "Failed to scan receipt. Please try again.",
-        variant: "destructive",
-      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to scan receipt";
+      toast({ title: "Scan failed", description: message, variant: "destructive" });
       setPreview(null);
     } finally {
       setScanning(false);
@@ -105,55 +82,32 @@ export function ReceiptScanner({ onScanComplete, onCancel }: ReceiptScannerProps
     if (file) processFile(file);
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleClearPreview = () => {
-    setPreview(null);
-    if (onCancel) {
-      onCancel();
-    }
-  };
-
   return (
     <div className="w-full">
       {preview ? (
-        <div className="relative rounded-2xl overflow-hidden bg-slate-950 border border-white/10 p-1">
-          <div className="relative aspect-[3/4] w-full rounded-xl overflow-hidden bg-black/50">
-            <Image
-              src={preview}
-              alt="Receipt preview"
-              fill
-              className="object-contain"
-            />
-            
-            {/* Overlay while scanning */}
+        <div className="relative rounded-xl border p-2">
+          <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-muted">
+            <Image src={preview} alt="Receipt preview" fill className="object-contain" />
+
             {scanning && (
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center text-white">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-blue-500 blur-xl opacity-20 rounded-full animate-pulse" />
-                  <Loader2 className="h-10 w-10 animate-spin relative z-10 text-blue-500" />
-                </div>
-                <p className="mt-4 font-medium text-lg">Analyzing Receipt...</p>
-                <p className="text-sm text-slate-400">Extracting vendor, date, and amount</p>
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/90">
+                <Loader2 className="size-8 animate-spin text-primary" />
+                <p className="mt-2 text-sm font-medium">Scanning receipt...</p>
               </div>
             )}
 
             {!scanning && (
               <Button
+                type="button"
+                variant="secondary"
                 size="icon"
-                variant="destructive"
-                className="absolute top-2 right-2 h-8 w-8 rounded-full shadow-lg"
-                onClick={handleClearPreview}
+                className="absolute right-2 top-2 h-8 w-8"
+                onClick={() => {
+                  setPreview(null);
+                  onCancel?.();
+                }}
               >
-                <X className="h-4 w-4" />
+                <X className="size-4" />
               </Button>
             )}
           </div>
@@ -161,53 +115,42 @@ export function ReceiptScanner({ onScanComplete, onCancel }: ReceiptScannerProps
       ) : (
         <div
           className={cn(
-            "relative border-2 border-dashed rounded-2xl p-8 transition-all duration-200 text-center",
-            isDragging
-              ? "border-blue-500 bg-blue-500/10"
-              : "border-slate-700 bg-slate-800/30 hover:bg-slate-800/50 hover:border-slate-600"
+            "rounded-xl border-2 border-dashed p-8 text-center transition-colors",
+            isDragging ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
           )}
           onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+          }}
         >
-          <div className="flex justify-center mb-6">
-            <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center border border-white/5 shadow-inner">
-              <Camera className="h-8 w-8 text-blue-400" />
-            </div>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+            <Camera className="size-6 text-primary" />
           </div>
-          
-          <h3 className="text-lg font-semibold text-white mb-2">Upload Receipt</h3>
-          <p className="text-slate-400 text-sm mb-6 max-w-xs mx-auto">
-            Drag and drop your receipt here, or click to browse files
-          </p>
 
-          <div className="flex flex-col gap-3 max-w-xs mx-auto">
-            <Button asChild className="w-full h-11 bg-white text-slate-900 hover:bg-slate-100 rounded-xl font-medium">
+          <p className="font-medium">Upload receipt</p>
+          <p className="mt-1 text-sm text-muted-foreground">Drop an image here or choose a file.</p>
+
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Button asChild>
               <label className="cursor-pointer">
-                <ImageIcon className="h-4 w-4 mr-2" />
-                Choose Image
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
+                <Upload className="mr-2 size-4" />
+                Choose image
+                <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
               </label>
             </Button>
             {onCancel && (
-              <Button 
-                variant="ghost" 
-                onClick={onCancel}
-                className="w-full h-11 text-slate-400 hover:text-white hover:bg-white/5 rounded-xl"
-              >
+              <Button type="button" variant="outline" onClick={onCancel}>
                 Cancel
               </Button>
             )}
           </div>
-          
-          <p className="text-xs text-slate-500 mt-6">
-            Supported formats: JPG, PNG • Max size: 5MB
-          </p>
+
+          <p className="mt-3 text-xs text-muted-foreground">JPG or PNG, up to 5MB.</p>
         </div>
       )}
     </div>

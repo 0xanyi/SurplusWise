@@ -1,20 +1,35 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { Loader2, Camera, Pencil } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2, Camera, Edit3, X, Sparkles, Receipt, DollarSign, Calendar, Tag, FileText } from "lucide-react";
 import { ReceiptScanner } from "./receipt-scanner";
-import { cn } from "@/lib/utils";
-import type { TransactionType } from "@/types";
-import { useMutation, useQuery } from "convex/react";
+import { useToast } from "@/hooks/use-toast";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
+import type { TransactionType } from "@/types";
+
+interface ReceiptScanResult {
+  amount?: number;
+  date?: string;
+  vendor?: string;
+  category?: string;
+  receiptUrl?: string;
+  storageId?: string;
+}
 
 interface TransactionFormProps {
   open: boolean;
@@ -22,7 +37,7 @@ interface TransactionFormProps {
   transaction?: Doc<"transactions"> | null;
   onSuccess?: () => void;
   defaultType?: TransactionType;
-  defaultMode?: 'manual' | 'scan';
+  defaultMode?: "manual" | "scan";
 }
 
 export function TransactionForm({
@@ -30,76 +45,88 @@ export function TransactionForm({
   onOpenChange,
   transaction,
   onSuccess,
-  defaultType = 'expense',
-  defaultMode = 'manual'
+  defaultType = "expense",
+  defaultMode = "manual",
 }: TransactionFormProps) {
   const { toast } = useToast();
   const createTransaction = useMutation(api.transactions.create);
   const updateTransaction = useMutation(api.transactions.update);
-  const [loading, setLoading] = useState(false);
-  const [mode, setMode] = useState<'manual' | 'scan'>(defaultMode);
-  const [receiptStorageId, setReceiptStorageId] = useState<Id<"_storage"> | null>(null);
-  const [formData, setFormData] = useState({
-    amount: transaction?.amount?.toString() || '',
-    date: transaction?.date || new Date().toISOString().split('T')[0],
-    type: transaction?.type || defaultType,
-    category: transaction?.category || '',
-    notes: transaction?.notes || '',
-  });
-
   const categories = useQuery(api.categories.list, {});
 
+  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<"manual" | "scan">(defaultMode);
+  const [receiptStorageId, setReceiptStorageId] = useState<Id<"_storage"> | null>(null);
+  const [formData, setFormData] = useState({
+    amount: "",
+    date: new Date().toISOString().split("T")[0],
+    type: defaultType,
+    category: "",
+    notes: "",
+  });
+
   useEffect(() => {
-    if (open) {
-      if (transaction) {
-        setFormData({
-          amount: transaction.amount.toString(),
-          date: transaction.date,
-          type: transaction.type,
-          category: transaction.category,
-          notes: transaction.notes || '',
-        });
-        setReceiptStorageId(transaction.receiptStorageId ?? null);
-        setMode('manual');
-      } else {
-        setFormData({
-          amount: '',
-          date: new Date().toISOString().split('T')[0],
-          type: defaultType,
-          category: '',
-          notes: '',
-        });
-        setReceiptStorageId(null);
-        setMode(defaultMode);
-      }
+    if (!open) return;
+
+    if (transaction) {
+      setFormData({
+        amount: transaction.amount.toString(),
+        date: transaction.date,
+        type: transaction.type,
+        category: transaction.category,
+        notes: transaction.notes ?? "",
+      });
+      setReceiptStorageId(transaction.receiptStorageId ?? null);
+      setMode("manual");
+      return;
     }
+
+    setFormData({
+      amount: "",
+      date: new Date().toISOString().split("T")[0],
+      type: defaultType,
+      category: "",
+      notes: "",
+    });
+    setReceiptStorageId(null);
+    setMode(defaultMode);
   }, [open, transaction, defaultType, defaultMode]);
 
-  const filteredCategories = (categories ?? []).filter(cat => cat.type === formData.type);
+  const filteredCategories = useMemo(
+    () => (categories ?? []).filter((cat) => cat.type === formData.type),
+    [categories, formData.type]
+  );
 
-  const handleReceiptScan = (data: any) => {
-    setFormData({
-      amount: data.amount?.toString() || '',
-      date: data.date || new Date().toISOString().split('T')[0],
-      type: 'expense',
-      category: data.category || '',
-      notes: data.vendor ? `Vendor: ${data.vendor}` : '',
-    });
-    const storageId = (data.receiptUrl ?? data.storageId) as Id<"_storage"> | undefined;
+  const handleScanComplete = (data: ReceiptScanResult) => {
+    setFormData((prev) => ({
+      ...prev,
+      amount: data.amount ? data.amount.toString() : prev.amount,
+      date: data.date || prev.date,
+      type: "expense",
+      category: data.category || prev.category,
+      notes: data.vendor ? `Vendor: ${data.vendor}` : prev.notes,
+    }));
+
+    const storageId = (data.storageId ?? data.receiptUrl) as Id<"_storage"> | undefined;
     setReceiptStorageId(storageId ?? null);
-    setMode('manual');
+    setMode("manual");
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    const amount = Number.parseFloat(formData.amount);
+    if (Number.isNaN(amount) || amount <= 0) {
+      toast({ title: "Error", description: "Enter a valid amount", variant: "destructive" });
+      return;
+    }
+
+    if (!formData.category) {
+      toast({ title: "Error", description: "Please select a category", variant: "destructive" });
+      return;
+    }
+
     setLoading(true);
-
     try {
-      const amount = Number.parseFloat(formData.amount);
-      if (Number.isNaN(amount)) {
-        throw new Error("Invalid amount");
-      }
-
       if (transaction?._id) {
         await updateTransaction({
           id: transaction._id,
@@ -122,232 +149,155 @@ export function TransactionForm({
       }
 
       toast({
-        title: "Success",
-        description: `Transaction ${transaction?._id ? 'updated' : 'created'} successfully`,
+        title: "Saved",
+        description: transaction ? "Transaction updated" : "Transaction added",
       });
 
       onOpenChange(false);
-      if (onSuccess) onSuccess();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save transaction",
-        variant: "destructive",
-      });
+      onSuccess?.();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to save transaction";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{transaction ? "Edit transaction" : "Add transaction"}</DialogTitle>
+          <DialogDescription>
+            Keep it simple. Add your income, expense, or giving in a few fields.
+          </DialogDescription>
+        </DialogHeader>
 
-        <DialogPrimitive.Content
-          className={cn(
-            "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2",
-            "max-h-[90vh] overflow-y-auto",
-            "rounded-2xl border border-border",
-            "bg-background",
-            "shadow-2xl",
-            "data-[state=open]:animate-in data-[state=closed]:animate-out",
-            "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
-            "data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
-            "data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%]",
-            "data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%]"
-          )}
-        >
-          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+        {!transaction && (
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant={mode === "manual" ? "default" : "outline"}
+              onClick={() => setMode("manual")}
+            >
+              <Pencil className="mr-2 size-4" />
+              Manual
+            </Button>
+            <Button
+              type="button"
+              variant={mode === "scan" ? "default" : "outline"}
+              onClick={() => setMode("scan")}
+            >
+              <Camera className="mr-2 size-4" />
+              Scan Receipt
+            </Button>
+          </div>
+        )}
 
-          <DialogPrimitive.Close className="absolute right-4 top-4 z-10 rounded-full p-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50">
-            <X className="size-5" />
-            <span className="sr-only">Close</span>
-          </DialogPrimitive.Close>
-
-          <div className="relative p-6">
-            <div className="mb-6">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/25">
-                  <Sparkles className="size-5 text-primary-foreground" />
-                </div>
-                <DialogPrimitive.Title className="text-xl font-semibold text-foreground">
-                  {transaction?._id ? 'Edit Transaction' : 'Add Transaction'}
-                </DialogPrimitive.Title>
+        {!transaction && mode === "scan" ? (
+          <ReceiptScanner onScanComplete={handleScanComplete} onCancel={() => setMode("manual")} />
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="type">Type</Label>
+                <Select
+                  value={formData.type}
+                  onValueChange={(value: TransactionType) =>
+                    setFormData((prev) => ({ ...prev, type: value, category: "" }))
+                  }
+                >
+                  <SelectTrigger id="type">
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="income">Income</SelectItem>
+                    <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="giving">Giving</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <DialogPrimitive.Description className="text-sm text-muted-foreground pl-[52px]">
-                {transaction?._id
-                  ? 'Update the transaction details below'
-                  : 'Fill in the details or scan a receipt'}
-              </DialogPrimitive.Description>
+
+              <div className="space-y-2">
+                <Label htmlFor="amount">Amount</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0.00"
+                  value={formData.amount}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, amount: e.target.value }))}
+                  required
+                />
+              </div>
             </div>
 
-            {!transaction?._id && (
-              <div className="mb-6 p-1.5 bg-muted/80 rounded-xl border border-border/50">
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setMode('manual')}
-                    className={cn(
-                      "flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
-                      mode === 'manual'
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Edit3 className="size-4" />
-                    Manual Entry
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMode('scan')}
-                    className={cn(
-                      "flex items-center justify-center gap-2 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200",
-                      mode === 'scan'
-                        ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                    )}
-                  >
-                    <Camera className="size-4" />
-                    Scan Receipt
-                  </button>
-                </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="date">Date</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
+                  required
+                />
               </div>
-            )}
 
-            {mode === 'scan' && !transaction?._id ? (
-              <ReceiptScanner
-                onScanComplete={handleReceiptScan}
-                onCancel={() => setMode('manual')}
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Select
+                  value={formData.category}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredCategories.map((cat) => (
+                      <SelectItem key={cat._id} value={cat.name}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Textarea
+                id="notes"
+                rows={3}
+                value={formData.notes}
+                onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
+                placeholder="Optional note"
               />
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <Receipt className="size-4 text-muted-foreground" />
-                    Type
-                  </Label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value: TransactionType) =>
-                      setFormData({ ...formData, type: value, category: '' })
-                    }
-                  >
-                    <SelectTrigger className="h-12 bg-muted/50 border-border text-foreground rounded-xl hover:border-primary/30 focus:border-primary/50 focus:ring-primary/20 transition-colors">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="income">Income</SelectItem>
-                      <SelectItem value="expense">Expense</SelectItem>
-                      <SelectItem value="giving">Giving</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+            </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <DollarSign className="size-4 text-muted-foreground" />
-                    Amount
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">&pound;</span>
-                    <Input
-                      id="amount"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      placeholder="0.00"
-                      value={formData.amount}
-                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                      required
-                      className="h-12 pl-8 bg-muted/50 border-border text-foreground placeholder:text-muted-foreground/50 rounded-xl hover:border-primary/30 focus:border-primary/50 focus:ring-primary/20 transition-colors"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <Calendar className="size-4 text-muted-foreground" />
-                    Date
-                  </Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    required
-                    className="h-12 bg-muted/50 border-border text-foreground rounded-xl hover:border-primary/30 focus:border-primary/50 focus:ring-primary/20 transition-colors"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <Tag className="size-4 text-muted-foreground" />
-                    Category
-                  </Label>
-                  <Select
-                    value={formData.category}
-                    onValueChange={(value) => setFormData({ ...formData, category: value })}
-                  >
-                    <SelectTrigger className="h-12 bg-muted/50 border-border text-foreground rounded-xl hover:border-primary/30 focus:border-primary/50 focus:ring-primary/20 transition-colors">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredCategories.map((cat) => (
-                        <SelectItem key={cat._id} value={cat.name}>
-                          {cat.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-foreground flex items-center gap-2">
-                    <FileText className="size-4 text-muted-foreground" />
-                    Notes <span className="text-muted-foreground font-normal">(optional)</span>
-                  </Label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Add any additional notes..."
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                    rows={3}
-                    className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground/50 rounded-xl hover:border-primary/30 focus:border-primary/50 focus:ring-primary/20 transition-colors resize-none"
-                  />
-                </div>
-
-                {receiptStorageId && (
-                  <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                    <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-sm text-emerald-600 dark:text-emerald-400">Receipt attached</span>
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-4 border-t border-border/50">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => onOpenChange(false)}
-                    disabled={loading}
-                    className="flex-1 h-12 rounded-xl"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 h-12 rounded-xl font-medium shadow-lg shadow-primary/25 transition-all duration-200"
-                  >
-                    {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-                    {transaction?._id ? 'Update' : 'Create Transaction'}
-                  </Button>
-                </div>
-              </form>
+            {receiptStorageId && (
+              <p className="text-sm text-emerald-600">Receipt attached</p>
             )}
-          </div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11"
+                onClick={() => onOpenChange(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="h-11" disabled={loading}>
+                {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {transaction ? "Save changes" : "Add transaction"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     }
 
     const searchParams = request.nextUrl.searchParams;
-    const type = searchParams.get("type") as "expense" | "giving" | null;
+    const type = searchParams.get("type") as "expense" | "giving" | "income" | null;
 
     const categories = await fetchAuthQuery(api.categories.list, {
       type: type || undefined,

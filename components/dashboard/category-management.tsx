@@ -1,6 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { Plus, Edit2, Trash2, AlertCircle } from "lucide-react";
+import type { Id } from "@/convex/_generated/dataModel";
+import { api } from "@/convex/_generated/api";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,152 +17,97 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Edit2, Trash2, AlertCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 
-interface Category {
-  _id: string;
+type CategoryType = "expense" | "giving" | "income";
+
+interface CategoryItem {
+  _id: Id<"categories">;
   name: string;
-  type: "expense" | "giving" | "income";
+  type: CategoryType;
   color: string;
   isDefault: boolean;
 }
 
 export function CategoryManagement() {
-  const categories = useQuery(api.categories.list, {});
+  const categories = useQuery(api.categories.list, {}) as CategoryItem[] | undefined;
+  const createCategory = useMutation(api.categories.create);
+  const updateCategory = useMutation(api.categories.update);
+  const removeCategory = useMutation(api.categories.remove);
+  const { toast } = useToast();
+
   const [loading, setLoading] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const { toast } = useToast();
+  const [editingCategory, setEditingCategory] = useState<CategoryItem | null>(null);
 
-  // Form state
   const [formData, setFormData] = useState({
     name: "",
-    type: "expense" as "expense" | "giving" | "income",
+    type: "expense" as CategoryType,
     color: "#3b82f6",
   });
+
+  const resetForm = () => {
+    setFormData({ name: "", type: "expense", color: "#3b82f6" });
+    setEditingCategory(null);
+  };
 
   const handleAddCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // In a real convex app you'd call a mutation here, e.g.
-      // await createCategory(formData);
-      // For now we simulate an API call to existing REST endpoint or just mock it if we switched fully to Convex
-      // Assuming REST endpoint still exists or we should use Convex mutation.
-      // Let's assume we use the REST endpoint for now as previous code did,
-      // but ideally we should use `useMutation`.
-      
-      const response = await fetch("/api/categories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create category");
-      }
-
-      toast({
-        title: "Success",
-        description: "Category created successfully",
-      });
-
+      await createCategory(formData);
+      toast({ title: "Success", description: "Category created" });
       setIsAddDialogOpen(false);
-      setFormData({ name: "", type: "expense" as "expense" | "giving" | "income", color: "#3b82f6" });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      resetForm();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to create category";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
   const handleEditCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCategory) return;
+
     setLoading(true);
-
     try {
-      const response = await fetch(`/api/categories/${editingCategory._id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          color: formData.color,
-        }),
+      await updateCategory({
+        id: editingCategory._id,
+        name: formData.name,
+        color: formData.color,
       });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update category");
-      }
-
-      toast({
-        title: "Success",
-        description: "Category updated successfully",
-      });
-
+      toast({ title: "Success", description: "Category updated" });
       setIsEditDialogOpen(false);
-      setEditingCategory(null);
-      setFormData({ name: "", type: "expense" as "expense" | "giving" | "income", color: "#3b82f6" });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      resetForm();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to update category";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
-  const handleDeleteCategory = async (category: Category) => {
+  const handleDeleteCategory = async (category: CategoryItem) => {
     if (category.isDefault) {
-      toast({
-        title: "Error",
-        description: "Cannot delete default categories",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Default categories cannot be deleted", variant: "destructive" });
       return;
     }
 
-    if (!confirm(`Are you sure you want to delete "${category.name}"?`)) {
-      return;
-    }
+    if (!confirm(`Delete "${category.name}"?`)) return;
 
     try {
-      const response = await fetch(`/api/categories/${category._id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete category");
-      }
-
-      toast({
-        title: "Success",
-        description: "Category deleted successfully",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      await removeCategory({ id: category._id });
+      toast({ title: "Success", description: "Category deleted" });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to delete category";
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
-  const openEditDialog = (category: Category) => {
+  const openEditDialog = (category: CategoryItem) => {
     setEditingCategory(category);
     setFormData({
       name: category.name,
@@ -168,20 +118,17 @@ export function CategoryManagement() {
   };
 
   if (categories === undefined) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-muted-foreground">Loading categories...</p>
-      </div>
-    );
+    return <p className="text-sm text-muted-foreground">Loading categories...</p>;
   }
 
-  const incomeCategories = categories.filter((c) => c.type === "income");
-  const expenseCategories = categories.filter((c) => c.type === "expense");
-  const givingCategories = categories.filter((c) => c.type === "giving");
+  const grouped = {
+    income: categories.filter((c) => c.type === "income"),
+    expense: categories.filter((c) => c.type === "expense"),
+    giving: categories.filter((c) => c.type === "giving"),
+  };
 
   return (
     <div className="space-y-6">
-      {/* Add Category Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
           <Button className="w-full sm:w-auto">
@@ -191,34 +138,30 @@ export function CategoryManagement() {
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New Category</DialogTitle>
+            <DialogTitle>Add Category</DialogTitle>
           </DialogHeader>
+
           <form onSubmit={handleAddCategory} className="space-y-4">
             <div>
-              <Label htmlFor="name">Category Name</Label>
+              <Label htmlFor="category-name">Category Name</Label>
               <Input
-                id="name"
+                id="category-name"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="e.g., Groceries"
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="e.g. Groceries"
                 required
               />
             </div>
 
             <div>
-              <Label htmlFor="type">Type</Label>
+              <Label htmlFor="category-type">Type</Label>
               <select
-                id="type"
+                id="category-type"
                 value={formData.type}
                 onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    type: e.target.value as "expense" | "giving" | "income",
-                  })
+                  setFormData((prev) => ({ ...prev, type: e.target.value as CategoryType }))
                 }
-                className="w-full px-3 py-2 border rounded-md bg-background"
+                className="w-full rounded-md border bg-background px-3 py-2"
               >
                 <option value="income">Income</option>
                 <option value="expense">Expense</option>
@@ -227,18 +170,16 @@ export function CategoryManagement() {
             </div>
 
             <div>
-              <Label htmlFor="color">Color</Label>
-              <div className="flex gap-2 items-center">
+              <Label htmlFor="category-color">Color</Label>
+              <div className="flex items-center gap-2">
                 <input
-                  id="color"
+                  id="category-color"
                   type="color"
                   value={formData.color}
-                  onChange={(e) =>
-                    setFormData({ ...formData, color: e.target.value })
-                  }
-                  className="h-10 w-20 border rounded-md cursor-pointer"
+                  onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
+                  className="h-10 w-20 rounded-md border"
                 />
-                <Input value={formData.color} readOnly className="flex-1" />
+                <Input value={formData.color} readOnly />
               </div>
             </div>
 
@@ -246,12 +187,7 @@ export function CategoryManagement() {
               <Button type="submit" className="flex-1" disabled={loading}>
                 {loading ? "Adding..." : "Add Category"}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsAddDialogOpen(false)}
-                disabled={loading}
-              >
+              <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
               </Button>
             </div>
@@ -259,60 +195,55 @@ export function CategoryManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Category Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Category</DialogTitle>
           </DialogHeader>
+
           <form onSubmit={handleEditCategory} className="space-y-4">
             <div>
-              <Label htmlFor="edit-name">Category Name</Label>
+              <Label htmlFor="edit-category-name">Category Name</Label>
               <Input
-                id="edit-name"
+                id="edit-category-name"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="e.g., Groceries"
+                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                 required
                 disabled={editingCategory?.isDefault}
               />
               {editingCategory?.isDefault && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Default category names cannot be changed
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Default category names cannot be changed.
                 </p>
               )}
             </div>
 
             <div>
-              <Label htmlFor="edit-color">Color</Label>
-              <div className="flex gap-2 items-center">
+              <Label htmlFor="edit-category-color">Color</Label>
+              <div className="flex items-center gap-2">
                 <input
-                  id="edit-color"
+                  id="edit-category-color"
                   type="color"
                   value={formData.color}
-                  onChange={(e) =>
-                    setFormData({ ...formData, color: e.target.value })
-                  }
-                  className="h-10 w-20 border rounded-md cursor-pointer"
+                  onChange={(e) => setFormData((prev) => ({ ...prev, color: e.target.value }))}
+                  className="h-10 w-20 rounded-md border"
+                  disabled={editingCategory?.isDefault}
                 />
-                <Input value={formData.color} readOnly className="flex-1" />
+                <Input value={formData.color} readOnly />
               </div>
             </div>
 
             <div className="flex gap-2">
-              <Button type="submit" className="flex-1" disabled={loading}>
-                 {loading ? "Saving..." : "Save Changes"}
+              <Button type="submit" className="flex-1" disabled={loading || !!editingCategory?.isDefault}>
+                {loading ? "Saving..." : "Save Changes"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => {
                   setIsEditDialogOpen(false);
-                  setEditingCategory(null);
+                  resetForm();
                 }}
-                disabled={loading}
               >
                 Cancel
               </Button>
@@ -321,196 +252,70 @@ export function CategoryManagement() {
         </DialogContent>
       </Dialog>
 
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Income Categories */}
-        <Card>
+      <div className="grid gap-4 md:grid-cols-3">
+        {([
+          ["Income", grouped.income],
+          ["Expense", grouped.expense],
+          ["Giving", grouped.giving],
+        ] as const).map(([title, list]) => (
+          <Card key={title}>
             <CardHeader>
-            <CardTitle>Income Categories</CardTitle>
+              <CardTitle>{title} Categories</CardTitle>
             </CardHeader>
             <CardContent>
-            <div className="space-y-2">
-                {incomeCategories.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
-                    No income categories
-                </p>
+              <div className="space-y-2">
+                {list.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">No categories</p>
                 ) : (
-                incomeCategories.map((category) => (
-                    <div
-                    key={category._id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                    <div className="flex items-center gap-3">
-                        <div
-                        className="w-6 h-6 rounded-full border border-border/20 shadow-sm"
-                        style={{ backgroundColor: category.color || "#3b82f6" }}
+                  list.map((category) => (
+                    <div key={category._id} className="flex items-center justify-between rounded-lg border p-3">
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="h-5 w-5 rounded-full border"
+                          style={{ backgroundColor: category.color || "#3b82f6" }}
                         />
                         <div>
-                        <p className="font-medium text-sm">{category.name}</p>
-                        {category.isDefault && (
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                            Default
-                            </p>
-                        )}
+                          <p className="text-sm font-medium">{category.name}</p>
+                          {category.isDefault && (
+                            <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Default</p>
+                          )}
                         </div>
-                    </div>
-                    <div className="flex gap-1">
-                        <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => openEditDialog(category)}
-                        >
-                        <Edit2 className="h-4 w-4" />
-                        </Button>
-                        {!category.isDefault && (
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteCategory(category)}
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                        )}
-                    </div>
-                    </div>
-                ))
-                )}
-            </div>
-            </CardContent>
-        </Card>
+                      </div>
 
-        {/* Expense Categories */}
-        <Card>
-            <CardHeader>
-            <CardTitle>Expense Categories</CardTitle>
-            </CardHeader>
-            <CardContent>
-            <div className="space-y-2">
-                {expenseCategories.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
-                    No expense categories
-                </p>
-                ) : (
-                expenseCategories.map((category) => (
-                    <div
-                    key={category._id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                    <div className="flex items-center gap-3">
-                        <div
-                        className="w-6 h-6 rounded-full border border-border/20 shadow-sm"
-                        style={{ backgroundColor: category.color || "#3b82f6" }}
-                        />
-                        <div>
-                        <p className="font-medium text-sm">{category.name}</p>
-                        {category.isDefault && (
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                            Default
-                            </p>
-                        )}
-                        </div>
-                    </div>
-                    <div className="flex gap-1">
-                        <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => openEditDialog(category)}
-                        >
-                        <Edit2 className="h-4 w-4" />
-                        </Button>
+                      <div className="flex gap-1">
                         {!category.isDefault && (
-                        <Button
+                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDialog(category)}>
+                            <Edit2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {!category.isDefault && (
+                          <Button
                             size="icon"
                             variant="ghost"
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
                             onClick={() => handleDeleteCategory(category)}
-                        >
+                          >
                             <Trash2 className="h-4 w-4" />
-                        </Button>
+                          </Button>
                         )}
+                      </div>
                     </div>
-                    </div>
-                ))
+                  ))
                 )}
-            </div>
+              </div>
             </CardContent>
-        </Card>
-
-        {/* Giving Categories */}
-        <Card>
-            <CardHeader>
-            <CardTitle>Giving Categories</CardTitle>
-            </CardHeader>
-            <CardContent>
-            <div className="space-y-2">
-                {givingCategories.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">
-                    No giving categories
-                </p>
-                ) : (
-                givingCategories.map((category) => (
-                    <div
-                    key={category._id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                    >
-                    <div className="flex items-center gap-3">
-                        <div
-                        className="w-6 h-6 rounded-full border border-border/20 shadow-sm"
-                        style={{ backgroundColor: category.color || "#3b82f6" }}
-                        />
-                        <div>
-                        <p className="font-medium text-sm">{category.name}</p>
-                        {category.isDefault && (
-                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                            Default
-                            </p>
-                        )}
-                        </div>
-                    </div>
-                    <div className="flex gap-1">
-                        <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        onClick={() => openEditDialog(category)}
-                        >
-                        <Edit2 className="h-4 w-4" />
-                        </Button>
-                        {!category.isDefault && (
-                        <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeleteCategory(category)}
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                        )}
-                    </div>
-                    </div>
-                ))
-                )}
-            </div>
-            </CardContent>
-        </Card>
+          </Card>
+        ))}
       </div>
 
-      {/* Info Card */}
-      <Card className="bg-muted/30 border-none">
-        <CardContent className="pt-6">
-          <div className="flex gap-3 text-sm text-muted-foreground">
-            <AlertCircle className="h-5 w-5 flex-shrink-0 text-primary" />
-            <div>
-              <p className="font-medium mb-2 text-foreground">Category Management Tips:</p>
-              <ul className="space-y-1 list-disc list-inside">
-                <li>Default categories cannot be deleted</li>
-                <li>Categories with existing transactions cannot be deleted</li>
-                <li>You can customize colors for all categories</li>
-                <li>Default category names cannot be changed</li>
-              </ul>
-            </div>
+      <Card className="bg-muted/30">
+        <CardContent className="pt-6 text-sm text-muted-foreground">
+          <div className="flex gap-2">
+            <AlertCircle className="mt-0.5 h-4 w-4 text-primary" />
+            <p>
+              Default categories are protected. Add your own categories when you need a more
+              personal breakdown.
+            </p>
           </div>
         </CardContent>
       </Card>

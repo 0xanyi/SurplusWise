@@ -1,29 +1,34 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, usePaginatedQuery } from "convex/react";
+import { ArrowDownRight, ArrowUpRight, Pencil, Receipt, Search, Trash2, TrendingUp } from "lucide-react";
+import { api } from "@/convex/_generated/api";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
+import type { TransactionType } from "@/types";
+import { useToast } from "@/hooks/use-toast";
+import { useDebounce } from "@/hooks/use-debounce";
+import { formatCurrency, cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { TransactionForm } from "./transaction-form";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { useToast } from "@/hooks/use-toast";
-import { useDebounce } from "@/hooks/use-debounce";
-import { formatCurrency, cn } from "@/lib/utils";
-import type { TransactionType } from "@/types";
-import { ArrowUpRight, ArrowDownRight, TrendingUp, Pencil, Trash2, Search, SlidersHorizontal, Receipt } from "lucide-react";
-import { usePaginatedQuery, useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import type { Doc, Id } from "@/convex/_generated/dataModel";
 
 const PAGE_SIZE = 20;
 
 type TypeFilter = "all" | TransactionType;
 
+const typeFilterOptions: { label: string; value: TypeFilter }[] = [
+  { label: "All", value: "all" },
+  { label: "Income", value: "income" },
+  { label: "Expense", value: "expense" },
+  { label: "Giving", value: "giving" },
+];
+
 export function TransactionList() {
   const { toast } = useToast();
-  const categories = useQuery(api.categories.list, {});
   const removeTransaction = useMutation(api.transactions.remove);
 
   const [selectedTransaction, setSelectedTransaction] = useState<Doc<"transactions"> | null>(null);
@@ -32,19 +37,17 @@ export function TransactionList() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [deleteId, setDeleteId] = useState<Id<"transactions"> | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-  const debouncedSearch = useDebounce(searchQuery, 300);
+  const debouncedSearch = useDebounce(searchQuery, 250);
 
   const queryArgs = useMemo(
     () => ({
       type: typeFilter === "all" ? undefined : typeFilter,
-      category: categoryFilter === "all" ? undefined : categoryFilter,
       search: debouncedSearch || undefined,
     }),
-    [typeFilter, categoryFilter, debouncedSearch]
+    [typeFilter, debouncedSearch]
   );
 
   const { results, status, loadMore } = usePaginatedQuery(
@@ -68,6 +71,11 @@ export function TransactionList() {
   const pageStart = (currentPage - 1) * PAGE_SIZE;
   const pageTransactions = results.slice(pageStart, pageStart + PAGE_SIZE);
 
+  const isLoadingFirstPage = status === "LoadingFirstPage";
+  const isLoadingMore = status === "LoadingMore";
+  const isLoadingNextPage = isLoadingMore && pageTransactions.length === 0;
+  const canLoadMore = status === "CanLoadMore";
+
   const handleEdit = (transaction: Doc<"transactions">) => {
     setSelectedTransaction(transaction);
     setIsFormOpen(true);
@@ -83,21 +91,17 @@ export function TransactionList() {
 
     try {
       await removeTransaction({ id: deleteId });
-      toast({ title: "Success", description: "Transaction deleted successfully" });
-    } catch (error) {
+      toast({ title: "Success", description: "Transaction deleted" });
+    } catch {
       toast({ title: "Error", description: "Failed to delete transaction", variant: "destructive" });
     } finally {
       setDeleteId(null);
     }
   };
 
-  const handleFormClose = () => {
-    setIsFormOpen(false);
-    setSelectedTransaction(null);
-  };
-
   const handleNext = () => {
     const nextPage = currentPage + 1;
+
     if (nextPage <= totalPages) {
       setCurrentPage(nextPage);
       return;
@@ -109,196 +113,119 @@ export function TransactionList() {
     }
   };
 
-  const handlePrev = () => {
-    setCurrentPage((prev) => Math.max(1, prev - 1));
+  const getIcon = (type: TransactionType) => {
+    if (type === "expense") return <ArrowDownRight className="size-5 text-rose-600" />;
+    if (type === "income") return <TrendingUp className="size-5 text-blue-600" />;
+    return <ArrowUpRight className="size-5 text-emerald-600" />;
   };
 
-  const filteredCategories = (categories ?? []).filter(
-    (cat) => typeFilter === "all" || cat.type === typeFilter
-  );
-
-  const isLoadingFirstPage = status === "LoadingFirstPage";
-  const isLoadingMore = status === "LoadingMore";
-  const isLoadingNextPage = isLoadingMore && pageTransactions.length === 0;
-  const canLoadMore = status === "CanLoadMore";
-  const nextDisabled = isLoadingMore || (!canLoadMore && currentPage >= totalPages);
-  const prevDisabled = isLoadingFirstPage || currentPage <= 1;
-
-  const getTransactionIcon = (type: string) => {
-    if (type === "expense") return <ArrowDownRight className="size-5 text-rose-600 dark:text-rose-400" />;
-    if (type === "income") return <TrendingUp className="size-5 text-blue-600 dark:text-blue-400" />;
-    return <ArrowUpRight className="size-5 text-emerald-600 dark:text-emerald-400" />;
+  const getIconBg = (type: TransactionType) => {
+    if (type === "expense") return "bg-rose-100 dark:bg-rose-900/30";
+    if (type === "income") return "bg-blue-100 dark:bg-blue-900/30";
+    return "bg-emerald-100 dark:bg-emerald-900/30";
   };
 
-  const getTransactionIconBg = (type: string) => {
-    if (type === "expense") return "bg-rose-100 dark:bg-rose-900/40";
-    if (type === "income") return "bg-blue-100 dark:bg-blue-900/40";
-    return "bg-emerald-100 dark:bg-emerald-900/40";
-  };
-
-  const getTransactionColor = (type: string) => {
-    if (type === "expense") return "text-rose-600 dark:text-rose-400";
-    if (type === "income") return "text-blue-600 dark:text-blue-400";
-    return "text-emerald-600 dark:text-emerald-400";
-  };
-
-  const getTypeBadgeClasses = (type: string) => {
-    if (type === "expense") return "bg-rose-100 text-rose-700 dark:bg-rose-900/50 dark:text-rose-300";
-    if (type === "income") return "bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300";
-    return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300";
+  const getAmountColor = (type: TransactionType) => {
+    if (type === "expense") return "text-rose-600";
+    if (type === "income") return "text-blue-600";
+    return "text-emerald-600";
   };
 
   return (
     <>
-      <Card className="border shadow-sm">
-        <CardHeader className="pb-4">
-          <CardTitle className="text-lg font-semibold">All Transactions</CardTitle>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">All transactions</CardTitle>
         </CardHeader>
+
         <CardContent>
-          {/* Filters */}
-          <div className="flex flex-col sm:flex-row gap-3 mb-6">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+          <div className="mb-4 space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search transactions..."
+                placeholder="Search category or notes"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-10 bg-muted/50 border-0 focus-visible:ring-1"
+                className="h-11 pl-10"
               />
             </div>
 
-            <Select
-              value={typeFilter}
-              onValueChange={(value: TypeFilter) => {
-                setTypeFilter(value);
-                setCategoryFilter("all");
-              }}
-            >
-              <SelectTrigger className="w-full sm:w-[140px] h-10 bg-muted/50 border-0">
-                <SlidersHorizontal className="size-4 mr-2 text-muted-foreground" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="income">Income</SelectItem>
-                <SelectItem value="expense">Expenses</SelectItem>
-                <SelectItem value="giving">Givings</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-full sm:w-[160px] h-10 bg-muted/50 border-0">
-                <SelectValue placeholder="All Categories" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Categories</SelectItem>
-                {filteredCategories.map((cat) => (
-                  <SelectItem key={cat._id} value={cat.name}>
-                    {cat.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+              {typeFilterOptions.map((option) => (
+                <Button
+                  key={option.value}
+                  type="button"
+                  size="sm"
+                  variant={typeFilter === option.value ? "default" : "outline"}
+                  onClick={() => setTypeFilter(option.value)}
+                  className="h-10"
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
           </div>
 
-          {/* Transaction List */}
           {isLoadingFirstPage ? (
             <div className="space-y-2">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center gap-4 p-4 rounded-xl bg-muted/30">
-                  <Skeleton className="size-10 rounded-xl" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-20" />
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+                  <Skeleton className="size-10 rounded-lg" />
+                  <div className="flex-1 space-y-1">
+                    <Skeleton className="h-4 w-28" />
+                    <Skeleton className="h-3 w-24" />
                   </div>
-                  <Skeleton className="h-5 w-16" />
+                  <Skeleton className="h-4 w-16" />
                 </div>
               ))}
             </div>
           ) : pageTransactions.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="size-14 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-                <Receipt className="size-7 text-muted-foreground" />
-              </div>
+            <div className="py-12 text-center">
+              <Receipt className="mx-auto mb-2 size-7 text-muted-foreground" />
               <p className="font-medium">No transactions found</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {searchQuery || typeFilter !== "all" || categoryFilter !== "all"
-                  ? "Try adjusting your filters"
-                  : "Start by adding your first transaction"}
-              </p>
+              <p className="text-sm text-muted-foreground">Try another filter or search term.</p>
             </div>
           ) : (
             <div className="space-y-2">
               {pageTransactions.map((transaction) => (
-                <div
-                  key={transaction._id}
-                  className="group flex items-center justify-between p-4 rounded-xl hover:bg-muted/50 transition-colors duration-150"
-                >
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div
-                      className={cn(
-                        "size-10 rounded-xl flex items-center justify-center shrink-0",
-                        getTransactionIconBg(transaction.type)
-                      )}
-                    >
-                      {getTransactionIcon(transaction.type)}
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-sm">{transaction.category}</p>
-                        <span
-                          className={cn(
-                            "text-[10px] px-2 py-0.5 rounded-full font-medium uppercase tracking-wide",
-                            getTypeBadgeClasses(transaction.type)
-                          )}
-                        >
-                          {transaction.type}
-                        </span>
+                <div key={transaction._id} className="rounded-lg border p-3 sm:p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div className={cn("mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-lg", getIconBg(transaction.type))}>
+                        {getIcon(transaction.type)}
                       </div>
-                      {transaction.notes && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          {transaction.notes}
+
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium sm:text-base">{transaction.category}</p>
+                        <p className="text-xs text-muted-foreground sm:text-sm">
+                          {transaction.type} • {new Date(transaction.date).toLocaleDateString("en-GB")}
                         </p>
-                      )}
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {new Date(transaction.date).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </p>
+                        {transaction.notes && (
+                          <p className="mt-1 line-clamp-1 text-xs text-muted-foreground sm:text-sm">{transaction.notes}</p>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="text-right shrink-0">
-                      <p
-                        className={cn(
-                          "text-base font-semibold",
-                          getTransactionColor(transaction.type)
-                        )}
-                      >
-                        {transaction.type === "expense" ? "-" : "+"}
-                        {formatCurrency(transaction.amount)}
-                      </p>
-                    </div>
+                    <p className={cn("shrink-0 text-sm font-semibold sm:text-base", getAmountColor(transaction.type))}>
+                      {transaction.type === "expense" ? "-" : "+"}
+                      {formatCurrency(transaction.amount)}
+                    </p>
                   </div>
 
-                  <div className="flex items-center gap-1 ml-4 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 rounded-lg hover:bg-muted"
-                      onClick={() => handleEdit(transaction)}
-                    >
-                      <Pencil className="size-4 text-muted-foreground" />
+                  <div className="mt-3 flex gap-2 sm:justify-end">
+                    <Button type="button" size="sm" variant="outline" className="h-9 flex-1 sm:flex-none" onClick={() => handleEdit(transaction)}>
+                      <Pencil className="mr-2 size-4" />
+                      Edit
                     </Button>
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/30"
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-9 flex-1 border-rose-200 text-rose-600 hover:bg-rose-50 sm:flex-none"
                       onClick={() => handleDelete(transaction._id)}
                     >
-                      <Trash2 className="size-4 text-rose-600 dark:text-rose-400" />
+                      <Trash2 className="mr-2 size-4" />
+                      Delete
                     </Button>
                   </div>
                 </div>
@@ -306,19 +233,23 @@ export function TransactionList() {
             </div>
           )}
 
-          {isLoadingNextPage && (
-            <p className="text-xs text-muted-foreground mt-4">Loading next page...</p>
-          )}
+          {isLoadingNextPage && <p className="mt-3 text-xs text-muted-foreground">Loading next page...</p>}
 
           {(pageTransactions.length > 0 || isLoadingNextPage) && (
-            <div className="flex items-center justify-between mt-6">
-              <Button variant="outline" size="sm" onClick={handlePrev} disabled={prevDisabled}>
+            <div className="mt-5 flex items-center justify-between">
+              <Button variant="outline" size="sm" className="h-9" onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} disabled={currentPage <= 1 || isLoadingFirstPage}>
                 Prev
               </Button>
               <span className="text-sm text-muted-foreground">
                 Page {currentPage}{totalPages > 1 ? ` of ${totalPages}` : ""}
               </span>
-              <Button variant="outline" size="sm" onClick={handleNext} disabled={nextDisabled}>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9"
+                onClick={handleNext}
+                disabled={isLoadingMore || (!canLoadMore && currentPage >= totalPages)}
+              >
                 {isLoadingMore ? "Loading..." : "Next"}
               </Button>
             </div>
@@ -328,14 +259,17 @@ export function TransactionList() {
 
       <TransactionForm
         open={isFormOpen}
-        onOpenChange={handleFormClose}
+        onOpenChange={(open) => {
+          setIsFormOpen(open);
+          if (!open) setSelectedTransaction(null);
+        }}
         transaction={selectedTransaction}
       />
 
       <ConfirmDialog
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
-        title="Delete Transaction"
+        title="Delete transaction"
         description="Are you sure you want to delete this transaction? This action cannot be undone."
         onConfirm={confirmDelete}
         confirmText="Delete"

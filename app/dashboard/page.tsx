@@ -1,18 +1,18 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { useQuery } from "convex/react";
+import { ArrowDownRight, ArrowUpRight, Loader2, Receipt, TrendingUp, Wallet } from "lucide-react";
 import { api } from "@/convex/_generated/api";
+import { authClient } from "@/lib/auth-client";
+import { formatCurrency, cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowDownRight, ArrowUpRight, Wallet, Receipt, Loader2, TrendingUp } from "lucide-react";
-import { formatCurrency, cn } from "@/lib/utils";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { BudgetOverview } from "@/components/dashboard/budget-overview";
-import { authClient } from "@/lib/auth-client";
-import Link from "next/link";
 
-function getGreeting(): string {
+function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return "Good morning";
   if (hour < 17) return "Good afternoon";
@@ -22,16 +22,16 @@ function getGreeting(): string {
 export default function DashboardPage() {
   const { data: session } = authClient.useSession();
   const userId = session?.user?.id;
-  const userName = session?.user?.name?.split(" ")[0] || "there";
+  const firstName = session?.user?.name?.split(" ")[0] || "there";
 
   const { startDate, endDate } = useMemo(() => {
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     return {
-      startDate: startOfMonth.toISOString().split("T")[0],
-      endDate: endOfMonth.toISOString().split("T")[0],
+      startDate: start.toISOString().split("T")[0],
+      endDate: end.toISOString().split("T")[0],
     };
   }, []);
 
@@ -45,196 +45,122 @@ export default function DashboardPage() {
       : "skip"
   );
 
-  const recentTransactions = useQuery(
-    api.transactions.listRecent,
-   userId ? { limit: 5 } : "skip"
-  );
+  const recentTransactions = useQuery(api.transactions.listRecent, userId ? { limit: 6 } : "skip");
 
   if (!userId || transactions === undefined) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+      <div className="flex min-h-[320px] items-center justify-center">
+        <Loader2 className="size-7 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
-  const stats = {
-    totalExpenses:
-      transactions
-        ?.filter((t) => t.type === "expense")
-        .reduce((sum, t) => sum + t.amount, 0) || 0,
-    totalGivings:
-      transactions
-        ?.filter((t) => t.type === "giving")
-        .reduce((sum, t) => sum + t.amount, 0) || 0,
-    totalIncome:
-      transactions
-        ?.filter((t) => t.type === "income")
-        .reduce((sum, t) => sum + t.amount, 0) || 0,
-    transactionCount: transactions?.length || 0,
-  };
+  const totalIncome = transactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0);
+  const totalExpenses = transactions.filter((t) => t.type === "expense").reduce((sum, t) => sum + t.amount, 0);
+  const totalGivings = transactions.filter((t) => t.type === "giving").reduce((sum, t) => sum + t.amount, 0);
+  const netBalance = totalIncome - totalExpenses - totalGivings;
 
-  const netBalance = stats.totalIncome - stats.totalExpenses - stats.totalGivings;
-  const recent = recentTransactions || [];
-
-  const statCards = [
+  const summary = [
     {
-      title: "Total Income",
-      value: formatCurrency(stats.totalIncome),
-      subtitle: "This month",
+      title: "Income",
+      value: totalIncome,
+      color: "text-blue-600",
       icon: TrendingUp,
-      color: "text-blue-600 dark:text-blue-400",
-      bg: "bg-blue-50 dark:bg-blue-950/30",
-      iconBg: "bg-blue-100 dark:bg-blue-900/40",
     },
     {
-      title: "Total Expenses",
-      value: formatCurrency(stats.totalExpenses),
-      subtitle: "This month",
+      title: "Expenses",
+      value: totalExpenses,
+      color: "text-rose-600",
       icon: ArrowDownRight,
-      color: "text-rose-600 dark:text-rose-400",
-      bg: "bg-rose-50 dark:bg-rose-950/30",
-      iconBg: "bg-rose-100 dark:bg-rose-900/40",
     },
     {
-      title: "Total Givings",
-      value: formatCurrency(stats.totalGivings),
-      subtitle: "This month",
+      title: "Giving",
+      value: totalGivings,
+      color: "text-emerald-600",
       icon: ArrowUpRight,
-      color: "text-emerald-600 dark:text-emerald-400",
-      bg: "bg-emerald-50 dark:bg-emerald-950/30",
-      iconBg: "bg-emerald-100 dark:bg-emerald-900/40",
     },
     {
-      title: "Net Balance",
-      value: formatCurrency(Math.abs(netBalance)),
+      title: "Net balance",
+      value: Math.abs(netBalance),
       subtitle: netBalance >= 0 ? "Surplus" : "Deficit",
+      color: netBalance >= 0 ? "text-emerald-600" : "text-rose-600",
       icon: Wallet,
-      color: netBalance >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400",
-      bg: "bg-violet-50 dark:bg-violet-950/30",
-      iconBg: "bg-violet-100 dark:bg-violet-900/40",
     },
   ];
 
+  const recent = recentTransactions || [];
+
   return (
-    <div className="space-y-8 pb-8">
-      {/* Page Header */}
+    <div className="space-y-5 pb-6 sm:space-y-6 sm:pb-8">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-          {getGreeting()}, {userName}
+        <h1 className="text-xl font-semibold tracking-tight sm:text-3xl">
+          {getGreeting()}, {firstName}
         </h1>
-        <p className="text-muted-foreground mt-1">
-          Here&apos;s your financial overview for{" "}
-          {new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })}.
+        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+          Here&apos;s your {new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })} snapshot.
         </p>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((card) => {
+        {summary.map((card) => {
           const Icon = card.icon;
           return (
-            <Card
-              key={card.title}
-              className={cn(
-                "relative overflow-hidden border-0 shadow-sm hover:shadow-md transition-shadow duration-200",
-                card.bg
-              )}
-            >
+            <Card key={card.title}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {card.title}
-                </CardTitle>
-                <div className={cn("p-2 rounded-lg", card.iconBg)}>
-                  <Icon className={cn("size-4", card.color)} />
-                </div>
+                <CardTitle className="text-sm text-muted-foreground">{card.title}</CardTitle>
+                <Icon className={cn("size-4", card.color)} />
               </CardHeader>
               <CardContent>
-                <div className={cn("text-2xl font-semibold tracking-tight", card.color)}>
-                  {card.value}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">{card.subtitle}</p>
+                <div className={cn("text-2xl font-semibold", card.color)}>{formatCurrency(card.value)}</div>
+                {card.subtitle && <p className="text-xs text-muted-foreground">{card.subtitle}</p>}
               </CardContent>
             </Card>
           );
         })}
       </div>
 
-      {/* Quick Actions */}
       <DashboardClient />
 
-      {/* Budget Overview */}
       <BudgetOverview />
 
-      {/* Recent Transactions */}
-      <Card className="border shadow-sm">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-lg font-semibold">Recent Transactions</CardTitle>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="text-base sm:text-lg">Recent transactions</CardTitle>
           <Link href="/dashboard/transactions">
-            <Button variant="ghost" size="sm">
-              View All
+            <Button variant="ghost" size="sm" className="h-9">
+              View all
             </Button>
           </Link>
         </CardHeader>
         <CardContent>
           {recent.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="size-12 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
-                <Receipt className="size-6 text-muted-foreground" />
-              </div>
-              <p className="font-medium text-foreground">No transactions yet</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Start by adding your first expense, income, or giving
-              </p>
+            <div className="py-10 text-center">
+              <Receipt className="mx-auto mb-3 size-8 text-muted-foreground" />
+              <p className="font-medium">No transactions yet</p>
+              <p className="text-sm text-muted-foreground">Use Quick add to create your first entry.</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {recent.map((transaction) => (
-                <div
-                  key={transaction._id}
-                  className="flex items-center justify-between p-3 rounded-xl hover:bg-muted/50 cursor-pointer transition-colors duration-150"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "size-10 rounded-xl flex items-center justify-center",
-                        transaction.type === "expense"
-                          ? "bg-rose-100 dark:bg-rose-900/40"
-                          : transaction.type === "income"
-                          ? "bg-blue-100 dark:bg-blue-900/40"
-                          : "bg-emerald-100 dark:bg-emerald-900/40"
-                      )}
-                    >
-                      {transaction.type === "expense" ? (
-                        <ArrowDownRight className="size-5 text-rose-600 dark:text-rose-400" />
-                      ) : transaction.type === "income" ? (
-                        <TrendingUp className="size-5 text-blue-600 dark:text-blue-400" />
-                      ) : (
-                        <ArrowUpRight className="size-5 text-emerald-600 dark:text-emerald-400" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{transaction.category}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(transaction.date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </p>
-                    </div>
+              {recent.map((tx) => (
+                <div key={tx._id} className="flex items-center justify-between rounded-lg border p-3.5 sm:p-3">
+                  <div>
+                    <p className="text-sm font-medium sm:text-base">{tx.category}</p>
+                    <p className="text-xs text-muted-foreground sm:text-sm">
+                      {tx.type} • {new Date(tx.date).toLocaleDateString("en-GB")}
+                    </p>
                   </div>
                   <p
                     className={cn(
                       "font-semibold",
-                      transaction.type === "expense"
-                        ? "text-rose-600 dark:text-rose-400"
-                        : transaction.type === "income"
-                        ? "text-blue-600 dark:text-blue-400"
-                        : "text-emerald-600 dark:text-emerald-400"
+                      tx.type === "income"
+                        ? "text-blue-600"
+                        : tx.type === "giving"
+                        ? "text-emerald-600"
+                        : "text-rose-600"
                     )}
                   >
-                    {transaction.type === "expense" ? "-" : "+"}
-                    {formatCurrency(transaction.amount)}
+                    {tx.type === "expense" ? "-" : "+"}
+                    {formatCurrency(tx.amount)}
                   </p>
                 </div>
               ))}

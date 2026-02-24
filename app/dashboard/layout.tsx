@@ -2,12 +2,11 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { useMutation } from "convex/react";
 import DashboardNav from "@/components/dashboard/dashboard-nav";
 import { authClient } from "@/lib/auth-client";
-import { Loader2 } from "lucide-react";
-import { KeyboardShortcutsDialog } from "@/components/ui/keyboard-shortcuts-dialog";
-import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
-import { DashboardFooter } from "@/components/dashboard/dashboard-footer";
+import { api } from "@/convex/_generated/api";
 
 export default function DashboardLayout({
   children,
@@ -16,40 +15,20 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const { data: session, isPending } = authClient.useSession();
-
-  // Global keyboard shortcuts
-  useKeyboardShortcuts([
-    {
-      key: "d",
-      ctrl: true,
-      action: () => router.push("/dashboard"),
-      description: "Go to Dashboard",
-    },
-    {
-      key: "t",
-      ctrl: true,
-      action: () => router.push("/dashboard/transactions"),
-      description: "Go to Transactions",
-    },
-    {
-      key: "r",
-      ctrl: true,
-      action: () => router.push("/dashboard/reports"),
-      description: "Go to Reports",
-    },
-    {
-      key: ",",
-      ctrl: true,
-      action: () => router.push("/dashboard/settings"),
-      description: "Go to Settings",
-    },
-  ]);
+  const ensureDefaultCategories = useMutation(api.categories.ensureDefaults);
 
   useEffect(() => {
     if (!isPending && !session) {
       router.push("/auth/login");
+      return;
     }
-  }, [session, isPending, router]);
+
+    if (session?.user?.id) {
+      ensureDefaultCategories({}).catch((error) => {
+        console.error("Failed to ensure default categories", error);
+      });
+    }
+  }, [session, isPending, router, ensureDefaultCategories]);
 
   if (isPending) {
     return (
@@ -64,7 +43,7 @@ export default function DashboardLayout({
   }
 
   return (
-     <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       <DashboardNav
         user={{
           id: session.user.id,
@@ -72,9 +51,7 @@ export default function DashboardLayout({
           name: session.user.name,
         }}
       />
-       <main className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl flex-1">{children}</main>
-       <DashboardFooter />
-       <KeyboardShortcutsDialog />
+      <main className="container mx-auto max-w-7xl flex-1 px-4 py-6 sm:px-6">{children}</main>
     </div>
   );
 }
