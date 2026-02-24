@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { loansGiven, loanRepayments } from "@/db/schema";
 import {
@@ -74,7 +74,7 @@ export async function getSummary(userId: string) {
     .where(
       and(
         eq(loansGiven.userId, userId),
-        eq(loansGiven.status, "active"),
+        inArray(loansGiven.status, ["active", "partially_repaid"]),
       ),
     );
 

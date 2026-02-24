@@ -244,7 +244,7 @@ export async function addEvent(
         newIsActive = false;
         break;
       case "partial_sale":
-        newCurrentValue = currentVal - input.amount;
+        newCurrentValue = Math.max(0, currentVal - input.amount);
         break;
       case "return":
       case "dividend":
@@ -252,7 +252,7 @@ export async function addEvent(
         break;
       case "loss":
       case "fee":
-        newCurrentValue = currentVal - input.amount;
+        newCurrentValue = Math.max(0, currentVal - input.amount);
         break;
       default:
         newCurrentValue = currentVal;
@@ -347,8 +347,10 @@ export async function removeEvent(
         ),
       );
 
-    const recalculated =
-      Number(investment.costBasis) + Number(gains.total) - Number(deductions.total);
+    const recalculated = Math.max(
+      0,
+      Number(investment.costBasis) + Number(gains.total) - Number(deductions.total),
+    );
 
     // Check if there's still an active 'sale' event — if so, keep isActive=false
     const [saleCheck] = await tx
