@@ -144,6 +144,7 @@ export async function getAnalytics(
     .where(
       and(
         eq(outgoingPaymentLogs.userId, userId),
+        eq(recurringOutgoings.workspaceId, workspaceId),
         gte(outgoingPaymentLogs.paidAt, range.startDate),
         lte(outgoingPaymentLogs.paidAt, range.endDate),
       ),
@@ -181,6 +182,7 @@ export async function getAnalytics(
     .where(
       and(
         eq(debtBalanceLogs.userId, userId),
+        eq(debtsCredits.workspaceId, workspaceId),
         gte(debtBalanceLogs.loggedAt, range.startDate),
         lte(debtBalanceLogs.loggedAt, range.endDate),
         sql`${debtBalanceLogs.paymentMade} IS NOT NULL AND ${debtBalanceLogs.paymentMade} > 0`,
