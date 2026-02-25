@@ -2,7 +2,24 @@
 
 This document tracks implemented improvements and future enhancements for the SurplusWise application.
 
-## ✅ Recently Implemented (v0.8.1 - Feb 2, 2026)
+## ✅ Recently Implemented (v0.10.0 - Feb 25, 2026)
+
+### Finance Workspaces
+
+#### Personal & Business Workspace Support
+- ✅ New `workspaces` table with personal/business type enum
+- ✅ `workspaceId` column added to all domain tables
+- ✅ All service functions and API routes now workspace-aware
+- ✅ Workspace switcher dropdown in dashboard navigation
+- ✅ `WorkspaceProvider` React context with localStorage persistence
+- ✅ `apiFetch` auto-includes workspace header on every request
+- ✅ All data queries re-fetch automatically when workspace changes
+- ✅ SQL migration with automatic backfill for existing data
+- ✅ `/api/workspaces` CRUD endpoints
+
+**Impact**: Users can now separate personal and business finances while using all existing features in both contexts.
+
+## ✅ Previously Implemented (v0.8.1 - Feb 2, 2026)
 
 ### Quick Wins Completed
 
@@ -152,13 +169,14 @@ This document tracks implemented improvements and future enhancements for the Su
 - [ ] Tags/labels system
 - [ ] Multiple attachments per transaction
 - [ ] Bank integration (Plaid)
-- [ ] Investment tracking
-- [ ] Bill reminders
+- ✅ Investment tracking (implemented)
+- ✅ Bill reminders / recurring outgoings (implemented)
 
 **Estimated Time**: 2-3 weeks
 **Impact**: Feature completeness, competitive advantage
 
 ### Collaboration
+- ✅ Multiple workspaces (personal/business) — implemented
 - [ ] Shared budgets (family/couples)
 - [ ] Permission levels
 - [ ] Activity log/audit trail
@@ -242,6 +260,6 @@ This document tracks implemented improvements and future enhancements for the Su
 
 ---
 
-**Last Updated**: February 2, 2026
-**Current Version**: 0.8.1
-**Next Milestone**: Testing Infrastructure & Security (v0.7.0)
+**Last Updated**: February 25, 2026
+**Current Version**: 0.10.0
+**Next Milestone**: Testing Infrastructure & Security

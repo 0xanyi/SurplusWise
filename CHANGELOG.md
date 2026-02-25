@@ -2,6 +2,42 @@
 
 All notable changes to SurplusWise will be documented in this file.
 
+## [0.10.0] - 2026-02-25
+
+### Finance Workspaces 🏢
+
+#### Added
+- **Workspace System**
+  - Switch between Personal and Business finance workspaces
+  - All existing features available in both workspaces with fully isolated data
+  - Create additional workspaces with Personal or Business type
+  - Workspace switcher dropdown in the dashboard navigation bar
+  - Default "Personal" workspace auto-created for every user
+
+- **Database Changes**
+  - New `workspaces` table with `personal`/`business` type enum
+  - `workspace_id` column added to all domain tables (transactions, categories, budgets, recurring_outgoings, debts_credits, loans_given, investments)
+  - Migration automatically backfills existing data into a default "Personal" workspace
+  - Workspace-scoped indexes for query performance
+
+- **Backend Architecture**
+  - `requireAuthWithWorkspace()` server helper resolves workspace from `x-workspace-id` header
+  - Falls back to user's default workspace when header is not set
+  - All service functions and API routes now workspace-aware
+  - New `/api/workspaces` CRUD endpoints
+
+- **Frontend Architecture**
+  - `WorkspaceProvider` React context wrapping the dashboard
+  - Active workspace persisted in localStorage
+  - `apiFetch` automatically includes workspace header on every API call
+  - All `useApiQuery` hooks auto-refresh when workspace changes
+  - Custom `workspace-changed` event for cross-component coordination
+
+#### Technical Details
+- 32 files changed across schema, services, API routes, and UI
+- Zero breaking changes — existing data seamlessly migrated
+- Workspace selection is transparent to existing components
+
 ## [0.8.1] - 2026-02-02
 
 ### Changed

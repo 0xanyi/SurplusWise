@@ -1,6 +1,6 @@
 ## Brief Description
 
-SurplusWise is a personal finance management app designed to help users track their expenditures, monitor monthly outgoings, and manage church givings such as tithes and partnerships. Powered by AI, it features receipt scanning for seamless transaction capture, automatic categorization, and insightful financial summaries by custom time periods. The app empowers individuals to wisely steward their finances and giving, offering clear visibility and control over their financial flow.
+SurplusWise is a personal and business finance management app designed to help users track their expenditures, monitor monthly outgoings, and manage church givings such as tithes and partnerships. Powered by AI, it features receipt scanning for seamless transaction capture, automatic categorization, and insightful financial summaries by custom time periods. Users can switch between **Personal** and **Business** workspaces, keeping their finances cleanly separated while accessing all features in both contexts. The app empowers individuals to wisely steward their finances and giving, offering clear visibility and control over their financial flow.
 
 ***
 
@@ -41,7 +41,14 @@ SurplusWise is a personal finance management app designed to help users track th
 - User satisfaction via feedback rating above 4/5.
 - Monthly active users growth rate post-launch.
 
-### 7. Future Enhancements
+### 7. Implemented Enhancement: Finance Workspaces ✅
+- Personal and Business workspace types for data isolation
+- Workspace switcher in dashboard navigation
+- All features (transactions, budgets, categories, outgoings, debts, loans, investments, analytics) scoped per workspace
+- Existing data auto-migrated to a default "Personal" workspace
+- Create additional workspaces as needed
+
+### 8. Future Enhancements
 - Integration with bank statements and payment platforms (Apple Pay, Google Pay).
 - Advanced AI-driven spending insights and recommendations.
 - Multi-user support for family or church group finance tracking.
@@ -57,6 +64,9 @@ SurplusWise is a personal finance management app designed to help users track th
 - As a user, I want a secure login system so my financial data is private and safe.
 - As a user, I want to export my financial data into CSV or PDF for offline use or sharing.
 - As a user, I want to set custom givings categories such as tithes, offerings, and partnerships to manage church donations distinctly.
+- As a user, I want to switch between Personal and Business workspaces so I can keep my finances separate while using the same features in both.
+- As a user, I want all my existing data to automatically belong to a "Personal" workspace so I don't lose anything when workspaces are introduced.
+- As a user, I want to create new workspaces (Personal or Business type) so I can organise my finances however I need.
 
 ***
 

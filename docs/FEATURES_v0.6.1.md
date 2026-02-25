@@ -1,6 +1,36 @@
-# New Features Guide - v0.8.1
+# New Features Guide - v0.10.0
 
-Welcome to SurplusWise v0.8.1! This release includes several improvements to enhance your experience.
+Welcome to SurplusWise v0.10.0! The biggest addition in this release is **Finance Workspaces** — switch between Personal and Business contexts with all features available in both.
+
+## 🏢 Finance Workspaces (New in v0.10.0)
+
+### What Are Workspaces?
+Workspaces let you keep your personal and business finances completely separate. Every feature — transactions, budgets, categories, outgoings, debts, loans, investments, and analytics — is scoped to the active workspace.
+
+### How to Use
+1. **Switch workspaces**: Click the workspace switcher in the navigation bar (between the logo and nav links)
+2. **Create a new workspace**: Click "New workspace" at the bottom of the switcher dropdown
+3. **Choose a type**: Select Personal or Business
+4. **All data is separate**: When you switch workspaces, all dashboards, lists, and charts show only that workspace's data
+
+### Key Details
+- A default **Personal** workspace is created automatically for every user
+- All existing data is automatically assigned to the Personal workspace
+- You can create as many workspaces as you need
+- The active workspace is remembered between sessions
+- Workspace type (Personal/Business) is shown as a label in the switcher
+
+### For Developers
+The workspace system works via:
+- **`x-workspace-id` header**: Sent automatically with every API request from the frontend
+- **`requireAuthWithWorkspace()`**: Server helper that resolves both userId and workspaceId
+- **`WorkspaceProvider` context**: Wraps the dashboard, provides `useWorkspace()` hook
+- **`workspace-changed` event**: All `useApiQuery` hooks listen for this and auto-refresh
+- **localStorage**: Active workspace ID persisted under `activeWorkspaceId` key
+
+---
+
+## Previous Features (v0.8.1)
 
 ## 🎹 Keyboard Shortcuts
 
@@ -177,7 +207,7 @@ If you encounter any issues:
 
 ---
 
-**Version**: 0.8.1  
-**Release Date**: February 2, 2026  
-**Type**: Minor Update (Quick Wins & Enhancements)
+**Version**: 0.10.0
+**Release Date**: February 25, 2026
+**Type**: Major Feature (Finance Workspaces)
 

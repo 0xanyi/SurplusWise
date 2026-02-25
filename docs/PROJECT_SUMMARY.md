@@ -1,6 +1,6 @@
 # SurplusWise - Project Summary
 
-A modern personal finance management application built with Next.js, PostgreSQL, and Better Auth. Features AI-powered receipt scanning, budget tracking, and analytics.
+A modern personal and business finance management application built with Next.js, PostgreSQL, and Better Auth. Features AI-powered receipt scanning, budget tracking, analytics, and workspace-based data isolation for managing personal and business finances separately.
 
 ## What Has Been Built
 
@@ -65,6 +65,15 @@ A modern personal finance management application built with Next.js, PostgreSQL,
    - Receipt storage moved to S3-compatible backend
    - Self-hosted deployment via Dokploy
 
+**Phase 6: Finance Workspaces (Complete)**
+
+9. **Workspace System**
+   - Personal and Business workspace types
+   - Workspace switcher in dashboard navigation
+   - All features workspace-scoped (transactions, budgets, categories, outgoings, debts, loans, investments, analytics)
+   - Automatic migration of existing data to default "Personal" workspace
+   - Create additional workspaces as needed
+
 ## Tech Stack
 
 | Category | Technology | Purpose |
@@ -88,17 +97,23 @@ SurplusWise/
 ├── app/
 │   ├── api/               # API route handlers
 │   │   ├── auth/          # Better Auth endpoints
+│   │   ├── workspaces/    # Workspace CRUD
 │   │   ├── transactions/  # Transaction CRUD
 │   │   ├── categories/    # Category CRUD
 │   │   ├── budgets/       # Budget CRUD
 │   │   ├── analytics/     # Analytics queries
+│   │   ├── recurring-outgoings/  # Outgoing bills
+│   │   ├── debts-credits/ # Debt tracking
+│   │   ├── loans-given/   # Loans tracking
+│   │   ├── investments/   # Investment tracking
 │   │   └── receipts/      # Receipt scanning & storage
 │   ├── dashboard/         # Dashboard pages
 │   ├── layout.tsx         # Root layout
 │   └── page.tsx           # Landing page
 ├── components/
 │   ├── ui/                # shadcn/ui components
-│   └── dashboard/         # Dashboard components
+│   └── dashboard/         # Dashboard components (incl. workspace switcher)
+├── contexts/              # React context providers (workspace, etc.)
 ├── db/
 │   ├── schema.ts          # Drizzle ORM schema
 │   ├── client.ts          # Postgres connection pool
@@ -107,7 +122,7 @@ SurplusWise/
 │   ├── db/                # Data-access layer
 │   ├── auth.ts            # Better Auth server config
 │   ├── auth-client.ts     # Better Auth client
-│   ├── auth-server.ts     # Auth server helpers
+│   ├── auth-server.ts     # Auth server helpers (incl. workspace resolution)
 │   ├── storage.ts         # S3 storage helpers
 │   └── utils.ts           # Utility functions
 ├── hooks/                 # Custom React hooks
@@ -143,4 +158,4 @@ npm run db:studio    # Open Drizzle Studio
 **Built with ❤️ using modern web technologies**
 
 Last Updated: February 2026
-Version: 0.9.0 (PostgreSQL + Drizzle ORM)
+Version: 0.10.0 (Finance Workspaces)
