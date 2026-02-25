@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as outgoingsService from "@/lib/db/recurring-outgoings";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
 import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
@@ -26,9 +26,9 @@ function getCurrentPeriodMonth() {
 
 export async function GET() {
   try {
-    const userId = await requireAuth();
-    const outgoings = await outgoingsService.list(userId);
-    const summary = await outgoingsService.getMonthlyTotal(userId);
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const outgoings = await outgoingsService.list(userId, workspaceId);
+    const summary = await outgoingsService.getMonthlyTotal(userId, workspaceId);
 
     // Get payment status for current month
     const periodMonth = getCurrentPeriodMonth();
@@ -70,10 +70,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
-    const row = await outgoingsService.create(userId, {
+    const row = await outgoingsService.create(userId, workspaceId, {
       name: body.name,
       amount: body.amount,
       dayOfMonth: body.dayOfMonth ?? body.day_of_month,

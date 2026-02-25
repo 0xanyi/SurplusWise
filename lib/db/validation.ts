@@ -65,6 +65,27 @@ export const pageSizeSchema = z
   .min(1, "pageSize must be at least 1")
   .max(100, "pageSize must be at most 100");
 
+// ─── Workspaces ─────────────────────────────────────────────────────────────
+
+export const workspaceTypeSchema = z.enum(["personal", "business"]);
+
+export const workspaceIdSchema = z.string().min(1, "workspaceId is required");
+
+export const workspaceCreateSchema = z.object({
+  name: z.string().min(1, "name is required").max(100),
+  type: workspaceTypeSchema,
+});
+
+export const workspaceUpdateSchema = z
+  .object({
+    name: z.string().min(1).max(100).optional(),
+    type: workspaceTypeSchema.optional(),
+  })
+  .refine(
+    (data) => data.name !== undefined || data.type !== undefined,
+    { message: "At least one field must be provided for update" },
+  );
+
 // ─── Transactions ────────────────────────────────────────────────────────────
 
 export const transactionCreateSchema = z.object({

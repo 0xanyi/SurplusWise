@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import { eq } from "drizzle-orm";
 
 import { db } from "@/db/client";
-import { users } from "@/db/schema";
+import { users, workspaces } from "@/db/schema";
 import * as categoriesService from "./categories";
 
 function makeTempUser() {
@@ -19,7 +19,15 @@ function makeTempUser() {
 async function createTempUser() {
   const user = makeTempUser();
   await db.insert(users).values(user);
-  return user;
+  const wsId = crypto.randomUUID();
+  await db.insert(workspaces).values({
+    id: wsId,
+    userId: user.id,
+    name: "Personal",
+    type: "personal",
+    isDefault: true,
+  });
+  return { ...user, workspaceId: wsId };
 }
 
 async function cleanupUser(userId: string) {
@@ -31,10 +39,10 @@ describe("categories regression", () => {
     const user = await createTempUser();
 
     try {
-      const firstSeed = await categoriesService.ensureDefaults(user.id);
+      const firstSeed = await categoriesService.ensureDefaults(user.id, user.workspaceId);
       assert.ok(firstSeed.inserted > 0, "expected initial default seed");
 
-      const giving = await categoriesService.list(user.id, "giving");
+      const giving = await categoriesService.list(user.id, user.workspaceId, "giving");
       assert.ok(giving.length > 0, "expected seeded giving categories");
 
       const target = giving.find((c) => c.name === "First Fruits") ?? giving[0];
@@ -44,10 +52,10 @@ describe("categories regression", () => {
       await categoriesService.update(user.id, target.id, { name: renamed });
 
       // Simulate subsequent app bootstrap calls
-      const secondSeed = await categoriesService.ensureDefaults(user.id);
+      const secondSeed = await categoriesService.ensureDefaults(user.id, user.workspaceId);
       assert.strictEqual(secondSeed.inserted, 0);
 
-      const after = await categoriesService.list(user.id, "giving");
+      const after = await categoriesService.list(user.id, user.workspaceId, "giving");
       assert.ok(after.some((c) => c.id === target.id && c.name === renamed));
       assert.ok(
         !after.some((c) => c.name === originalName),
@@ -62,19 +70,19 @@ describe("categories regression", () => {
     const user = await createTempUser();
 
     try {
-      await categoriesService.ensureDefaults(user.id);
+      await categoriesService.ensureDefaults(user.id, user.workspaceId);
 
-      const giving = await categoriesService.list(user.id, "giving");
+      const giving = await categoriesService.list(user.id, user.workspaceId, "giving");
       assert.ok(giving.length > 0, "expected seeded giving categories");
 
       const target = giving.find((c) => c.name === "Benevolence") ?? giving[0];
       await categoriesService.remove(user.id, target.id);
 
       // Simulate subsequent app bootstrap calls
-      const secondSeed = await categoriesService.ensureDefaults(user.id);
+      const secondSeed = await categoriesService.ensureDefaults(user.id, user.workspaceId);
       assert.strictEqual(secondSeed.inserted, 0);
 
-      const after = await categoriesService.list(user.id, "giving");
+      const after = await categoriesService.list(user.id, user.workspaceId, "giving");
       assert.ok(!after.some((c) => c.id === target.id));
       assert.ok(
         !after.some((c) => c.name === target.name),
@@ -89,22 +97,22 @@ describe("categories regression", () => {
     const user = await createTempUser();
 
     try {
-      await categoriesService.ensureDefaults(user.id);
-      const all = await categoriesService.list(user.id);
+      await categoriesService.ensureDefaults(user.id, user.workspaceId);
+      const all = await categoriesService.list(user.id, user.workspaceId);
       assert.ok(all.length > 0, "expected seeded categories");
 
       for (const category of all) {
         await categoriesService.remove(user.id, category.id);
       }
 
-      const empty = await categoriesService.list(user.id);
+      const empty = await categoriesService.list(user.id, user.workspaceId);
       assert.strictEqual(empty.length, 0);
 
       // Simulate subsequent app bootstrap calls
-      const secondSeed = await categoriesService.ensureDefaults(user.id);
+      const secondSeed = await categoriesService.ensureDefaults(user.id, user.workspaceId);
       assert.strictEqual(secondSeed.inserted, 0);
 
-      const stillEmpty = await categoriesService.list(user.id);
+      const stillEmpty = await categoriesService.list(user.id, user.workspaceId);
       assert.strictEqual(stillEmpty.length, 0);
     } finally {
       await cleanupUser(user.id);
@@ -115,8 +123,8 @@ describe("categories regression", () => {
     const user = await createTempUser();
 
     try {
-      await categoriesService.ensureDefaults(user.id);
-      const expenses = await categoriesService.list(user.id, "expense");
+      await categoriesService.ensureDefaults(user.id, user.workspaceId);
+      const expenses = await categoriesService.list(user.id, user.workspaceId, "expense");
       assert.ok(expenses.length >= 2, "expected at least two expense defaults");
 
       const [first, second] = expenses;

@@ -7,6 +7,7 @@ import {
   loanGivenCreateSchema,
   loanGivenUpdateSchema,
   loanRepaymentCreateSchema,
+  workspaceIdSchema,
 } from "./validation";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -48,9 +49,10 @@ function genId() {
 // ─── Loans Given Service ─────────────────────────────────────────────────────
 
 /** List all loans given by a user, optionally filtered by status. */
-export async function list(userId: string, status?: LoanStatus) {
+export async function list(userId: string, workspaceId: string, status?: LoanStatus) {
   userIdSchema.parse(userId);
-  const conditions = [eq(loansGiven.userId, userId)];
+  workspaceIdSchema.parse(workspaceId);
+  const conditions = [eq(loansGiven.userId, userId), eq(loansGiven.workspaceId, workspaceId)];
   if (status !== undefined) conditions.push(eq(loansGiven.status, status));
 
   return db
@@ -61,8 +63,9 @@ export async function list(userId: string, status?: LoanStatus) {
 }
 
 /** Get summary totals for active loans (receivables). */
-export async function getSummary(userId: string) {
+export async function getSummary(userId: string, workspaceId: string) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
 
   const [result] = await db
     .select({
@@ -74,6 +77,7 @@ export async function getSummary(userId: string) {
     .where(
       and(
         eq(loansGiven.userId, userId),
+        eq(loansGiven.workspaceId, workspaceId),
         inArray(loansGiven.status, ["active", "partially_repaid"]),
       ),
     );
@@ -86,8 +90,9 @@ export async function getSummary(userId: string) {
 }
 
 /** Create a new loan given record. */
-export async function create(userId: string, input: CreateInput) {
+export async function create(userId: string, workspaceId: string, input: CreateInput) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   loanGivenCreateSchema.parse(input);
   const id = genId();
   const now = new Date();
@@ -97,6 +102,7 @@ export async function create(userId: string, input: CreateInput) {
     .values({
       id,
       userId,
+      workspaceId,
       borrowerName: input.borrowerName,
       amount: String(input.amount),
       outstandingBalance: String(input.amount),

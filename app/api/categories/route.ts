@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as categoriesService from "@/lib/db/categories";
 import { transactionTypeSchema } from "@/lib/db/validation";
 import { NextRequest, NextResponse } from "next/server";
@@ -19,7 +19,7 @@ function toCategory(row: Awaited<ReturnType<typeof categoriesService.list>>[numb
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
 
     const searchParams = request.nextUrl.searchParams;
     const rawType = searchParams.get("type");
@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
 
     const categories = await categoriesService.list(
       userId,
+      workspaceId,
       type,
     );
 
@@ -55,10 +56,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
-    const row = await categoriesService.create(userId, {
+    const row = await categoriesService.create(userId, workspaceId, {
       name: body.name,
       type: body.type,
       color: body.color,

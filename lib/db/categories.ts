@@ -11,6 +11,7 @@ import {
   categoryCreateSchema,
   categoryUpdateSchema,
   transactionTypeSchema,
+  workspaceIdSchema,
 } from "./validation";
 import { getMissingDefaults } from "./helpers";
 
@@ -38,10 +39,14 @@ function genId() {
 // ─── Service functions ───────────────────────────────────────────────────────
 
 /** List categories, optionally filtered by type, sorted alphabetically. */
-export async function list(userId: string, type?: TransactionType) {
+export async function list(userId: string, workspaceId: string, type?: TransactionType) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   if (type) transactionTypeSchema.parse(type);
-  const conditions = [eq(categories.userId, userId)];
+  const conditions = [
+    eq(categories.userId, userId),
+    eq(categories.workspaceId, workspaceId),
+  ];
   if (type) conditions.push(eq(categories.type, type));
 
   return db
@@ -56,9 +61,12 @@ export async function list(userId: string, type?: TransactionType) {
  *
  * Uses users.categoriesSeeded as a durable marker so defaults are never
  * re-created after a user renames/deletes them (even if all categories are removed).
+ *
+ * Seeds categories into the given workspace.
  */
-export async function ensureDefaults(userId: string) {
+export async function ensureDefaults(userId: string, workspaceId: string) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
 
   const [user] = await db
     .select({ id: users.id, categoriesSeeded: users.categoriesSeeded })
@@ -90,6 +98,7 @@ export async function ensureDefaults(userId: string) {
         .values({
           id: genId(),
           userId,
+          workspaceId,
           name: cat.name,
           type,
           color: cat.color,
@@ -113,9 +122,10 @@ export async function ensureDefaults(userId: string) {
   return { inserted };
 }
 
-/** Create a custom (non-default) category. Throws on duplicate name+type. */
-export async function create(userId: string, input: CreateInput) {
+/** Create a custom (non-default) category. Throws on duplicate name+type in workspace. */
+export async function create(userId: string, workspaceId: string, input: CreateInput) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   categoryCreateSchema.parse(input);
   const [existing] = await db
     .select({ id: categories.id })
@@ -123,6 +133,7 @@ export async function create(userId: string, input: CreateInput) {
     .where(
       and(
         eq(categories.userId, userId),
+        eq(categories.workspaceId, workspaceId),
         eq(categories.name, input.name),
         eq(categories.type, input.type),
       ),
@@ -136,6 +147,7 @@ export async function create(userId: string, input: CreateInput) {
     .values({
       id: genId(),
       userId,
+      workspaceId,
       name: input.name,
       type: input.type,
       color: input.color,

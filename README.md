@@ -1,6 +1,6 @@
-# SurplusWise - Personal Finance Manager
+# SurplusWise - Personal & Business Finance Manager
 
-A modern personal finance management application designed to help users track their expenditures, monitor monthly outgoings, and manage church givings such as tithes and partnerships. Built with AI-powered receipt scanning for seamless transaction capture.
+A modern finance management application designed to help users track their expenditures, monitor monthly outgoings, and manage church givings such as tithes and partnerships. Built with AI-powered receipt scanning for seamless transaction capture. Supports separate **Personal** and **Business** workspaces so all features are available across both contexts with fully isolated data.
 
 ## Features
 
@@ -39,6 +39,13 @@ A modern personal finance management application designed to help users track th
 - ✅ Create custom categories
 - ✅ Edit and delete custom categories
 - ✅ Color-coded categories
+
+**Workspaces**
+- ✅ Switch between Personal and Business finance workspaces
+- ✅ All features available in both workspaces with separate data
+- ✅ Create additional workspaces (personal or business type)
+- ✅ Workspace switcher dropdown in dashboard navigation
+- ✅ Automatic data isolation — transactions, budgets, categories, debts, loans, investments, and analytics are workspace-scoped
 
 **User Interface**
 - ✅ Responsive dashboard layout
@@ -135,10 +142,15 @@ SurplusWise/
 ├── app/
 │   ├── api/            # API route handlers
 │   │   ├── auth/       # Better Auth endpoints
+│   │   ├── workspaces/ # Workspace CRUD
 │   │   ├── transactions/
 │   │   ├── categories/
 │   │   ├── budgets/
 │   │   ├── analytics/
+│   │   ├── recurring-outgoings/
+│   │   ├── debts-credits/
+│   │   ├── loans-given/
+│   │   ├── investments/
 │   │   └── receipts/
 │   ├── dashboard/      # Dashboard pages
 │   ├── globals.css     # Global styles
@@ -147,6 +159,7 @@ SurplusWise/
 ├── components/
 │   ├── ui/             # shadcn/ui components
 │   └── dashboard/      # Dashboard-specific components
+├── contexts/           # React context providers (workspace, etc.)
 ├── db/
 │   ├── schema.ts       # Drizzle ORM schema
 │   ├── client.ts       # Postgres connection pool
@@ -155,7 +168,7 @@ SurplusWise/
 │   ├── db/             # Data-access layer (transactions, budgets, etc.)
 │   ├── auth.ts         # Better Auth server config
 │   ├── auth-client.ts  # Better Auth client
-│   ├── auth-server.ts  # Auth server helpers
+│   ├── auth-server.ts  # Auth server helpers (incl. workspace resolution)
 │   ├── storage.ts      # S3 storage helpers
 │   └── utils.ts        # Utility functions
 ├── hooks/              # Custom React hooks
@@ -168,9 +181,14 @@ SurplusWise/
 The application uses PostgreSQL with Drizzle ORM. Main tables:
 
 - **users / sessions / accounts** — managed by Better Auth
-- **transactions** — user financial transactions (indexed by user, date, type, category)
-- **categories** — user-defined and default categories
-- **budgets** — budget allocations with period-based tracking
+- **workspaces** — personal and business finance workspaces per user
+- **transactions** — user financial transactions (scoped by workspace, indexed by user, date, type, category)
+- **categories** — user-defined and default categories (per workspace)
+- **budgets** — budget allocations with period-based tracking (per workspace)
+- **recurring_outgoings** — monthly recurring bills and subscriptions (per workspace)
+- **debts_credits** — credit cards, loans, and other debts (per workspace)
+- **loans_given** — money lent to others (per workspace)
+- **investments** — stocks, crypto, property, and other assets (per workspace)
 
 ### Database Commands
 
@@ -188,7 +206,9 @@ npm run db:studio     # Open Drizzle Studio GUI
 - AI receipt scanning
 - Analytics and reports (CSV + PDF export)
 - Dark mode, PWA configuration
-- **PostgreSQL migration (Convex → Postgres + Drizzle)**
+- PostgreSQL migration (Convex → Postgres + Drizzle)
+- Recurring outgoings, debts/credits, loans given, investments tracking
+- **Finance workspaces (Personal & Business) with data isolation**
 
 ### Next Up
 - Bank integration

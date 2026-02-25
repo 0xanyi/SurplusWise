@@ -64,6 +64,13 @@
       "when": 1771976793730,
       "tag": "0008_enforce_period_month_day",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1772006400000,
+      "tag": "0009_add_workspaces",
+      "breakpoints": true
     }
   ]
 }

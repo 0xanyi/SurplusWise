@@ -7,6 +7,7 @@ import {
   debtCreditCreateSchema,
   debtCreditUpdateSchema,
   balanceLogCreateSchema,
+  workspaceIdSchema,
 } from "./validation";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -58,9 +59,10 @@ function genId() {
 // ─── Debt / Credit Service ───────────────────────────────────────────────────
 
 /** List all debts/credits for a user, optionally only active ones. */
-export async function list(userId: string, isActive?: boolean) {
+export async function list(userId: string, workspaceId: string, isActive?: boolean) {
   userIdSchema.parse(userId);
-  const conditions = [eq(debtsCredits.userId, userId)];
+  workspaceIdSchema.parse(workspaceId);
+  const conditions = [eq(debtsCredits.userId, userId), eq(debtsCredits.workspaceId, workspaceId)];
   if (isActive !== undefined) conditions.push(eq(debtsCredits.isActive, isActive));
 
   return db
@@ -71,8 +73,9 @@ export async function list(userId: string, isActive?: boolean) {
 }
 
 /** Get summary totals for active debts. */
-export async function getSummary(userId: string) {
+export async function getSummary(userId: string, workspaceId: string) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
 
   const [result] = await db
     .select({
@@ -84,6 +87,7 @@ export async function getSummary(userId: string) {
     .where(
       and(
         eq(debtsCredits.userId, userId),
+        eq(debtsCredits.workspaceId, workspaceId),
         eq(debtsCredits.isActive, true),
       ),
     );
@@ -96,8 +100,9 @@ export async function getSummary(userId: string) {
 }
 
 /** Create a new debt/credit record. */
-export async function create(userId: string, input: CreateInput) {
+export async function create(userId: string, workspaceId: string, input: CreateInput) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   debtCreditCreateSchema.parse(input);
   const id = genId();
   const now = new Date();
@@ -108,6 +113,7 @@ export async function create(userId: string, input: CreateInput) {
       .values({
         id,
         userId,
+        workspaceId,
         name: input.name,
         debtType: input.debtType,
         lender: input.lender ?? null,

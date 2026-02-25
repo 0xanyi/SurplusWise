@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { auth } from "./auth";
+import * as workspaceService from "./db/workspaces";
 
 // ─── Core server helpers ─────────────────────────────────────────────────────
 
@@ -31,4 +32,33 @@ export async function requireAuth(): Promise<string> {
   return session.user.id;
 }
 
+/**
+ * Return both the authenticated user's id and the active workspace id.
+ * The workspace is resolved from the `x-workspace-id` header. If not set,
+ * falls back to the user's default workspace (creating it if needed).
+ */
+export async function requireAuthWithWorkspace(): Promise<{
+  userId: string;
+  workspaceId: string;
+}> {
+  const session = await getSession();
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+  const userId = session.user.id;
 
+  const h = await headers();
+  const headerWorkspaceId = h.get("x-workspace-id");
+
+  if (headerWorkspaceId) {
+    // Verify the workspace belongs to this user
+    const ws = await workspaceService.getById(userId, headerWorkspaceId);
+    if (ws) {
+      return { userId, workspaceId: ws.id };
+    }
+  }
+
+  // Fall back to default workspace
+  const defaultWs = await workspaceService.getOrCreateDefault(userId);
+  return { userId, workspaceId: defaultWs.id };
+}

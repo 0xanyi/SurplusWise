@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import { getAnalytics } from "@/lib/db/analytics";
 import type { Period } from "@/lib/db/helpers";
 import { NextRequest, NextResponse } from "next/server";
@@ -6,7 +6,7 @@ import { ZodError } from "zod";
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
 
     const searchParams = request.nextUrl.searchParams;
     const period = (searchParams.get("period") || "month") as Period;
@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
 
     const result = await getAnalytics(
       userId,
+      workspaceId,
       period,
       startDate || endDate ? { startDate, endDate } : undefined,
     );

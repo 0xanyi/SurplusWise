@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowDownRight, ArrowUpRight, FileText, Loader2, RefreshCw, TrendingUp, Wallet } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { apiFetch } from "@/hooks/use-api";
 import { formatCurrency, cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,17 +60,10 @@ export default function DashboardPage() {
 
     setAnalyticsError(null);
 
-    const analyticsPromise = fetch("/api/analytics?period=month")
-      .then(async (res) => {
-        if (res.ok) {
-          const data: AnalyticsResponse = await res.json();
-          setTotals(data);
-          setAnalyticsError(null);
-        } else {
-          console.error("Analytics API error:", res.status);
-          setTotals(ZERO_TOTALS);
-          setAnalyticsError("Unable to load analytics. Showing zero totals.");
-        }
+    const analyticsPromise = apiFetch<AnalyticsResponse>("/api/analytics?period=month")
+      .then((data) => {
+        setTotals(data);
+        setAnalyticsError(null);
       })
       .catch((error) => {
         console.error("Failed to fetch analytics:", error);
@@ -77,14 +71,9 @@ export default function DashboardPage() {
         setAnalyticsError("Unable to load analytics. Showing zero totals.");
       });
 
-    const transactionsPromise = fetch("/api/transactions?pageSize=6")
-      .then(async (res) => {
-        if (res.ok) {
-          const recentData: TransactionsResponse = await res.json();
-          setRecentTransactions(recentData.transactions);
-        } else {
-          setRecentTransactions([]);
-        }
+    const transactionsPromise = apiFetch<TransactionsResponse>("/api/transactions?pageSize=6")
+      .then((recentData) => {
+        setRecentTransactions(recentData.transactions);
       })
       .catch((error) => {
         console.error("Failed to fetch recent transactions:", error);
@@ -102,6 +91,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  // Re-fetch when workspace changes
+  useEffect(() => {
+    const handler = () => loadData();
+    window.addEventListener("workspace-changed", handler);
+    return () => window.removeEventListener("workspace-changed", handler);
   }, [loadData]);
 
   if (!userId || totals === undefined) {
