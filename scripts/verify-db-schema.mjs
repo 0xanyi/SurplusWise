@@ -17,6 +17,7 @@ const REQUIRED_TABLES = [
   "loan_repayments",
   "investments",
   "investment_events",
+  "workspaces",
 ];
 
 // Columns that guarantee latest migrations have been applied.
@@ -29,6 +30,15 @@ const REQUIRED_COLUMNS = [
   { table: "debts_credits", column: "current_balance" },
   { table: "loans_given", column: "outstanding_balance" },
   { table: "investments", column: "current_value" },
+  // migration 0009 — workspaces
+  { table: "workspaces", column: "type" },
+  { table: "transactions", column: "workspace_id" },
+  { table: "categories", column: "workspace_id" },
+  { table: "budgets", column: "workspace_id" },
+  { table: "recurring_outgoings", column: "workspace_id" },
+  { table: "debts_credits", column: "workspace_id" },
+  { table: "loans_given", column: "workspace_id" },
+  { table: "investments", column: "workspace_id" },
 ];
 
 const RETRIES = Number(process.env.DB_SCHEMA_CHECK_RETRIES ?? "20");

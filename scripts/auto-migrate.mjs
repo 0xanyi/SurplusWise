@@ -84,6 +84,7 @@ async function quickSchemaCheck(client) {
     "debts_credits",
     "loans_given",
     "investments",
+    "workspaces",
   ];
 
   const result = await client.query(
