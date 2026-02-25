@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import DashboardNav from "@/components/dashboard/dashboard-nav";
+import { WorkspaceProvider } from "@/contexts/workspace-context";
 import { authClient } from "@/lib/auth-client";
 
 export default function DashboardLayout({
@@ -40,15 +41,17 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <DashboardNav
-        user={{
-          id: session.user.id,
-          email: session.user.email,
-          name: session.user.name,
-        }}
-      />
-      <main className="container mx-auto max-w-7xl flex-1 px-4 py-8 sm:px-6">{children}</main>
-    </div>
+    <WorkspaceProvider>
+      <div className="min-h-screen bg-background flex flex-col">
+        <DashboardNav
+          user={{
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name,
+          }}
+        />
+        <main className="container mx-auto max-w-7xl flex-1 px-4 py-8 sm:px-6">{children}</main>
+      </div>
+    </WorkspaceProvider>
   );
 }

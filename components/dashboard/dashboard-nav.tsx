@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
 import { authClient } from "@/lib/auth-client";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -77,6 +78,8 @@ export default function DashboardNav({ user }: DashboardNavProps) {
             </div>
             <span className="hidden text-lg font-semibold sm:block">SurplusWise</span>
           </Link>
+
+          <WorkspaceSwitcher />
 
           <div className="hidden md:flex items-center gap-1">
             {navItems.map((item) => {

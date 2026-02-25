@@ -10,6 +10,7 @@ import {
   transactionCreateSchema,
   transactionUpdateSchema,
   transactionListFiltersSchema,
+  workspaceIdSchema,
 } from "./validation";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -53,8 +54,11 @@ function genId() {
   return crypto.randomUUID();
 }
 
-function buildWhere(userId: string, filters: ListFilters) {
-  const conditions = [eq(transactions.userId, userId)];
+function buildWhere(userId: string, workspaceId: string, filters: ListFilters) {
+  const conditions = [
+    eq(transactions.userId, userId),
+    eq(transactions.workspaceId, workspaceId),
+  ];
 
   if (filters.type) conditions.push(eq(transactions.type, filters.type));
   if (filters.category) conditions.push(eq(transactions.category, filters.category));
@@ -76,24 +80,26 @@ function buildWhere(userId: string, filters: ListFilters) {
 // ─── Service functions ───────────────────────────────────────────────────────
 
 /** Full list with optional filters, ordered newest-first. */
-export async function list(userId: string, filters: ListFilters = {}) {
+export async function list(userId: string, workspaceId: string, filters: ListFilters = {}) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   const validFilters = transactionListFiltersSchema.parse(filters);
   return db
     .select()
     .from(transactions)
-    .where(buildWhere(userId, validFilters))
+    .where(buildWhere(userId, workspaceId, validFilters))
     .orderBy(desc(transactions.date));
 }
 
 /** Newest N transactions for the dashboard widget. */
-export async function listRecent(userId: string, limit = 5) {
+export async function listRecent(userId: string, workspaceId: string, limit = 5) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   limitSchema.parse(limit);
   return db
     .select()
     .from(transactions)
-    .where(eq(transactions.userId, userId))
+    .where(and(eq(transactions.userId, userId), eq(transactions.workspaceId, workspaceId)))
     .orderBy(desc(transactions.date))
     .limit(limit);
 }
@@ -104,18 +110,20 @@ export async function listRecent(userId: string, limit = 5) {
  */
 export async function listPaginated(
   userId: string,
+  workspaceId: string,
   filters: ListFilters = {},
   page = 0,
   pageSize = 25,
 ) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   const validFilters = transactionListFiltersSchema.parse(filters);
   pageSchema.parse(page);
   pageSizeSchema.parse(pageSize);
   const rows = await db
     .select()
     .from(transactions)
-    .where(buildWhere(userId, validFilters))
+    .where(buildWhere(userId, workspaceId, validFilters))
     .orderBy(desc(transactions.date))
     .limit(pageSize + 1) // fetch one extra to check hasMore
     .offset(page * pageSize);
@@ -139,8 +147,9 @@ export async function getById(userId: string, id: string) {
 }
 
 /** Create and return the new row. */
-export async function create(userId: string, input: CreateInput) {
+export async function create(userId: string, workspaceId: string, input: CreateInput) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   transactionCreateSchema.parse(input);
   const id = genId();
   const now = new Date();
@@ -149,6 +158,7 @@ export async function create(userId: string, input: CreateInput) {
     .values({
       id,
       userId,
+      workspaceId,
       amount: String(input.amount),
       date: input.date,
       type: input.type,
@@ -204,10 +214,12 @@ export async function remove(userId: string, id: string) {
  */
 export async function sumByTypeAndCategory(
   userId: string,
+  workspaceId: string,
   startDate: string,
   endDate: string,
 ) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   return db
     .select({
       type: transactions.type,
@@ -218,6 +230,7 @@ export async function sumByTypeAndCategory(
     .where(
       and(
         eq(transactions.userId, userId),
+        eq(transactions.workspaceId, workspaceId),
         gte(transactions.date, startDate),
         lte(transactions.date, endDate),
       ),

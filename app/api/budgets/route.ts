@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as budgetsService from "@/lib/db/budgets";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
@@ -36,7 +36,7 @@ function toBudget(budget: Record<string, unknown>) {
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
 
     const period = request.nextUrl.searchParams.get("period") as
       | "monthly"
@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
 
     const budgets = await budgetsService.getWithSpending(
       userId,
+      workspaceId,
       period ?? undefined,
     );
 
@@ -70,7 +71,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
     const startDate = body.startDate ?? body.start_date;
@@ -83,7 +84,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const row = await budgetsService.create(userId, {
+    const row = await budgetsService.create(userId, workspaceId, {
       category: body.category,
       amount: body.amount,
       period: body.period,

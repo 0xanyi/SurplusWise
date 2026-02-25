@@ -4,11 +4,22 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 // ─── Generic fetch helpers ───────────────────────────────────────────────────
 
+function getActiveWorkspaceId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("activeWorkspaceId");
+}
+
 async function apiFetch<T>(
   url: string,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(url, init);
+  const workspaceId = getActiveWorkspaceId();
+  const headers = new Headers(init?.headers);
+  if (workspaceId) {
+    headers.set("x-workspace-id", workspaceId);
+  }
+
+  const res = await fetch(url, { ...init, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(
@@ -68,6 +79,13 @@ export function useApiQuery<T>(
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Re-fetch when workspace changes
+  useEffect(() => {
+    const handler = () => load();
+    window.addEventListener("workspace-changed", handler);
+    return () => window.removeEventListener("workspace-changed", handler);
   }, [load]);
 
   return { data, error, loading, refresh: load };

@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as investmentsService from "@/lib/db/investments";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
@@ -29,9 +29,9 @@ function toInvestment(row: Record<string, unknown>) {
 
 export async function GET() {
   try {
-    const userId = await requireAuth();
-    const investments = await investmentsService.list(userId);
-    const summary = await investmentsService.getSummary(userId);
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const investments = await investmentsService.list(userId, workspaceId);
+    const summary = await investmentsService.getSummary(userId, workspaceId);
 
     return NextResponse.json({
       investments: investments.map(toInvestment),
@@ -54,10 +54,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
-    const row = await investmentsService.create(userId, {
+    const row = await investmentsService.create(userId, workspaceId, {
       name: body.name,
       investmentType: body.investmentType ?? body.investment_type,
       platform: body.platform,

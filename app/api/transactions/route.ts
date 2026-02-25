@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as txService from "@/lib/db/transactions";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
@@ -31,7 +31,7 @@ function toTransaction(row: Awaited<ReturnType<typeof txService.list>>[number]) 
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
 
     const sp = request.nextUrl.searchParams;
 
@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
 
     const result = await txService.listPaginated(
       userId,
+      workspaceId,
       filters,
       page,
       pageSize,
@@ -104,12 +105,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
     const receiptStorageId = body.receiptStorageId ?? body.receipt_url ?? null;
 
-    const row = await txService.create(userId, {
+    const row = await txService.create(userId, workspaceId, {
       amount: body.amount,
       date: body.date,
       type: body.type,

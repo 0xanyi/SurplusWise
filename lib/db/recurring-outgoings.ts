@@ -6,6 +6,7 @@ import {
   idSchema,
   recurringOutgoingCreateSchema,
   recurringOutgoingUpdateSchema,
+  workspaceIdSchema,
 } from "./validation";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -40,9 +41,10 @@ function genId() {
 // ─── Service functions ───────────────────────────────────────────────────────
 
 /** List all recurring outgoings for a user, optionally only active ones. */
-export async function list(userId: string, isActive?: boolean) {
+export async function list(userId: string, workspaceId: string, isActive?: boolean) {
   userIdSchema.parse(userId);
-  const conditions = [eq(recurringOutgoings.userId, userId)];
+  workspaceIdSchema.parse(workspaceId);
+  const conditions = [eq(recurringOutgoings.userId, userId), eq(recurringOutgoings.workspaceId, workspaceId)];
   if (isActive !== undefined) conditions.push(eq(recurringOutgoings.isActive, isActive));
 
   return db
@@ -53,8 +55,9 @@ export async function list(userId: string, isActive?: boolean) {
 }
 
 /** Get the total monthly outgoings for a user. */
-export async function getMonthlyTotal(userId: string) {
+export async function getMonthlyTotal(userId: string, workspaceId: string) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
 
   const [result] = await db
     .select({
@@ -65,6 +68,7 @@ export async function getMonthlyTotal(userId: string) {
     .where(
       and(
         eq(recurringOutgoings.userId, userId),
+        eq(recurringOutgoings.workspaceId, workspaceId),
         eq(recurringOutgoings.isActive, true),
         eq(recurringOutgoings.frequency, "monthly"),
       ),
@@ -77,8 +81,9 @@ export async function getMonthlyTotal(userId: string) {
 }
 
 /** Create a new recurring outgoing. */
-export async function create(userId: string, input: CreateInput) {
+export async function create(userId: string, workspaceId: string, input: CreateInput) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   recurringOutgoingCreateSchema.parse(input);
   const id = genId();
   const now = new Date();
@@ -88,6 +93,7 @@ export async function create(userId: string, input: CreateInput) {
     .values({
       id,
       userId,
+      workspaceId,
       name: input.name,
       amount: String(input.amount),
       dayOfMonth: input.dayOfMonth,

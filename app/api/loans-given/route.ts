@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as loansService from "@/lib/db/loans-given";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
@@ -21,9 +21,9 @@ function toLoan(row: Record<string, unknown>) {
 
 export async function GET() {
   try {
-    const userId = await requireAuth();
-    const loans = await loansService.list(userId);
-    const summary = await loansService.getSummary(userId);
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const loans = await loansService.list(userId, workspaceId);
+    const summary = await loansService.getSummary(userId, workspaceId);
 
     return NextResponse.json({
       loans: loans.map(toLoan),
@@ -45,10 +45,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
-    const row = await loansService.create(userId, {
+    const row = await loansService.create(userId, workspaceId, {
       borrowerName: body.borrowerName ?? body.borrower_name,
       amount: body.amount,
       loanDate: body.loanDate ?? body.loan_date,

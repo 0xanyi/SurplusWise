@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as categoriesService from "@/lib/db/categories";
 
 export async function POST() {
   try {
-    const userId = await requireAuth();
-    const result = await categoriesService.ensureDefaults(userId);
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const result = await categoriesService.ensureDefaults(userId, workspaceId);
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

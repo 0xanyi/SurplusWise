@@ -15,6 +15,11 @@ import {
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
+export const workspaceTypeEnum = pgEnum("workspace_type", [
+  "personal",
+  "business",
+]);
+
 export const transactionTypeEnum = pgEnum("transaction_type", [
   "income",
   "expense",
@@ -132,6 +137,27 @@ export const verifications = pgTable(
   (t) => [index("idx_verifications_identifier").on(t.identifier)],
 );
 
+// ─── Workspaces ─────────────────────────────────────────────────────────────
+
+export const workspaces = pgTable(
+  "workspaces",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    type: workspaceTypeEnum("type").notNull(),
+    isDefault: boolean("is_default").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_workspaces_user").on(t.userId),
+    uniqueIndex("idx_workspaces_user_name").on(t.userId, t.name),
+  ],
+);
+
 // ─── Domain tables ───────────────────────────────────────────────────────────
 
 export const transactions = pgTable(
@@ -141,6 +167,8 @@ export const transactions = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
     date: date("date", { mode: "string" }).notNull(),
     type: transactionTypeEnum("type").notNull(),
@@ -163,6 +191,8 @@ export const categories = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     type: transactionTypeEnum("type").notNull(),
     color: text("color").notNull(),
@@ -182,6 +212,8 @@ export const budgets = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     category: text("category").notNull(),
     amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
     period: budgetPeriodEnum("period").notNull().default("monthly"),
@@ -206,6 +238,8 @@ export const recurringOutgoings = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
     dayOfMonth: integer("day_of_month").notNull(), // 1-31
@@ -266,6 +300,8 @@ export const debtsCredits = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     name: text("name").notNull(), // e.g. "Barclays Credit Card", "Car Loan"
     debtType: debtTypeEnum("debt_type").notNull(),
     lender: text("lender"), // e.g. "Barclays", "Halifax"
@@ -322,6 +358,8 @@ export const loansGiven = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     borrowerName: text("borrower_name").notNull(),
     amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
     outstandingBalance: decimal("outstanding_balance", { precision: 12, scale: 2 }).notNull(),
@@ -368,6 +406,8 @@ export const investments = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .references(() => workspaces.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     investmentType: investmentTypeEnum("investment_type").notNull(),
     platform: text("platform"),

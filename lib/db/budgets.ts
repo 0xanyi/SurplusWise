@@ -7,6 +7,7 @@ import {
   budgetCreateSchema,
   budgetUpdateSchema,
   budgetPeriodSchema,
+  workspaceIdSchema,
 } from "./validation";
 import { computeBudgetUsage } from "./helpers";
 
@@ -43,9 +44,10 @@ function genId() {
 // ─── Service functions ───────────────────────────────────────────────────────
 
 /** List budgets, optionally only active ones. */
-export async function list(userId: string, isActive?: boolean) {
+export async function list(userId: string, workspaceId: string, isActive?: boolean) {
   userIdSchema.parse(userId);
-  const conditions = [eq(budgets.userId, userId)];
+  workspaceIdSchema.parse(workspaceId);
+  const conditions = [eq(budgets.userId, userId), eq(budgets.workspaceId, workspaceId)];
   if (isActive !== undefined) conditions.push(eq(budgets.isActive, isActive));
 
   return db
@@ -55,8 +57,9 @@ export async function list(userId: string, isActive?: boolean) {
 }
 
 /** Create a new budget. */
-export async function create(userId: string, input: CreateInput) {
+export async function create(userId: string, workspaceId: string, input: CreateInput) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   budgetCreateSchema.parse(input);
   const id = genId();
   const now = new Date();
@@ -65,6 +68,7 @@ export async function create(userId: string, input: CreateInput) {
     .values({
       id,
       userId,
+      workspaceId,
       category: input.category,
       amount: String(input.amount),
       period: input.period,
@@ -139,14 +143,17 @@ export async function remove(userId: string, id: string) {
  */
 export async function getWithSpending(
   userId: string,
+  workspaceId: string,
   period?: BudgetPeriod,
 ) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   if (period) budgetPeriodSchema.parse(period);
 
   // 1. Fetch active budgets
   const conditions = [
     eq(budgets.userId, userId),
+    eq(budgets.workspaceId, workspaceId),
     eq(budgets.isActive, true),
   ];
   if (period) conditions.push(eq(budgets.period, period));

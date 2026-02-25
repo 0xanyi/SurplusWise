@@ -4,6 +4,7 @@ import { transactions, outgoingPaymentLogs, debtBalanceLogs, recurringOutgoings,
 import {
   userIdSchema,
   analyticsQuerySchema,
+  workspaceIdSchema,
 } from "./validation";
 import { getDateRange } from "./helpers";
 import type { Period, DateRange } from "./helpers";
@@ -62,10 +63,12 @@ export interface AnalyticsResult {
  */
 export async function getAnalytics(
   userId: string,
+  workspaceId: string,
   period: Period,
   custom?: Partial<DateRange>,
 ): Promise<AnalyticsResult> {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   analyticsQuerySchema.parse({
     period,
     startDate: custom?.startDate,
@@ -75,6 +78,7 @@ export async function getAnalytics(
 
   const where = and(
     eq(transactions.userId, userId),
+    eq(transactions.workspaceId, workspaceId),
     gte(transactions.date, range.startDate),
     lte(transactions.date, range.endDate),
   );
