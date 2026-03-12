@@ -15,6 +15,7 @@ import { OutgoingsOverview } from "@/components/dashboard/outgoings-overview";
 import { DebtsOverview } from "@/components/dashboard/debts-overview";
 import { LoansOverview } from "@/components/dashboard/loans-overview";
 import { InvestmentsOverview } from "@/components/dashboard/investments-overview";
+import { GoalsOverview } from "@/components/dashboard/goals-overview";
 import { OnboardingCard } from "@/components/dashboard/onboarding-card";
 import type { ApiTransaction } from "@/types";
 
@@ -213,6 +214,8 @@ export default function DashboardPage() {
       {onboardingCompleted === false && <OnboardingCard onCompleted={loadData} />}
 
       <BudgetOverview />
+
+      <GoalsOverview />
 
       <div className="grid gap-4 md:grid-cols-2">
         <OutgoingsOverview />

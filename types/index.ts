@@ -71,6 +71,23 @@ export interface ApiBudget {
   status: "ok" | "warning" | "exceeded"
 }
 
+export type GoalCategory = 'emergency_fund' | 'savings' | 'debt_payoff' | 'giving' | 'travel' | 'home' | 'education' | 'business' | 'other'
+
+export interface ApiGoal {
+  id: string
+  name: string
+  category: GoalCategory
+  target_amount: number
+  current_amount: number
+  remaining_amount: number
+  progress: number
+  target_date: string | null
+  notes: string | null
+  is_active: boolean
+  created_at: string | null
+  updated_at: string | null
+}
+
 export interface DashboardStats {
   totalExpenses: number
   totalGivings: number

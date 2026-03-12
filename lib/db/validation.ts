@@ -446,3 +446,41 @@ export const investmentEventCreateSchema = z.object({
   eventDate: dateStringSchema,
   notes: z.string().nullish(),
 });
+
+// ─── Goals & Savings Targets ───────────────────────────────────────────────
+
+export const goalCategorySchema = z.enum([
+  "emergency_fund",
+  "savings",
+  "debt_payoff",
+  "giving",
+  "travel",
+  "home",
+  "education",
+  "business",
+  "other",
+]);
+
+export const goalCreateSchema = z.object({
+  name: z.string().min(1, "name is required").max(200),
+  category: goalCategorySchema,
+  targetAmount: z.number().positive("target amount must be positive"),
+  currentAmount: z.number().min(0, "current amount must be non-negative").optional().default(0),
+  targetDate: dateStringSchema.nullish(),
+  notes: z.string().nullish(),
+});
+
+export const goalUpdateSchema = z
+  .object({
+    name: z.string().min(1).max(200).optional(),
+    category: goalCategorySchema.optional(),
+    targetAmount: z.number().positive().optional(),
+    currentAmount: z.number().min(0).optional(),
+    targetDate: dateStringSchema.nullish(),
+    notes: z.string().nullish(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    (data) => Object.values(data).some((v) => v !== undefined),
+    { message: "At least one field must be provided for update" },
+  );

@@ -176,6 +176,44 @@ export const onboardingStatus = pgTable(
   (t) => [index("idx_onboarding_status_workspace").on(t.workspaceId)],
 );
 
+export const goalCategoryEnum = pgEnum("goal_category", [
+  "emergency_fund",
+  "savings",
+  "debt_payoff",
+  "giving",
+  "travel",
+  "home",
+  "education",
+  "business",
+  "other",
+]);
+
+export const goals = pgTable(
+  "goals",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    category: goalCategoryEnum("category").notNull().default("savings"),
+    targetAmount: decimal("target_amount", { precision: 12, scale: 2 }).notNull(),
+    currentAmount: decimal("current_amount", { precision: 12, scale: 2 }).notNull().default("0"),
+    targetDate: date("target_date", { mode: "string" }),
+    notes: text("notes"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_goals_user_workspace").on(t.userId, t.workspaceId),
+    index("idx_goals_workspace_active").on(t.workspaceId, t.isActive),
+  ],
+);
+
 // ─── Domain tables ───────────────────────────────────────────────────────────
 
 export const transactions = pgTable(

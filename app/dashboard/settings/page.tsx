@@ -1,5 +1,6 @@
 import { BudgetManagement } from "@/components/dashboard/budget-management";
 import { CategoryManagement } from "@/components/dashboard/category-management";
+import { GoalsManagement } from "@/components/dashboard/goals-management";
 
 export default function SettingsPage() {
   return (
@@ -29,6 +30,16 @@ export default function SettingsPage() {
           </p>
         </div>
         <CategoryManagement />
+      </section>
+
+      <section className="space-y-5">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">Goals</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Create savings targets and track progress toward your important milestones.
+          </p>
+        </div>
+        <GoalsManagement />
       </section>
     </div>
   );
