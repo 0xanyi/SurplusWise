@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { getDateRange } from "./helpers";
+import { getDateRange, getPreviousDateRange } from "./helpers";
 import type { Period } from "./helpers";
 
 // ─── getDateRange ────────────────────────────────────────────────────────────
@@ -85,5 +85,21 @@ describe("getDateRange", () => {
       const range = getDateRange(period);
       assert.strictEqual(range.endDate, today, `${period} endDate`);
     }
+  });
+});
+
+describe("getPreviousDateRange", () => {
+  it("returns the immediately preceding range with the same duration", () => {
+    assert.deepStrictEqual(
+      getPreviousDateRange({ startDate: "2026-03-10", endDate: "2026-03-16" }),
+      { startDate: "2026-03-03", endDate: "2026-03-09" },
+    );
+  });
+
+  it("handles single-day ranges", () => {
+    assert.deepStrictEqual(
+      getPreviousDateRange({ startDate: "2026-03-10", endDate: "2026-03-10" }),
+      { startDate: "2026-03-09", endDate: "2026-03-09" },
+    );
   });
 });

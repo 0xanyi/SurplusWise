@@ -9,6 +9,7 @@ import { formatCurrency, cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { BudgetOverview } from "@/components/dashboard/budget-overview";
 import { OutgoingsOverview } from "@/components/dashboard/outgoings-overview";
@@ -41,6 +42,15 @@ interface AnalyticsResponse {
   netBalance: number;
 }
 
+type DashboardPeriod = "week" | "month" | "quarter" | "year";
+
+const DASHBOARD_PERIOD_OPTIONS: { value: DashboardPeriod; label: string }[] = [
+  { value: "week", label: "Last 7 days" },
+  { value: "month", label: "Last 30 days" },
+  { value: "quarter", label: "Last 3 months" },
+  { value: "year", label: "Last 12 months" },
+];
+
 interface OnboardingResponse {
   completed: boolean;
 }
@@ -62,13 +72,14 @@ export default function DashboardPage() {
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | undefined>(undefined);
+  const [period, setPeriod] = useState<DashboardPeriod>("month");
 
   const loadData = useCallback(async () => {
     if (!userId) return;
 
     setAnalyticsError(null);
 
-    const analyticsPromise = apiFetch<AnalyticsResponse>("/api/analytics?period=month")
+    const analyticsPromise = apiFetch<AnalyticsResponse>(`/api/analytics?period=${period}`)
       .then((data) => {
         setTotals(data);
         setAnalyticsError(null);
@@ -97,7 +108,7 @@ export default function DashboardPage() {
       });
 
     await Promise.all([analyticsPromise, transactionsPromise, onboardingPromise]);
-  }, [userId]);
+  }, [period, userId]);
 
   const handleRetry = useCallback(async () => {
     setIsRetrying(true);
@@ -166,9 +177,23 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
           {getGreeting()}, {firstName}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground sm:text-base">
-          Here&apos;s your {new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" })} snapshot.
-        </p>
+        <div className="mt-1 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground sm:text-base">
+            Here&apos;s your finance snapshot for the selected period.
+          </p>
+          <Select value={period} onValueChange={(value) => setPeriod(value as DashboardPeriod)}>
+            <SelectTrigger className="h-9 w-full sm:w-[170px]">
+              <SelectValue placeholder="Select period" />
+            </SelectTrigger>
+            <SelectContent>
+              {DASHBOARD_PERIOD_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {analyticsError && (

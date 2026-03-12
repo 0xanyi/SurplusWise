@@ -39,8 +39,7 @@ export async function GET(request: NextRequest) {
       totalGivings: result.totalGivings,
       totalIncome: result.totalIncome,
       safeToSpend: result.safeToSpend,
-      netBalance:
-        result.totalIncome - result.totalExpenses - result.totalGivings,
+      netBalance: result.netBalance,
       expensesByCategory,
       givingsByCategory,
       incomeByCategory,
@@ -51,6 +50,8 @@ export async function GET(request: NextRequest) {
       monthlyTrends: result.monthlyTrends,
       transactionCount: result.transactionCount,
       period: result.period,
+      previousPeriod: result.previousPeriod,
+      comparisons: result.comparisons,
       outgoingPaymentsTotal: result.outgoingPaymentsTotal,
       debtPaymentsTotal: result.debtPaymentsTotal,
     });

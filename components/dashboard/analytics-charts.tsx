@@ -16,19 +16,34 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Download, Calendar, TrendingDown, Wallet, PiggyBank } from "lucide-react";
+import { Download, Calendar, TrendingDown, TrendingUp, Wallet, PiggyBank } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
-type Period = "monthly" | "yearly" | "custom";
+type Period = "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
+
+interface DateRange {
+  startDate: string;
+  endDate: string;
+}
+
+interface AnalyticsComparisons {
+  expensesChange: number | null;
+  givingsChange: number | null;
+  incomeChange: number | null;
+  netBalanceChange: number | null;
+  transactionCountChange: number | null;
+}
 
 interface AnalyticsData {
   totalExpenses: number;
   totalGivings: number;
   totalIncome: number;
+  netBalance: number;
   safeToSpend: number;
   transactionCount: number;
   expensesByCategoryArray: { name: string; value: number }[];
@@ -36,9 +51,45 @@ interface AnalyticsData {
   incomeByCategoryArray: { name: string; value: number }[];
   dailyTrends: { date: string; expenses: number; givings: number; income: number }[];
   monthlyTrends: { month: string; expenses: number; givings: number; income: number }[];
+  period: DateRange;
+  previousPeriod: DateRange;
+  comparisons: AnalyticsComparisons;
 }
 
 const CHART_COLORS = ["#2563eb", "#059669", "#e11d48", "#f59e0b", "#8b5cf6", "#06b6d4"];
+
+const PERIOD_OPTIONS: { value: Period; label: string }[] = [
+  { value: "weekly", label: "Last 7 days" },
+  { value: "monthly", label: "Last 30 days" },
+  { value: "quarterly", label: "Last 3 months" },
+  { value: "yearly", label: "Last 12 months" },
+  { value: "custom", label: "Custom range" },
+];
+
+function formatChangeLabel(value: number | null) {
+  if (value === null) return "No prior data";
+  if (Math.abs(value) < 0.05) return "No change";
+  const direction = value > 0 ? "up" : "down";
+  return `${Math.abs(value).toFixed(1)}% ${direction}`;
+}
+
+function getComparisonTone(value: number | null, positiveIsGood = true) {
+  if (value === null || Math.abs(value) < 0.05) return "text-muted-foreground";
+  const improved = positiveIsGood ? value > 0 : value < 0;
+  return improved ? "text-emerald-600" : "text-rose-600";
+}
+
+function ComparisonHint({
+  value,
+  positiveIsGood,
+}: {
+  value: number | null;
+  positiveIsGood?: boolean;
+}) {
+  const tone = getComparisonTone(value, positiveIsGood);
+
+  return <p className={`mt-1 text-xs ${tone}`}>{formatChangeLabel(value)}</p>;
+}
 
 function LoadingState() {
   return (
@@ -146,7 +197,21 @@ export function AnalyticsCharts() {
 
   const netBalance = useMemo(() => {
     if (!analytics) return 0;
-    return analytics.totalIncome - analytics.totalExpenses - analytics.totalGivings;
+    return analytics.netBalance;
+  }, [analytics]);
+
+  const periodSummary = useMemo(() => {
+    if (!analytics) return null;
+
+    const currentStart = new Date(`${analytics.period.startDate}T00:00:00`);
+    const currentEnd = new Date(`${analytics.period.endDate}T00:00:00`);
+    const previousStart = new Date(`${analytics.previousPeriod.startDate}T00:00:00`);
+    const previousEnd = new Date(`${analytics.previousPeriod.endDate}T00:00:00`);
+
+    return {
+      current: `${currentStart.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} - ${currentEnd.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`,
+      previous: `${previousStart.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} - ${previousEnd.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`,
+    };
   }, [analytics]);
 
   const chartData = useMemo(() => {
@@ -205,15 +270,18 @@ export function AnalyticsCharts() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
             <Calendar className="size-4 text-muted-foreground" />
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value as Period)}
-              className="h-9 rounded-md border bg-background px-3 text-sm"
-            >
-              <option value="monthly">This month</option>
-              <option value="yearly">This year</option>
-              <option value="custom">Custom range</option>
-            </select>
+          <Select value={period} onValueChange={(value) => setPeriod(value as Period)}>
+            <SelectTrigger className="h-9 w-[170px]">
+              <SelectValue placeholder="Select period" />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIOD_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           </div>
 
           {period === "custom" && (
@@ -241,6 +309,12 @@ export function AnalyticsCharts() {
         </Button>
       </div>
 
+      {periodSummary && (
+        <p className="text-sm text-muted-foreground">
+          Comparing <span className="font-medium text-foreground">{periodSummary.current}</span> with <span className="font-medium text-foreground">{periodSummary.previous}</span>
+        </p>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
@@ -248,6 +322,7 @@ export function AnalyticsCharts() {
           </CardHeader>
           <CardContent className="text-xl font-semibold text-blue-600">
             {formatCurrency(analytics.totalIncome)}
+            <ComparisonHint value={analytics.comparisons.incomeChange} />
           </CardContent>
         </Card>
 
@@ -257,6 +332,7 @@ export function AnalyticsCharts() {
           </CardHeader>
           <CardContent className="text-xl font-semibold text-rose-600">
             {formatCurrency(analytics.totalExpenses)}
+            <ComparisonHint value={analytics.comparisons.expensesChange} positiveIsGood={false} />
           </CardContent>
         </Card>
 
@@ -266,6 +342,7 @@ export function AnalyticsCharts() {
           </CardHeader>
           <CardContent className="text-xl font-semibold text-emerald-600">
             {formatCurrency(analytics.totalGivings)}
+            <ComparisonHint value={analytics.comparisons.givingsChange} />
           </CardContent>
         </Card>
 
@@ -277,6 +354,7 @@ export function AnalyticsCharts() {
             {netBalance >= 0 ? <Wallet className="mr-1 inline size-4" /> : <TrendingDown className="mr-1 inline size-4" />}
             {formatCurrency(Math.abs(netBalance))}
             <span className="ml-1 text-xs text-muted-foreground">{netBalance >= 0 ? "surplus" : "deficit"}</span>
+            <ComparisonHint value={analytics.comparisons.netBalanceChange} />
           </CardContent>
         </Card>
 
@@ -291,6 +369,42 @@ export function AnalyticsCharts() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Period comparison</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-border/60 p-4">
+            <p className="text-sm text-muted-foreground">Income</p>
+            <p className={`mt-2 flex items-center gap-2 text-lg font-semibold ${getComparisonTone(analytics.comparisons.incomeChange)}`}>
+              <TrendingUp className="size-4" />
+              {formatChangeLabel(analytics.comparisons.incomeChange)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 p-4">
+            <p className="text-sm text-muted-foreground">Expenses</p>
+            <p className={`mt-2 flex items-center gap-2 text-lg font-semibold ${getComparisonTone(analytics.comparisons.expensesChange, false)}`}>
+              <TrendingDown className="size-4" />
+              {formatChangeLabel(analytics.comparisons.expensesChange)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 p-4">
+            <p className="text-sm text-muted-foreground">Net balance</p>
+            <p className={`mt-2 flex items-center gap-2 text-lg font-semibold ${getComparisonTone(analytics.comparisons.netBalanceChange)}`}>
+              <Wallet className="size-4" />
+              {formatChangeLabel(analytics.comparisons.netBalanceChange)}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 p-4">
+            <p className="text-sm text-muted-foreground">Activity</p>
+            <p className={`mt-2 flex items-center gap-2 text-lg font-semibold ${getComparisonTone(analytics.comparisons.transactionCountChange)}`}>
+              <Calendar className="size-4" />
+              {formatChangeLabel(analytics.comparisons.transactionCountChange)}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

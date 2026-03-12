@@ -24,6 +24,20 @@ export interface DateRange {
   endDate: string;
 }
 
+function parseUtcDate(date: string) {
+  return new Date(`${date}T00:00:00.000Z`);
+}
+
+function formatUtcDate(date: Date) {
+  return date.toISOString().split("T")[0];
+}
+
+function addUtcDays(date: string, days: number) {
+  const next = parseUtcDate(date);
+  next.setUTCDate(next.getUTCDate() + days);
+  return formatUtcDate(next);
+}
+
 /**
  * Resolve a named period to a concrete date range.
  * For "custom", startDate/endDate must be supplied by the caller.
@@ -65,6 +79,18 @@ export function getDateRange(
   }
 
   return { startDate: start.toISOString().split("T")[0], endDate };
+}
+
+export function getPreviousDateRange(range: DateRange): DateRange {
+  const start = parseUtcDate(range.startDate);
+  const end = parseUtcDate(range.endDate);
+  const durationDays = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+  const previousEnd = addUtcDays(range.startDate, -1);
+
+  return {
+    startDate: addUtcDays(previousEnd, -(durationDays - 1)),
+    endDate: previousEnd,
+  };
 }
 
 // ─── Budget usage math ──────────────────────────────────────────────────────

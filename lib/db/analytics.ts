@@ -6,7 +6,7 @@ import {
   analyticsQuerySchema,
   workspaceIdSchema,
 } from "./validation";
-import { getDateRange } from "./helpers";
+import { getDateRange, getPreviousDateRange } from "./helpers";
 import type { Period, DateRange } from "./helpers";
 
 // Re-export so existing consumers don't break
@@ -38,6 +38,7 @@ export interface AnalyticsResult {
   totalExpenses: number;
   totalGivings: number;
   totalIncome: number;
+  netBalance: number;
   safeToSpend: number;
   transactionCount: number;
   expensesByCategoryArray: CategoryAggregate[];
@@ -46,10 +47,120 @@ export interface AnalyticsResult {
   dailyTrends: DailyTrend[];
   monthlyTrends: MonthlyTrend[];
   period: DateRange;
+  previousPeriod: DateRange;
+  comparisons: {
+    expensesChange: number | null;
+    givingsChange: number | null;
+    incomeChange: number | null;
+    netBalanceChange: number | null;
+    transactionCountChange: number | null;
+  };
   /** Outgoing payments logged this period (included in totalExpenses) */
   outgoingPaymentsTotal: number;
   /** Debt payments logged this period (included in totalExpenses) */
   debtPaymentsTotal: number;
+}
+
+interface TotalsSummary {
+  totalExpenses: number;
+  totalGivings: number;
+  totalIncome: number;
+  transactionCount: number;
+}
+
+async function getTotalsForRange(
+  userId: string,
+  workspaceId: string,
+  range: DateRange,
+): Promise<TotalsSummary> {
+  const where = and(
+    eq(transactions.userId, userId),
+    eq(transactions.workspaceId, workspaceId),
+    gte(transactions.date, range.startDate),
+    lte(transactions.date, range.endDate),
+  );
+
+  const typeTotals = await db
+    .select({
+      type: transactions.type,
+      total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
+      cnt: sql<number>`count(*)::int`,
+    })
+    .from(transactions)
+    .where(where)
+    .groupBy(transactions.type);
+
+  let totalExpenses = 0;
+  let totalGivings = 0;
+  let totalIncome = 0;
+  let transactionCount = 0;
+
+  for (const row of typeTotals) {
+    const value = Number(row.total);
+    transactionCount += row.cnt;
+    if (row.type === "expense") totalExpenses = value;
+    else if (row.type === "giving") totalGivings = value;
+    else if (row.type === "income") totalIncome = value;
+  }
+
+  const outgoingPayments = await db
+    .select({
+      amount: outgoingPaymentLogs.amount,
+    })
+    .from(outgoingPaymentLogs)
+    .innerJoin(
+      recurringOutgoings,
+      eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id),
+    )
+    .where(
+      and(
+        eq(outgoingPaymentLogs.userId, userId),
+        eq(recurringOutgoings.workspaceId, workspaceId),
+        gte(outgoingPaymentLogs.paidAt, range.startDate),
+        lte(outgoingPaymentLogs.paidAt, range.endDate),
+      ),
+    );
+
+  const outgoingPaymentsTotal = outgoingPayments.reduce(
+    (sum, row) => sum + Number(row.amount),
+    0,
+  );
+
+  const debtPayments = await db
+    .select({
+      paymentMade: debtBalanceLogs.paymentMade,
+    })
+    .from(debtBalanceLogs)
+    .innerJoin(debtsCredits, eq(debtBalanceLogs.debtId, debtsCredits.id))
+    .where(
+      and(
+        eq(debtBalanceLogs.userId, userId),
+        eq(debtsCredits.workspaceId, workspaceId),
+        gte(debtBalanceLogs.loggedAt, range.startDate),
+        lte(debtBalanceLogs.loggedAt, range.endDate),
+        sql`${debtBalanceLogs.paymentMade} IS NOT NULL AND ${debtBalanceLogs.paymentMade} > 0`,
+      ),
+    );
+
+  const debtPaymentsTotal = debtPayments.reduce(
+    (sum, row) => sum + Number(row.paymentMade ?? 0),
+    0,
+  );
+
+  return {
+    totalExpenses: totalExpenses + outgoingPaymentsTotal + debtPaymentsTotal,
+    totalGivings,
+    totalIncome,
+    transactionCount,
+  };
+}
+
+function getPercentChange(current: number, previous: number) {
+  if (previous === 0) {
+    return current === 0 ? 0 : null;
+  }
+
+  return ((current - previous) / previous) * 100;
 }
 
 // ─── Service functions ───────────────────────────────────────────────────────
@@ -76,6 +187,7 @@ export async function getAnalytics(
     endDate: custom?.endDate,
   });
   const range = getDateRange(period, custom);
+  const previousRange = getPreviousDateRange(range);
 
   const where = and(
     eq(transactions.userId, userId),
@@ -282,10 +394,16 @@ export async function getAnalytics(
     a.month.localeCompare(b.month),
   );
 
+  const previousTotals = await getTotalsForRange(userId, workspaceId, previousRange);
+  const netBalance = totalIncome - totalExpenses - totalGivings;
+  const previousNetBalance =
+    previousTotals.totalIncome - previousTotals.totalExpenses - previousTotals.totalGivings;
+
   return {
     totalExpenses,
     totalGivings,
     totalIncome,
+    netBalance,
     safeToSpend: totalIncome - totalExpenses - totalGivings,
     transactionCount,
     expensesByCategoryArray,
@@ -294,6 +412,14 @@ export async function getAnalytics(
     dailyTrends,
     monthlyTrends,
     period: range,
+    previousPeriod: previousRange,
+    comparisons: {
+      expensesChange: getPercentChange(totalExpenses, previousTotals.totalExpenses),
+      givingsChange: getPercentChange(totalGivings, previousTotals.totalGivings),
+      incomeChange: getPercentChange(totalIncome, previousTotals.totalIncome),
+      netBalanceChange: getPercentChange(netBalance, previousNetBalance),
+      transactionCountChange: getPercentChange(transactionCount, previousTotals.transactionCount),
+    },
     outgoingPaymentsTotal,
     debtPaymentsTotal,
   };

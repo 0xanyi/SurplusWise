@@ -237,7 +237,12 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                           {transaction.type} · {new Date(transaction.date).toLocaleDateString("en-GB")}
                         </p>
                         {transaction.notes && (
-                          <p className="mt-1 line-clamp-1 text-xs text-muted-foreground sm:text-sm">{transaction.notes}</p>
+                          <p
+                            className="mt-1 line-clamp-1 text-xs text-muted-foreground sm:text-sm"
+                            title={transaction.notes}
+                          >
+                            {transaction.notes}
+                          </p>
                         )}
                         {transaction.tags.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
