@@ -1,4 +1,5 @@
 import { isAuthenticated } from "@/lib/auth-server";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { uploadReceipt } from "@/lib/storage";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -145,6 +146,15 @@ Only return valid JSON, no additional text.`,
 
 export async function POST(request: NextRequest) {
   try {
+    const rateKey = `${request.headers.get("x-forwarded-for") ?? "local"}:receipts:scan`;
+    const rateLimit = checkRateLimit(rateKey, { limit: 10, windowMs: 60_000 });
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { error: "Too many receipt scans. Please wait a minute and try again." },
+        { status: 429 },
+      );
+    }
+
     // Auth check -----------------------------------------------------------
     const authenticated = await isAuthenticated();
     if (!authenticated) {

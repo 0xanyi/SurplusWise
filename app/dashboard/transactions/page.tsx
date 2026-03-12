@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { TransactionForm } from "@/components/dashboard/transaction-form";
 import { TransactionList } from "@/components/dashboard/transaction-list";
 import { QuickAddTransaction } from "@/components/dashboard/quick-add-transaction";
+import { TransactionImport } from "@/components/dashboard/transaction-import";
 
 export default function TransactionsPage() {
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -31,6 +32,8 @@ export default function TransactionsPage() {
       </div>
 
       <QuickAddTransaction onOpenFullForm={() => setIsFormOpen(true)} onTransactionAdded={triggerRefresh} />
+
+      <TransactionImport onImported={triggerRefresh} />
 
       <TransactionList refreshKey={refreshKey} />
 

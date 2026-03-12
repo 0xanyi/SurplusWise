@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
+import { setStoredWorkspaceCurrency } from "@/lib/currency";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -14,6 +15,7 @@ export interface Workspace {
   id: string;
   name: string;
   type: "personal" | "business";
+  currency: string;
   is_default: boolean;
   created_at: string | null;
   updated_at: string | null;
@@ -25,7 +27,8 @@ interface WorkspaceContextValue {
   setActiveWorkspace: (id: string) => void;
   loading: boolean;
   refreshWorkspaces: () => void;
-  createWorkspace: (name: string, type: "personal" | "business") => Promise<void>;
+  createWorkspace: (name: string, type: "personal" | "business", currency?: string) => Promise<void>;
+  updateWorkspace: (id: string, input: Partial<Pick<Workspace, "name" | "type" | "currency">>) => Promise<void>;
 }
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -72,12 +75,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       const stored = ws.find((w) => w.id === storedId);
 
       if (stored) {
+        setStoredWorkspaceCurrency(stored.currency);
         setActiveWorkspaceState(stored);
       } else {
         // Default to first workspace (the default one)
         const defaultWs = ws.find((w) => w.is_default) ?? ws[0];
         if (defaultWs) {
           setStoredWorkspaceId(defaultWs.id);
+          setStoredWorkspaceCurrency(defaultWs.currency);
           setActiveWorkspaceState(defaultWs);
         }
       }
@@ -97,6 +102,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       const ws = workspaces.find((w) => w.id === id);
       if (!ws) return;
       setStoredWorkspaceId(id);
+      setStoredWorkspaceCurrency(ws.currency);
       setActiveWorkspaceState(ws);
       // Dispatch a custom event so components can re-fetch data
       window.dispatchEvent(new CustomEvent("workspace-changed", { detail: { id } }));
@@ -105,15 +111,31 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createWorkspace = useCallback(
-    async (name: string, type: "personal" | "business") => {
+    async (name: string, type: "personal" | "business", currency = "GBP") => {
       const res = await fetch("/api/workspaces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, type }),
+        body: JSON.stringify({ name, type, currency }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { error?: string }).error ?? "Failed to create workspace");
+      }
+      await fetchWorkspaces();
+    },
+    [fetchWorkspaces],
+  );
+
+  const updateWorkspace = useCallback(
+    async (id: string, input: Partial<Pick<Workspace, "name" | "type" | "currency">>) => {
+      const res = await fetch(`/api/workspaces/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? "Failed to update workspace");
       }
       await fetchWorkspaces();
     },
@@ -129,6 +151,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         loading,
         refreshWorkspaces: fetchWorkspaces,
         createWorkspace,
+        updateWorkspace,
       }}
     >
       {children}

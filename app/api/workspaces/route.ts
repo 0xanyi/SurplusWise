@@ -8,6 +8,7 @@ function toWorkspace(row: Awaited<ReturnType<typeof wsService.list>>[number]) {
     id: row.id,
     name: row.name,
     type: row.type,
+    currency: row.currency,
     is_default: row.isDefault,
     created_at: row.createdAt ? new Date(row.createdAt).toISOString() : null,
     updated_at: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
     const row = await wsService.create(userId, {
       name: body.name,
       type: body.type,
+      currency: body.currency,
     });
 
     return NextResponse.json({ workspace: toWorkspace(row) }, { status: 201 });

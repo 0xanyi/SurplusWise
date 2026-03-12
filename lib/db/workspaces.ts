@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { workspaces } from "@/db/schema";
-import { userIdSchema, idSchema } from "./validation";
+import { userIdSchema, idSchema, workspaceCreateSchema, workspaceUpdateSchema } from "./validation";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -10,11 +10,13 @@ type WorkspaceType = "personal" | "business";
 export interface CreateInput {
   name: string;
   type: WorkspaceType;
+  currency?: string;
 }
 
 export interface UpdateInput {
   name?: string;
   type?: WorkspaceType;
+  currency?: string;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -79,6 +81,7 @@ export async function getOrCreateDefault(userId: string) {
 /** Create a new workspace. */
 export async function create(userId: string, input: CreateInput) {
   userIdSchema.parse(userId);
+  const validInput = workspaceCreateSchema.parse(input);
   const id = genId();
   const now = new Date();
 
@@ -94,8 +97,9 @@ export async function create(userId: string, input: CreateInput) {
     .values({
       id,
       userId,
-      name: input.name,
-      type: input.type,
+      name: validInput.name,
+      type: validInput.type,
+      currency: validInput.currency,
       isDefault: existing.length === 0,
       createdAt: now,
       updatedAt: now,
@@ -108,6 +112,7 @@ export async function create(userId: string, input: CreateInput) {
 export async function update(userId: string, id: string, input: UpdateInput) {
   userIdSchema.parse(userId);
   idSchema.parse(id);
+  const validInput = workspaceUpdateSchema.parse(input);
 
   const [existing] = await db
     .select()
@@ -120,8 +125,9 @@ export async function update(userId: string, id: string, input: UpdateInput) {
   const [row] = await db
     .update(workspaces)
     .set({
-      ...(input.name !== undefined && { name: input.name }),
-      ...(input.type !== undefined && { type: input.type }),
+      ...(validInput.name !== undefined && { name: validInput.name }),
+      ...(validInput.type !== undefined && { type: validInput.type }),
+      ...(validInput.currency !== undefined && { currency: validInput.currency }),
       updatedAt: new Date(),
     })
     .where(and(eq(workspaces.id, id), eq(workspaces.userId, userId)))

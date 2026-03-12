@@ -69,20 +69,27 @@ export const pageSizeSchema = z
 
 export const workspaceTypeSchema = z.enum(["personal", "business"]);
 
+export const currencySchema = z
+  .string()
+  .trim()
+  .regex(/^[A-Z]{3}$/, "currency must be a 3-letter ISO code");
+
 export const workspaceIdSchema = z.string().min(1, "workspaceId is required");
 
 export const workspaceCreateSchema = z.object({
   name: z.string().min(1, "name is required").max(100),
   type: workspaceTypeSchema,
+  currency: currencySchema.optional().default("GBP"),
 });
 
 export const workspaceUpdateSchema = z
   .object({
     name: z.string().min(1).max(100).optional(),
     type: workspaceTypeSchema.optional(),
+    currency: currencySchema.optional(),
   })
   .refine(
-    (data) => data.name !== undefined || data.type !== undefined,
+    (data) => data.name !== undefined || data.type !== undefined || data.currency !== undefined,
     { message: "At least one field must be provided for update" },
   );
 

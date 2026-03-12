@@ -1,12 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getStoredWorkspaceCurrency } from "@/lib/currency";
 
 // ─── Generic fetch helpers ───────────────────────────────────────────────────
 
 function getActiveWorkspaceId(): string | null {
   if (typeof window === "undefined") return null;
   return localStorage.getItem("activeWorkspaceId");
+}
+
+export function useWorkspaceCurrency() {
+  const [currency, setCurrency] = useState<string>(() => getStoredWorkspaceCurrency() ?? "GBP");
+
+  useEffect(() => {
+    const handler = () => setCurrency(getStoredWorkspaceCurrency() ?? "GBP");
+    handler();
+    window.addEventListener("workspace-changed", handler);
+    return () => window.removeEventListener("workspace-changed", handler);
+  }, []);
+
+  return currency;
 }
 
 async function apiFetch<T>(

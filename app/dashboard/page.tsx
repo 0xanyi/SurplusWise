@@ -15,6 +15,7 @@ import { OutgoingsOverview } from "@/components/dashboard/outgoings-overview";
 import { DebtsOverview } from "@/components/dashboard/debts-overview";
 import { LoansOverview } from "@/components/dashboard/loans-overview";
 import { InvestmentsOverview } from "@/components/dashboard/investments-overview";
+import { OnboardingCard } from "@/components/dashboard/onboarding-card";
 import type { ApiTransaction } from "@/types";
 
 function getGreeting() {
@@ -38,6 +39,10 @@ interface AnalyticsResponse {
   netBalance: number;
 }
 
+interface OnboardingResponse {
+  completed: boolean;
+}
+
 const ZERO_TOTALS: AnalyticsResponse = {
   totalIncome: 0,
   totalExpenses: 0,
@@ -54,6 +59,7 @@ export default function DashboardPage() {
   const [recentTransactions, setRecentTransactions] = useState<ApiTransaction[] | undefined>(undefined);
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | undefined>(undefined);
 
   const loadData = useCallback(async () => {
     if (!userId) return;
@@ -80,7 +86,15 @@ export default function DashboardPage() {
         setRecentTransactions([]);
       });
 
-    await Promise.all([analyticsPromise, transactionsPromise]);
+    const onboardingPromise = apiFetch<OnboardingResponse>("/api/onboarding")
+      .then((status) => {
+        setOnboardingCompleted(status.completed);
+      })
+      .catch(() => {
+        setOnboardingCompleted(true);
+      });
+
+    await Promise.all([analyticsPromise, transactionsPromise, onboardingPromise]);
   }, [userId]);
 
   const handleRetry = useCallback(async () => {
@@ -195,6 +209,8 @@ export default function DashboardPage() {
       </div>
 
       <DashboardClient onDataChanged={loadData} />
+
+      {onboardingCompleted === false && <OnboardingCard onCompleted={loadData} />}
 
       <BudgetOverview />
 

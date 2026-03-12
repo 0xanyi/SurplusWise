@@ -71,6 +71,13 @@
       "when": 1772006400000,
       "tag": "0009_add_workspaces",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1772838000000,
+      "tag": "0010_tier1_foundations",
+      "breakpoints": true
     }
   ]
 }

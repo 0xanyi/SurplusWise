@@ -8,6 +8,7 @@ function toWorkspace(row: NonNullable<Awaited<ReturnType<typeof wsService.getByI
     id: row.id,
     name: row.name,
     type: row.type,
+    currency: row.currency,
     is_default: row.isDefault,
     created_at: row.createdAt ? new Date(row.createdAt).toISOString() : null,
     updated_at: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
@@ -47,6 +48,7 @@ export async function PUT(
     const row = await wsService.update(userId, id, {
       name: body.name,
       type: body.type,
+      currency: body.currency,
     });
 
     return NextResponse.json({ workspace: toWorkspace(row) });

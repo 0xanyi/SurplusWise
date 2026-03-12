@@ -81,6 +81,7 @@ export const users = pgTable("users", {
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
   categoriesSeeded: boolean("categories_seeded").notNull().default(false),
+  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -148,6 +149,7 @@ export const workspaces = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     type: workspaceTypeEnum("type").notNull(),
+    currency: text("currency").notNull().default("GBP"),
     isDefault: boolean("is_default").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -156,6 +158,22 @@ export const workspaces = pgTable(
     index("idx_workspaces_user").on(t.userId),
     uniqueIndex("idx_workspaces_user_name").on(t.userId, t.name),
   ],
+);
+
+export const onboardingStatus = pgTable(
+  "onboarding_status",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    hasCompleted: boolean("has_completed").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_onboarding_status_workspace").on(t.workspaceId)],
 );
 
 // ─── Domain tables ───────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as txService from "@/lib/db/transactions";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
@@ -105,6 +106,15 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const rateKey = `${request.headers.get("x-forwarded-for") ?? "local"}:transactions:create`;
+    const rateLimit = checkRateLimit(rateKey, { limit: 60, windowMs: 60_000 });
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again shortly." },
+        { status: 429 },
+      );
+    }
+
     const { userId, workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
