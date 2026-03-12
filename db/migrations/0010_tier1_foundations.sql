@@ -50,3 +50,6 @@ CREATE TABLE IF NOT EXISTS "goals" (
 
 CREATE INDEX IF NOT EXISTS "idx_goals_user_workspace" ON "goals" ("user_id", "workspace_id");
 CREATE INDEX IF NOT EXISTS "idx_goals_workspace_active" ON "goals" ("workspace_id", "is_active");
+
+ALTER TABLE "transactions"
+ADD COLUMN IF NOT EXISTS "tags" jsonb NOT NULL DEFAULT '[]'::jsonb;

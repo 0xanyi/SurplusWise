@@ -24,6 +24,7 @@ function toTransaction(row: Awaited<ReturnType<typeof txService.list>>[number]) 
     type: row.type,
     category: row.category,
     notes: row.notes ?? null,
+    tags: Array.isArray(row.tags) ? row.tags : [],
     receipt_url: row.receiptStorageId ?? null,
     created_at: row.createdAt ? new Date(row.createdAt).toISOString() : null,
     updated_at: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
@@ -39,6 +40,7 @@ export async function GET(request: NextRequest) {
     // Parse filters
     const type = sp.get("type") as txService.ListFilters["type"] | null;
     const category = sp.get("category") ?? undefined;
+    const tag = sp.get("tag") ?? undefined;
     const startDate = sp.get("startDate") ?? undefined;
     const endDate = sp.get("endDate") ?? undefined;
     const search = sp.get("search") ?? undefined;
@@ -46,6 +48,7 @@ export async function GET(request: NextRequest) {
     const filters: txService.ListFilters = {
       ...(type && { type }),
       ...(category && { category }),
+      ...(tag && { tag }),
       ...(startDate && { startDate }),
       ...(endDate && { endDate }),
       ...(search && { search }),
@@ -126,6 +129,7 @@ export async function POST(request: NextRequest) {
       type: body.type,
       category: body.category,
       notes: body.notes ?? null,
+      tags: Array.isArray(body.tags) ? body.tags : [],
       receiptStorageId,
     });
 

@@ -12,6 +12,7 @@ function toTransaction(row: NonNullable<Awaited<ReturnType<typeof txService.getB
     type: row.type,
     category: row.category,
     notes: row.notes ?? null,
+    tags: Array.isArray(row.tags) ? row.tags : [],
     receipt_url: row.receiptStorageId ?? null,
     created_at: row.createdAt ? new Date(row.createdAt).toISOString() : null,
     updated_at: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
@@ -68,6 +69,7 @@ export async function PATCH(
       ...(body.type !== undefined && { type: body.type }),
       ...(body.category !== undefined && { category: body.category }),
       ...(body.notes !== undefined && { notes: body.notes }),
+      ...(body.tags !== undefined && { tags: body.tags }),
       ...(receiptStorageId !== undefined && { receiptStorageId }),
     });
 

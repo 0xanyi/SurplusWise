@@ -69,6 +69,7 @@ export function TransactionForm({
     type: defaultType,
     category: "",
     notes: "",
+    tags: "",
   });
 
   useEffect(() => {
@@ -81,6 +82,7 @@ export function TransactionForm({
         type: transaction.type,
         category: transaction.category,
         notes: transaction.notes ?? "",
+        tags: transaction.tags.join(", "),
       });
       setReceiptStorageId(transaction.receipt_url ?? null);
       setMode("manual");
@@ -93,6 +95,7 @@ export function TransactionForm({
       type: defaultType,
       category: "",
       notes: "",
+      tags: "",
     });
     setReceiptStorageId(null);
     setMode(defaultMode);
@@ -140,6 +143,10 @@ export function TransactionForm({
         type: formData.type,
         category: formData.category,
         notes: formData.notes || undefined,
+        tags: formData.tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
         receiptStorageId: receiptStorageId ?? undefined,
       };
 
@@ -282,6 +289,16 @@ export function TransactionForm({
                 value={formData.notes}
                 onChange={(e) => setFormData((prev) => ({ ...prev, notes: e.target.value }))}
                 placeholder="Optional note"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags (optional)</Label>
+              <Input
+                id="tags"
+                value={formData.tags}
+                onChange={(e) => setFormData((prev) => ({ ...prev, tags: e.target.value }))}
+                placeholder="tax-deductible, reimbursable, vacation"
               />
             </div>
 

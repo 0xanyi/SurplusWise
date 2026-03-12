@@ -52,6 +52,7 @@ export interface ApiTransaction {
   type: TransactionType
   category: string
   notes: string | null
+  tags: string[]
   receipt_url: string | null
   created_at: string | null
 }

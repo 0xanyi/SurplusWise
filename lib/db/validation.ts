@@ -101,6 +101,7 @@ export const transactionCreateSchema = z.object({
   type: transactionTypeSchema,
   category: z.string().min(1, "category is required"),
   notes: z.string().nullish(),
+  tags: z.array(z.string().trim().min(1).max(30)).max(10).optional().default([]),
   receiptStorageId: z.string().nullish(),
 });
 
@@ -110,6 +111,7 @@ export const transactionUpdateSchema = z.object({
   type: transactionTypeSchema.optional(),
   category: z.string().min(1).optional(),
   notes: z.string().nullish(),
+  tags: z.array(z.string().trim().min(1).max(30)).max(10).optional(),
   receiptStorageId: z.string().nullish(),
 });
 
@@ -117,6 +119,7 @@ export const transactionListFiltersSchema = z
   .object({
     type: transactionTypeSchema.optional(),
     category: z.string().optional(),
+    tag: z.string().trim().min(1).max(30).optional(),
     startDate: dateStringSchema.optional(),
     endDate: dateStringSchema.optional(),
     search: z.string().optional(),

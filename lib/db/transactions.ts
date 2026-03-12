@@ -20,6 +20,7 @@ type TransactionType = "expense" | "giving" | "income";
 export interface ListFilters {
   type?: TransactionType;
   category?: string;
+  tag?: string;
   startDate?: string;
   endDate?: string;
   search?: string;
@@ -36,6 +37,7 @@ export interface CreateInput {
   type: TransactionType;
   category: string;
   notes?: string | null;
+  tags?: string[];
   receiptStorageId?: string | null;
 }
 
@@ -45,6 +47,7 @@ export interface UpdateInput {
   type?: TransactionType;
   category?: string;
   notes?: string | null;
+  tags?: string[];
   receiptStorageId?: string | null;
 }
 
@@ -62,6 +65,7 @@ function buildWhere(userId: string, workspaceId: string, filters: ListFilters) {
 
   if (filters.type) conditions.push(eq(transactions.type, filters.type));
   if (filters.category) conditions.push(eq(transactions.category, filters.category));
+  if (filters.tag) conditions.push(sql`${transactions.tags} @> ${JSON.stringify([filters.tag])}::jsonb`);
   if (filters.startDate) conditions.push(gte(transactions.date, filters.startDate));
   if (filters.endDate) conditions.push(lte(transactions.date, filters.endDate));
   if (filters.search) {
@@ -70,6 +74,11 @@ function buildWhere(userId: string, workspaceId: string, filters: ListFilters) {
       or(
         ilike(transactions.category, pattern),
         ilike(transactions.notes, pattern),
+        sql`EXISTS (
+          SELECT 1
+          FROM jsonb_array_elements_text(${transactions.tags}) AS tag
+          WHERE tag ILIKE ${pattern}
+        )`,
       )!,
     );
   }
@@ -164,6 +173,7 @@ export async function create(userId: string, workspaceId: string, input: CreateI
       type: input.type,
       category: input.category,
       notes: input.notes ?? null,
+      tags: input.tags ?? [],
       receiptStorageId: input.receiptStorageId ?? null,
       createdAt: now,
       updatedAt: now,
@@ -188,6 +198,7 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       ...(input.type !== undefined && { type: input.type }),
       ...(input.category !== undefined && { category: input.category }),
       ...(input.notes !== undefined && { notes: input.notes }),
+      ...(input.tags !== undefined && { tags: input.tags }),
       ...(input.receiptStorageId !== undefined && { receiptStorageId: input.receiptStorageId }),
       updatedAt: new Date(),
     })

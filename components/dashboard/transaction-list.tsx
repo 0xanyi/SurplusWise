@@ -51,6 +51,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [tagFilter, setTagFilter] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -62,10 +63,11 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
       params.set("page", String(pageNum));
       params.set("pageSize", String(PAGE_SIZE));
       if (typeFilter !== "all") params.set("type", typeFilter);
+      if (tagFilter.trim()) params.set("tag", tagFilter.trim());
       if (debouncedSearch) params.set("search", debouncedSearch);
       return `/api/transactions?${params.toString()}`;
     },
-    [typeFilter, debouncedSearch],
+    [typeFilter, tagFilter, debouncedSearch],
   );
 
   const loadPage = useCallback(
@@ -91,7 +93,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   useEffect(() => {
     setPage(0);
     loadPage(0, true);
-  }, [typeFilter, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [typeFilter, tagFilter, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (refreshKey > 0) {
@@ -168,12 +170,19 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search category or notes"
+                placeholder="Search category, notes, or tags"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="h-11 pl-10"
               />
             </div>
+
+            <Input
+              placeholder="Filter by exact tag"
+              value={tagFilter}
+              onChange={(e) => setTagFilter(e.target.value)}
+              className="h-11"
+            />
 
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
               {typeFilterOptions.map((option) => (
@@ -229,6 +238,15 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                         </p>
                         {transaction.notes && (
                           <p className="mt-1 line-clamp-1 text-xs text-muted-foreground sm:text-sm">{transaction.notes}</p>
+                        )}
+                        {transaction.tags.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {transaction.tags.map((tag) => (
+                              <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                #{tag}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
