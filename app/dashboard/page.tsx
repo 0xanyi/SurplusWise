@@ -16,6 +16,7 @@ import { DebtsOverview } from "@/components/dashboard/debts-overview";
 import { LoansOverview } from "@/components/dashboard/loans-overview";
 import { InvestmentsOverview } from "@/components/dashboard/investments-overview";
 import { GoalsOverview } from "@/components/dashboard/goals-overview";
+import { NetWorthOverview } from "@/components/dashboard/net-worth-overview";
 import { OnboardingCard } from "@/components/dashboard/onboarding-card";
 import type { ApiTransaction } from "@/types";
 
@@ -216,6 +217,8 @@ export default function DashboardPage() {
       <BudgetOverview />
 
       <GoalsOverview />
+
+      <NetWorthOverview />
 
       <div className="grid gap-4 md:grid-cols-2">
         <OutgoingsOverview />
