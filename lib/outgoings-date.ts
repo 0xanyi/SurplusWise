@@ -65,3 +65,37 @@ export function getNextDueDate(dayOfMonth: number, reference: Date): Date {
   if (dueThisMonth >= startOfToday) return dueThisMonth;
   return getDueDateForMonth(reference.getFullYear(), reference.getMonth() + 1, dayOfMonth);
 }
+
+/**
+ * Calculate days until due date from today.
+ * Returns negative if overdue.
+ */
+export function getDaysUntilDue(dueDate: Date, now: Date = new Date()): number {
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfDue = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
+  const diffMs = startOfDue.getTime() - startOfToday.getTime();
+  return Math.round(diffMs / (1000 * 60 * 60 * 24));
+}
+
+/**
+ * Get urgency level for a due date.
+ */
+export type DueUrgency = "overdue" | "today" | "soon" | "upcoming" | "future";
+
+export function getDueUrgency(daysUntilDue: number): DueUrgency {
+  if (daysUntilDue < 0) return "overdue";
+  if (daysUntilDue === 0) return "today";
+  if (daysUntilDue <= 3) return "soon";
+  if (daysUntilDue <= 7) return "upcoming";
+  return "future";
+}
+
+/**
+ * Format days until due into human-readable string.
+ */
+export function formatDaysUntilDue(daysUntilDue: number): string {
+  if (daysUntilDue < 0) return `${Math.abs(daysUntilDue)} day${Math.abs(daysUntilDue) === 1 ? "" : "s"} overdue`;
+  if (daysUntilDue === 0) return "Due today";
+  if (daysUntilDue === 1) return "Due tomorrow";
+  return `Due in ${daysUntilDue} days`;
+}

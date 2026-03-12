@@ -19,6 +19,7 @@ import { InvestmentsOverview } from "@/components/dashboard/investments-overview
 import { GoalsOverview } from "@/components/dashboard/goals-overview";
 import { NetWorthOverview } from "@/components/dashboard/net-worth-overview";
 import { OnboardingCard } from "@/components/dashboard/onboarding-card";
+import { BillReminders } from "@/components/dashboard/bill-reminders";
 import type { ApiTransaction } from "@/types";
 
 function getGreeting() {
@@ -246,8 +247,13 @@ export default function DashboardPage() {
       <NetWorthOverview />
 
       <div className="grid gap-4 md:grid-cols-2">
-        <OutgoingsOverview />
+        <BillReminders />
         <DebtsOverview />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <OutgoingsOverview />
+        <div className="hidden md:block" /> {/* Spacer for grid balance */}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
