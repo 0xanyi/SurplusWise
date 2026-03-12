@@ -80,7 +80,7 @@ export const PROVIDER_DEFAULTS: Record<AIProvider, { endpoint: string; models: s
   },
   custom: {
     endpoint: "",
-    models: [],
+    models: [], // Empty array triggers free-text input for custom models
   },
 };
 

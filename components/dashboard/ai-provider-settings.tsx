@@ -269,25 +269,30 @@ export function AIProviderSettings() {
         {/* Model Selection */}
         <div className="space-y-2">
           <Label htmlFor="model">Model</Label>
-          <Select
-            value={settings.model}
-            onValueChange={(value) => setSettings({ ...settings, model: value })}
-          >
-            <SelectTrigger id="model">
-              <SelectValue placeholder="Select a model" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableModels.length > 0 ? (
-                availableModels.map((model) => (
+          {availableModels.length > 0 ? (
+            <Select
+              value={settings.model}
+              onValueChange={(value) => setSettings({ ...settings, model: value })}
+            >
+              <SelectTrigger id="model">
+                <SelectValue placeholder="Select a model" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableModels.map((model) => (
                   <SelectItem key={model} value={model}>
                     {model}
                   </SelectItem>
-                ))
-              ) : (
-                <SelectItem value={settings.model}>{settings.model}</SelectItem>
-              )}
-            </SelectContent>
-          </Select>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <Input
+              id="model"
+              value={settings.model}
+              onChange={(e) => setSettings({ ...settings, model: e.target.value })}
+              placeholder="Enter model name (e.g., gpt-4o)"
+            />
+          )}
           <p className="text-xs text-muted-foreground">
             Choose a model that supports vision for receipt scanning
           </p>
