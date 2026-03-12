@@ -10,8 +10,13 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
 } from "recharts";
-import { Download, Calendar, TrendingDown, Wallet } from "lucide-react";
+import { Download, Calendar, TrendingDown, Wallet, PiggyBank } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,6 +29,7 @@ interface AnalyticsData {
   totalExpenses: number;
   totalGivings: number;
   totalIncome: number;
+  safeToSpend: number;
   transactionCount: number;
   expensesByCategoryArray: { name: string; value: number }[];
   givingsByCategoryArray: { name: string; value: number }[];
@@ -31,6 +37,8 @@ interface AnalyticsData {
   dailyTrends: { date: string; expenses: number; givings: number; income: number }[];
   monthlyTrends: { month: string; expenses: number; givings: number; income: number }[];
 }
+
+const CHART_COLORS = ["#2563eb", "#059669", "#e11d48", "#f59e0b", "#8b5cf6", "#06b6d4"];
 
 function LoadingState() {
   return (
@@ -271,6 +279,17 @@ export function AnalyticsCharts() {
             <span className="ml-1 text-xs text-muted-foreground">{netBalance >= 0 ? "surplus" : "deficit"}</span>
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Safe to spend</CardTitle>
+          </CardHeader>
+          <CardContent className={`text-xl font-semibold ${analytics.safeToSpend >= 0 ? "text-blue-600" : "text-rose-600"}`}>
+            <PiggyBank className="mr-1 inline size-4" />
+            {formatCurrency(Math.abs(analytics.safeToSpend))}
+            <span className="ml-1 text-xs text-muted-foreground">{analytics.safeToSpend >= 0 ? "available" : "overcommitted"}</span>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -296,6 +315,59 @@ export function AnalyticsCharts() {
           )}
         </CardContent>
       </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Expense Breakdown</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analytics.expensesByCategoryArray.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No expense categories for this period.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <PieChart>
+                  <Pie
+                    data={analytics.expensesByCategoryArray.slice(0, 6)}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={3}
+                  >
+                    {analytics.expensesByCategoryArray.slice(0, 6).map((entry, index) => (
+                      <Cell key={entry.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Categories</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {analytics.expensesByCategoryArray.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No expense categories for this period.</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={analytics.expensesByCategoryArray.slice(0, 6)} layout="vertical" margin={{ left: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tick={{ fontSize: 12 }} />
+                  <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12 }} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
+                  <Bar dataKey="value" fill="#2563eb" radius={[0, 6, 6, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-3">
         <CategoryList title="Income Categories" items={analytics.incomeByCategoryArray} />

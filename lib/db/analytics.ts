@@ -38,6 +38,7 @@ export interface AnalyticsResult {
   totalExpenses: number;
   totalGivings: number;
   totalIncome: number;
+  safeToSpend: number;
   transactionCount: number;
   expensesByCategoryArray: CategoryAggregate[];
   givingsByCategoryArray: CategoryAggregate[];
@@ -285,6 +286,7 @@ export async function getAnalytics(
     totalExpenses,
     totalGivings,
     totalIncome,
+    safeToSpend: totalIncome - totalExpenses - totalGivings,
     transactionCount,
     expensesByCategoryArray,
     givingsByCategoryArray,
