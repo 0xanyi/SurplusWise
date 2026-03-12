@@ -2,47 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as txService from "@/lib/db/transactions";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  analyzeTransactionImport,
+  type TransactionImportField,
+  type TransactionImportMapping,
+} from "@/lib/transaction-import";
 
-type TransactionType = "expense" | "giving" | "income";
-
-function parseCsvLine(line: string) {
-  const values: string[] = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    const next = line[i + 1];
-
-    if (char === '"') {
-      if (inQuotes && next === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === "," && !inQuotes) {
-      values.push(current.trim());
-      current = "";
-      continue;
-    }
-
-    current += char;
-  }
-
-  values.push(current.trim());
-  return values;
-}
-
-function normalizeType(value: string): TransactionType {
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "income" || normalized === "expense" || normalized === "giving") {
-    return normalized;
-  }
-  throw new Error(`Invalid type: ${value}`);
+function getMappingValue(formData: FormData, field: TransactionImportField) {
+  const value = formData.get(`mapping:${field}`);
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 export async function POST(request: NextRequest) {
@@ -65,46 +33,55 @@ export async function POST(request: NextRequest) {
     }
 
     const text = await file.text();
-    const lines = text
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
+    const mapping: TransactionImportMapping = {
+      date: getMappingValue(formData, "date"),
+      amount: getMappingValue(formData, "amount"),
+      type: getMappingValue(formData, "type"),
+      category: getMappingValue(formData, "category"),
+      notes: getMappingValue(formData, "notes"),
+      tags: getMappingValue(formData, "tags"),
+    };
 
-    if (lines.length < 2) {
-      return NextResponse.json({ error: "CSV must include a header row and at least one data row" }, { status: 400 });
+    const analysis = analyzeTransactionImport(text, mapping);
+
+    if (analysis.missingRequiredMappings.length > 0) {
+      return NextResponse.json(
+        { error: `Missing required column mappings: ${analysis.missingRequiredMappings.join(", ")}` },
+        { status: 400 },
+      );
     }
 
-    const headers = parseCsvLine(lines[0]).map((header) => header.toLowerCase());
-    const required = ["date", "amount", "type", "category"];
-    const missing = required.filter((field) => !headers.includes(field));
-    if (missing.length > 0) {
-      return NextResponse.json({ error: `Missing required columns: ${missing.join(", ")}` }, { status: 400 });
+    if (analysis.validRows.length === 0) {
+      return NextResponse.json(
+        {
+          error: "No valid rows found to import",
+          invalid_rows: analysis.previewRows.filter((row) => !row.valid).slice(0, 10),
+        },
+        { status: 400 },
+      );
     }
 
     const imported: string[] = [];
 
-    for (const line of lines.slice(1)) {
-      const values = parseCsvLine(line);
-      const row = Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ""]));
-
-      const amount = Number.parseFloat(row.amount);
-      if (!row.date || Number.isNaN(amount) || amount <= 0 || !row.category) {
-        continue;
-      }
-
+    for (const row of analysis.validRows) {
       const created = await txService.create(userId, workspaceId, {
+        amount: row.amount,
         date: row.date,
-        amount,
-        type: normalizeType(row.type),
+        type: row.type,
         category: row.category,
-        notes: row.notes || null,
+        notes: row.notes,
+        tags: row.tags,
         receiptStorageId: null,
       });
 
       imported.push(created.id);
     }
 
-    return NextResponse.json({ imported: imported.length });
+    return NextResponse.json({
+      imported: imported.length,
+      skipped: analysis.invalidRowCount,
+      total_rows: analysis.totalRows,
+    });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
