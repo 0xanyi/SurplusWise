@@ -1,6 +1,6 @@
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { transactions, outgoingPaymentLogs, debtBalanceLogs, recurringOutgoings, debtsCredits } from "@/db/schema";
+import { transactions, outgoingPaymentLogs, debtBalanceLogs, recurringOutgoings, debtsCredits, goals } from "@/db/schema";
 import {
   userIdSchema,
   analyticsQuerySchema,
@@ -34,12 +34,29 @@ export interface MonthlyTrend {
   income: number;
 }
 
+export interface SpendingPrediction {
+  projectedMonthlyExpenses: number;
+  projectedMonthlyIncome: number;
+  daysOfRunway: number | null;
+  trendDirection: "improving" | "stable" | "declining";
+  insight: string;
+}
+
+export interface SafeToSpendBreakdown {
+  available: number;
+  committedExpenses: number;
+  activeGoalsAllocation: number;
+  remaining: number;
+}
+
 export interface AnalyticsResult {
   totalExpenses: number;
   totalGivings: number;
   totalIncome: number;
   netBalance: number;
   safeToSpend: number;
+  safeToSpendBreakdown: SafeToSpendBreakdown;
+  spendingPrediction: SpendingPrediction;
   transactionCount: number;
   expensesByCategoryArray: CategoryAggregate[];
   givingsByCategoryArray: CategoryAggregate[];
@@ -161,6 +178,213 @@ function getPercentChange(current: number, previous: number) {
   }
 
   return ((current - previous) / previous) * 100;
+}
+
+// ─── Prediction helpers ─────────────────────────────────────────────────────
+
+async function getHistoricalMonthlyAverages(
+  userId: string,
+  workspaceId: string,
+  monthsBack: number = 3,
+): Promise<{ avgIncome: number; avgExpenses: number }> {
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - monthsBack);
+
+  const range = {
+    startDate: startDate.toISOString().split("T")[0],
+    endDate: endDate.toISOString().split("T")[0],
+  };
+
+  const where = and(
+    eq(transactions.userId, userId),
+    eq(transactions.workspaceId, workspaceId),
+    gte(transactions.date, range.startDate),
+    lte(transactions.date, range.endDate),
+  );
+
+  const typeTotals = await db
+    .select({
+      type: transactions.type,
+      total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .where(where)
+    .groupBy(transactions.type);
+
+  let totalExpenses = 0;
+  let totalIncome = 0;
+
+  for (const row of typeTotals) {
+    const value = Number(row.total);
+    if (row.type === "expense") totalExpenses = value;
+    else if (row.type === "income") totalIncome = value;
+  }
+
+  // Also include outgoing payments and debt payments
+  const outgoingPayments = await db
+    .select({
+      amount: sql<string>`coalesce(sum(${outgoingPaymentLogs.amount}), 0)`,
+    })
+    .from(outgoingPaymentLogs)
+    .innerJoin(recurringOutgoings, eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id))
+    .where(
+      and(
+        eq(outgoingPaymentLogs.userId, userId),
+        eq(recurringOutgoings.workspaceId, workspaceId),
+        gte(outgoingPaymentLogs.paidAt, range.startDate),
+        lte(outgoingPaymentLogs.paidAt, range.endDate),
+      ),
+    );
+
+  const debtPayments = await db
+    .select({
+      paymentMade: sql<string>`coalesce(sum(${debtBalanceLogs.paymentMade}), 0)`,
+    })
+    .from(debtBalanceLogs)
+    .innerJoin(debtsCredits, eq(debtBalanceLogs.debtId, debtsCredits.id))
+    .where(
+      and(
+        eq(debtBalanceLogs.userId, userId),
+        eq(debtsCredits.workspaceId, workspaceId),
+        gte(debtBalanceLogs.loggedAt, range.startDate),
+        lte(debtBalanceLogs.loggedAt, range.endDate),
+        sql`${debtBalanceLogs.paymentMade} IS NOT NULL`,
+      ),
+    );
+
+  totalExpenses += Number(outgoingPayments[0]?.amount ?? 0);
+  totalExpenses += Number(debtPayments[0]?.paymentMade ?? 0);
+
+  return {
+    avgIncome: totalIncome / monthsBack,
+    avgExpenses: totalExpenses / monthsBack,
+  };
+}
+
+function calculateSpendingPrediction(
+  currentPeriodIncome: number,
+  currentPeriodExpenses: number,
+  historicalAvgIncome: number,
+  historicalAvgExpenses: number,
+  daysInPeriod: number,
+): SpendingPrediction {
+  // Project monthly based on current period's daily rate, blended with historical average
+  const daysInMonth = 30;
+  const currentDailyIncome = currentPeriodIncome / daysInPeriod;
+  const currentDailyExpenses = currentPeriodExpenses / daysInPeriod;
+
+  // Blend current period with historical (70% current, 30% historical)
+  const projectedMonthlyIncome =
+    currentDailyIncome * daysInMonth * 0.7 + historicalAvgIncome * 0.3;
+  const projectedMonthlyExpenses =
+    currentDailyExpenses * daysInMonth * 0.7 + historicalAvgExpenses * 0.3;
+
+  // Determine trend
+  const incomeTrend = projectedMonthlyIncome / historicalAvgIncome;
+  const expenseTrend = projectedMonthlyExpenses / historicalAvgExpenses;
+
+  let trendDirection: "improving" | "stable" | "declining";
+  let insight: string;
+
+  if (incomeTrend > 1.1 && expenseTrend < 0.95) {
+    trendDirection = "improving";
+    insight = "Income up, spending down — great momentum!";
+  } else if (expenseTrend > 1.15) {
+    trendDirection = "declining";
+    insight = "Spending is trending higher than usual.";
+  } else if (incomeTrend < 0.85) {
+    trendDirection = "declining";
+    insight = "Income is lower than your recent average.";
+  } else {
+    trendDirection = "stable";
+    insight = "Spending and income are tracking normally.";
+  }
+
+  // Calculate runway (how many months at current burn rate)
+  const monthlyNet = projectedMonthlyIncome - projectedMonthlyExpenses;
+  const daysOfRunway =
+    monthlyNet > 0
+      ? null // Positive cash flow = infinite runway
+      : monthlyNet < 0
+        ? Math.max(0, Math.round((currentPeriodIncome - currentPeriodExpenses) / (Math.abs(monthlyNet) / daysInMonth) * 30))
+        : null;
+
+  return {
+    projectedMonthlyExpenses: Math.round(projectedMonthlyExpenses * 100) / 100,
+    projectedMonthlyIncome: Math.round(projectedMonthlyIncome * 100) / 100,
+    daysOfRunway,
+    trendDirection,
+    insight,
+  };
+}
+
+async function getActiveGoalsAllocation(
+  userId: string,
+  workspaceId: string,
+): Promise<number> {
+  const activeGoals = await db
+    .select({
+      targetAmount: goals.targetAmount,
+      currentAmount: goals.currentAmount,
+    })
+    .from(goals)
+    .where(
+      and(
+        eq(goals.userId, userId),
+        eq(goals.workspaceId, workspaceId),
+        eq(goals.isActive, true),
+      ),
+    );
+
+  // Calculate remaining to save across all active goals
+  return activeGoals.reduce((sum, goal) => {
+    const remaining = Math.max(0, Number(goal.targetAmount) - Number(goal.currentAmount));
+    return sum + remaining;
+  }, 0);
+}
+
+async function getCommittedMonthlyExpenses(
+  userId: string,
+  workspaceId: string,
+): Promise<number> {
+  // Get active recurring outgoings
+  const outgoings = await db
+    .select({
+      amount: recurringOutgoings.amount,
+    })
+    .from(recurringOutgoings)
+    .where(
+      and(
+        eq(recurringOutgoings.userId, userId),
+        eq(recurringOutgoings.workspaceId, workspaceId),
+        eq(recurringOutgoings.isActive, true),
+        eq(recurringOutgoings.frequency, "monthly"),
+      ),
+    );
+
+  const totalOutgoings = outgoings.reduce((sum, o) => sum + Number(o.amount), 0);
+
+  // Get minimum debt payments
+  const debts = await db
+    .select({
+      minimumPayment: debtsCredits.minimumPayment,
+    })
+    .from(debtsCredits)
+    .where(
+      and(
+        eq(debtsCredits.userId, userId),
+        eq(debtsCredits.workspaceId, workspaceId),
+        eq(debtsCredits.isActive, true),
+      ),
+    );
+
+  const totalMinPayments = debts.reduce(
+    (sum, d) => sum + (d.minimumPayment ? Number(d.minimumPayment) : 0),
+    0,
+  );
+
+  return totalOutgoings + totalMinPayments;
 }
 
 // ─── Service functions ───────────────────────────────────────────────────────
@@ -399,12 +623,39 @@ export async function getAnalytics(
   const previousNetBalance =
     previousTotals.totalIncome - previousTotals.totalExpenses - previousTotals.totalGivings;
 
+  // Calculate spending prediction
+  const { avgIncome: historicalAvgIncome, avgExpenses: historicalAvgExpenses } =
+    await getHistoricalMonthlyAverages(userId, workspaceId);
+  const daysInPeriod = Math.max(1, Math.round(
+    (new Date(range.endDate).getTime() - new Date(range.startDate).getTime()) / (1000 * 60 * 60 * 24)
+  ));
+  const spendingPrediction = calculateSpendingPrediction(
+    totalIncome,
+    totalExpenses,
+    historicalAvgIncome,
+    historicalAvgExpenses,
+    daysInPeriod,
+  );
+
+  // Calculate safe-to-spend breakdown
+  const committedExpenses = await getCommittedMonthlyExpenses(userId, workspaceId);
+  const activeGoalsAllocation = await getActiveGoalsAllocation(userId, workspaceId);
+  const safeToSpend = totalIncome - totalExpenses - totalGivings;
+  const safeToSpendBreakdown: SafeToSpendBreakdown = {
+    available: safeToSpend,
+    committedExpenses,
+    activeGoalsAllocation,
+    remaining: Math.max(0, safeToSpend - committedExpenses - activeGoalsAllocation),
+  };
+
   return {
     totalExpenses,
     totalGivings,
     totalIncome,
     netBalance,
-    safeToSpend: totalIncome - totalExpenses - totalGivings,
+    safeToSpend,
+    safeToSpendBreakdown,
+    spendingPrediction,
     transactionCount,
     expensesByCategoryArray,
     givingsByCategoryArray,

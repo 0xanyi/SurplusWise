@@ -189,6 +189,29 @@ export const goalCategoryEnum = pgEnum("goal_category", [
   "other",
 ]);
 
+// ─── AI Provider Settings ───────────────────────────────────────────────────
+
+export const aiProviderSettings = pgTable(
+  "ai_provider_settings",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("openai"),
+    apiEndpoint: text("api_endpoint").notNull().default("https://api.openai.com/v1"),
+    apiKey: text("api_key"), // encrypted at application level
+    model: text("model").notNull().default("gpt-4o-mini"),
+    isEnabled: boolean("is_enabled").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_ai_provider_settings_user").on(t.userId),
+    uniqueIndex("idx_ai_provider_settings_user_unique").on(t.userId),
+  ],
+);
+
 export const goals = pgTable(
   "goals",
   {

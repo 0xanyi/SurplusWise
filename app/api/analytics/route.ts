@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
       totalGivings: result.totalGivings,
       totalIncome: result.totalIncome,
       safeToSpend: result.safeToSpend,
+      safeToSpendBreakdown: result.safeToSpendBreakdown,
+      spendingPrediction: result.spendingPrediction,
       netBalance: result.netBalance,
       expensesByCategory,
       givingsByCategory,

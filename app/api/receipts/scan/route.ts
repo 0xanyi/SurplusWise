@@ -1,6 +1,7 @@
-import { isAuthenticated } from "@/lib/auth-server";
+import { requireAuth } from "@/lib/auth-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { uploadReceipt } from "@/lib/storage";
+import { getActiveSettings } from "@/lib/db/ai-provider-settings";
 import { NextRequest, NextResponse } from "next/server";
 
 // ---------------------------------------------------------------------------
@@ -67,26 +68,43 @@ function detectImageMime(buf: Buffer): string | null {
 }
 
 // ---------------------------------------------------------------------------
-// OpenAI Vision – receipt OCR
+// AI Vision – receipt OCR (configurable provider)
 // ---------------------------------------------------------------------------
 
 async function extractReceiptData(
   base64Image: string,
   mimeType: string,
+  userId: string,
 ): Promise<Record<string, unknown>> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    throw new Error("OPENAI_API_KEY not configured");
+  const settings = await getActiveSettings(userId);
+
+  if (!settings) {
+    throw new Error(
+      "AI provider not configured. Please configure your AI provider in Settings.",
+    );
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const { endpoint, apiKey, model } = settings;
+
+  if (!apiKey) {
+    throw new Error(
+      "API key not configured. Please add your API key in Settings > AI Provider.",
+    );
+  }
+
+  const response = await fetch(`${endpoint}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
+      // OpenRouter-specific headers
+      ...(endpoint.includes("openrouter.ai") && {
+        "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+        "X-Title": "SurplusWise",
+      }),
     },
     body: JSON.stringify({
-      model: "gpt-4o-mini",
+      model,
       messages: [
         {
           role: "user",
@@ -118,7 +136,9 @@ Only return valid JSON, no additional text.`,
   });
 
   if (!response.ok) {
-    throw new Error("Failed to call OpenAI API");
+    const errorText = await response.text().catch(() => "Unknown error");
+    console.error("AI API error:", response.status, errorText);
+    throw new Error(`Failed to call AI API: ${response.statusText}`);
   }
 
   const data = await response.json();
@@ -156,10 +176,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Auth check -----------------------------------------------------------
-    const authenticated = await isAuthenticated();
-    if (!authenticated) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const userId = await requireAuth();
 
     // Parse & validate file ------------------------------------------------
     const formData = await request.formData();
@@ -204,7 +221,7 @@ export async function POST(request: NextRequest) {
 
     // OCR extraction -------------------------------------------------------
     const base64Image = buffer.toString("base64");
-    const receiptData = await extractReceiptData(base64Image, detectedMime);
+    const receiptData = await extractReceiptData(base64Image, detectedMime, userId);
 
     // Upload to S3-compatible storage --------------------------------------
     const { key, url } = await uploadReceipt(buffer, detectedMime);
@@ -218,6 +235,24 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     // Log full detail server-side; return generic message to client
     console.error("Receipt scanning error:", error);
+    
+    // Provide specific error messages for common issues
+    const errorMessage = error instanceof Error ? error.message : "Failed to process receipt";
+    
+    if (errorMessage.includes("AI provider not configured")) {
+      return NextResponse.json(
+        { error: errorMessage, code: "AI_PROVIDER_NOT_CONFIGURED" },
+        { status: 400 },
+      );
+    }
+    
+    if (errorMessage.includes("API key not configured")) {
+      return NextResponse.json(
+        { error: errorMessage, code: "API_KEY_MISSING" },
+        { status: 400 },
+      );
+    }
+    
     return NextResponse.json(
       { error: "Failed to process receipt. Please try again." },
       { status: 500 },

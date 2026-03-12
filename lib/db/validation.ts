@@ -487,3 +487,30 @@ export const goalUpdateSchema = z
     (data) => Object.values(data).some((v) => v !== undefined),
     { message: "At least one field must be provided for update" },
   );
+
+// ─── AI Provider Settings ───────────────────────────────────────────────────
+
+export const aiProviderSchema = z.enum([
+  "openai",
+  "openrouter",
+  "groq",
+  "together",
+  "ollama",
+  "custom",
+]);
+
+export const aiProviderSettingsSchema = z.object({
+  provider: aiProviderSchema,
+  apiEndpoint: z.string().url("Must be a valid URL").min(1, "API endpoint is required"),
+  apiKey: z.string().min(1, "API key is required").optional(),
+  model: z.string().min(1, "Model is required"),
+  isEnabled: z.boolean().default(true),
+});
+
+export const aiProviderSettingsUpdateSchema = z.object({
+  provider: aiProviderSchema.optional(),
+  apiEndpoint: z.string().url().optional(),
+  apiKey: z.string().optional(),
+  model: z.string().optional(),
+  isEnabled: z.boolean().optional(),
+});

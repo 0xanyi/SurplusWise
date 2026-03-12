@@ -1,6 +1,7 @@
 import { BudgetManagement } from "@/components/dashboard/budget-management";
 import { CategoryManagement } from "@/components/dashboard/category-management";
 import { GoalsManagement } from "@/components/dashboard/goals-management";
+import { AIProviderSettings } from "@/components/dashboard/ai-provider-settings";
 
 export default function SettingsPage() {
   return (
@@ -11,6 +12,16 @@ export default function SettingsPage() {
           Keep your setup simple: manage your budgets and categories.
         </p>
       </div>
+
+      <section className="space-y-5">
+        <div>
+          <h2 className="text-xl font-semibold tracking-tight">AI Provider</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Configure your AI provider for receipt scanning. Use OpenAI, OpenRouter, Groq, or any OpenAI-compatible API.
+          </p>
+        </div>
+        <AIProviderSettings />
+      </section>
 
       <section className="space-y-5">
         <div>

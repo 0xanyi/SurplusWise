@@ -16,7 +16,7 @@ import {
   BarChart,
   Bar,
 } from "recharts";
-import { Download, Calendar, TrendingDown, TrendingUp, Wallet, PiggyBank } from "lucide-react";
+import { Download, Calendar, TrendingDown, TrendingUp, Wallet, PiggyBank, Sparkles, Target, Receipt, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,12 +39,29 @@ interface AnalyticsComparisons {
   transactionCountChange: number | null;
 }
 
+interface SafeToSpendBreakdown {
+  available: number;
+  committedExpenses: number;
+  activeGoalsAllocation: number;
+  remaining: number;
+}
+
+interface SpendingPrediction {
+  projectedMonthlyExpenses: number;
+  projectedMonthlyIncome: number;
+  daysOfRunway: number | null;
+  trendDirection: "improving" | "stable" | "declining";
+  insight: string;
+}
+
 interface AnalyticsData {
   totalExpenses: number;
   totalGivings: number;
   totalIncome: number;
   netBalance: number;
   safeToSpend: number;
+  safeToSpendBreakdown: SafeToSpendBreakdown;
+  spendingPrediction: SpendingPrediction;
   transactionCount: number;
   expensesByCategoryArray: { name: string; value: number }[];
   givingsByCategoryArray: { name: string; value: number }[];
@@ -369,6 +386,112 @@ export function AnalyticsCharts() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Spending Prediction Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="size-5 text-amber-500" />
+            Spending Prediction
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border/60 p-4">
+              <p className="text-sm text-muted-foreground">Projected Monthly Income</p>
+              <p className="mt-2 text-lg font-semibold text-blue-600">
+                {formatCurrency(analytics.spendingPrediction.projectedMonthlyIncome)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 p-4">
+              <p className="text-sm text-muted-foreground">Projected Monthly Expenses</p>
+              <p className="mt-2 text-lg font-semibold text-rose-600">
+                {formatCurrency(analytics.spendingPrediction.projectedMonthlyExpenses)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 p-4">
+              <p className="text-sm text-muted-foreground">Trend Direction</p>
+              <p className={`mt-2 flex items-center gap-2 text-lg font-semibold ${
+                analytics.spendingPrediction.trendDirection === "improving"
+                  ? "text-emerald-600"
+                  : analytics.spendingPrediction.trendDirection === "declining"
+                    ? "text-rose-600"
+                    : "text-amber-600"
+              }`}>
+                {analytics.spendingPrediction.trendDirection === "improving" && <TrendingUp className="size-5" />}
+                {analytics.spendingPrediction.trendDirection === "declining" && <TrendingDown className="size-5" />}
+                {analytics.spendingPrediction.trendDirection === "stable" && <CheckCircle2 className="size-5" />}
+                {analytics.spendingPrediction.trendDirection.charAt(0).toUpperCase() +
+                  analytics.spendingPrediction.trendDirection.slice(1)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 p-4">
+              <p className="text-sm text-muted-foreground">Days of Runway</p>
+              <p className={`mt-2 text-lg font-semibold ${
+                analytics.spendingPrediction.daysOfRunway === null
+                  ? "text-emerald-600"
+                  : analytics.spendingPrediction.daysOfRunway > 30
+                    ? "text-amber-600"
+                    : "text-rose-600"
+              }`}>
+                {analytics.spendingPrediction.daysOfRunway === null
+                  ? "∞"
+                  : `${analytics.spendingPrediction.daysOfRunway} days`}
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex items-start gap-2 rounded-lg bg-muted p-3">
+            <AlertCircle className="mt-0.5 size-4 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">{analytics.spendingPrediction.insight}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Safe to Spend Breakdown Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="size-5 text-blue-500" />
+            Safe to Spend Breakdown
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border/60 p-4">
+              <p className="text-sm text-muted-foreground">Available</p>
+              <p className="mt-2 text-lg font-semibold text-blue-600">
+                {formatCurrency(analytics.safeToSpendBreakdown.available)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 p-4">
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Receipt className="size-3" />
+                Committed Expenses
+              </p>
+              <p className="mt-2 text-lg font-semibold text-rose-600">
+                -{formatCurrency(analytics.safeToSpendBreakdown.committedExpenses)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 p-4">
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Target className="size-3" />
+                Active Goals
+              </p>
+              <p className="mt-2 text-lg font-semibold text-amber-600">
+                -{formatCurrency(analytics.safeToSpendBreakdown.activeGoalsAllocation)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/60 p-4">
+              <p className="text-sm text-muted-foreground">Remaining</p>
+              <p className={`mt-2 text-lg font-semibold ${
+                analytics.safeToSpendBreakdown.remaining >= 0 ? "text-emerald-600" : "text-rose-600"
+              }`}>
+                {formatCurrency(analytics.safeToSpendBreakdown.remaining)}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

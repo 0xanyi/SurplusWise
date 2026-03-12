@@ -2,6 +2,76 @@
 
 All notable changes to SurplusWise will be documented in this file.
 
+## [Unreleased] - Analytics & AI Provider Configuration
+
+### Configurable AI Provider 🤖
+
+#### Added
+- **AI Provider Settings**
+  - Configure any OpenAI-compatible API provider (OpenAI, OpenRouter, Groq, Together AI, Ollama, Custom)
+  - Per-user settings stored in database with encrypted API keys
+  - Model selector with predefined options for each provider
+  - Enable/disable toggle for AI features
+  - Settings UI in dashboard settings page
+
+- **Supported Providers**
+  - **OpenAI** - Official API with GPT-4o models
+  - **OpenRouter** - Access 100+ models including free tiers (Gemma, Llama, etc.)
+  - **Groq** - Ultra-fast inference at competitive prices
+  - **Together AI** - Open-source models with great pricing
+  - **Ollama** - Run models locally on your machine
+  - **Custom** - Any OpenAI-compatible API endpoint
+
+- **Database Schema**
+  - New `ai_provider_settings` table with user-scoped configuration
+  - Encrypted API key storage
+  - Unique index per user for one configuration per user
+
+- **API Routes**
+  - `GET /api/ai-provider` - Retrieve current settings and provider defaults
+  - `PUT /api/ai-provider` - Update provider configuration
+
+- **Receipt Scanning Integration**
+  - Updated `/api/receipts/scan` to use configured provider
+  - Specific error messages for missing configuration
+  - OpenRouter-specific headers for proper tracking
+
+### Smart Spending Insights & Predictions 📊
+
+#### Added
+- **Spending Prediction Engine**
+  - Projects monthly income and expenses based on current period + 3-month historical averages
+  - Trend direction detection (improving/stable/declining) with contextual insights
+  - Days of runway calculation for negative cash flow scenarios
+  - 70/30 weighted blend of current period vs historical data for accurate projections
+
+- **Safe-to-Spend Breakdown**
+  - Detailed breakdown showing available funds, committed expenses, and goal allocations
+  - Committed expenses include recurring outgoings + minimum debt payments
+  - Active goals allocation sums remaining amounts across all active savings goals
+  - Final "remaining" amount after accounting for commitments
+
+- **Backend Analytics Service (`lib/db/analytics.ts`)**
+  - `getHistoricalMonthlyAverages()` - Calculates rolling 3-month averages
+  - `calculateSpendingPrediction()` - Projects cash flow and determines trends
+  - `getActiveGoalsAllocation()` - Aggregates remaining goal amounts
+  - `getCommittedMonthlyExpenses()` - Totals recurring obligations
+
+- **UI Components (`components/dashboard/analytics-charts.tsx`)**
+  - New "Spending Prediction" card with projected income/expenses, trend direction, and runway
+  - New "Safe to Spend Breakdown" card showing the full financial picture
+  - Visual indicators for trend direction (improving/declining/stable)
+
+#### API Changes
+- `/api/analytics` now returns `spendingPrediction` and `safeToSpendBreakdown` fields
+
+#### Technical Details
+- Type-safe interfaces: `SpendingPrediction` and `SafeToSpendBreakdown`
+- All calculations happen server-side for consistency
+- Fully backward compatible - existing consumers unaffected
+
+---
+
 ## [0.10.0] - 2026-02-25
 
 ### Finance Workspaces 🏢
