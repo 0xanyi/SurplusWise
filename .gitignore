@@ -38,3 +38,6 @@ next-env.d.ts
 
 # KotaDB local storage
 .kotadb/
+
+# local tooling artifacts
+.factory/
