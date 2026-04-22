@@ -57,7 +57,6 @@ interface UseApiQueryResult<T> {
 
 export function useApiQuery<T>(
   url: string | null,
-  deps: unknown[] = [],
 ): UseApiQueryResult<T> {
   const [data, setData] = useState<T | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
@@ -88,8 +87,7 @@ export function useApiQuery<T>(
           setLoading(false);
         }
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url, ...deps]);
+  }, [url]);
 
   useEffect(() => {
     load();

@@ -5,6 +5,14 @@ import { useWorkspace } from "@/contexts/workspace-context";
 import { Building2, ChevronDown, Plus, User, Check } from "lucide-react";
 import { SUPPORTED_CURRENCIES } from "@/lib/currency";
 
+function WorkspaceIcon({ type }: { type: string }) {
+  return type === "business" ? (
+    <Building2 className="h-4 w-4" />
+  ) : (
+    <User className="h-4 w-4" />
+  );
+}
+
 export function WorkspaceSwitcher() {
   const {
     workspaces,
@@ -45,13 +53,6 @@ export function WorkspaceSwitcher() {
       setCreating(false);
     }
   };
-
-  const WorkspaceIcon = ({ type }: { type: string }) =>
-    type === "business" ? (
-      <Building2 className="h-4 w-4" />
-    ) : (
-      <User className="h-4 w-4" />
-    );
 
   const handleCurrencyChange = async (currency: string) => {
     if (!activeWorkspace || currency === activeWorkspace.currency) return;

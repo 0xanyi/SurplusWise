@@ -198,6 +198,35 @@ npm run db:migrate    # Apply pending migrations
 npm run db:studio     # Open Drizzle Studio GUI
 ```
 
+## Dependency Maintenance Note
+
+Dependencies were upgraded and the app was verified with:
+
+```bash
+npm run lint
+npm run build
+```
+
+Both commands pass on the current dependency set.
+
+### Remaining npm audit warnings
+
+`npm audit` still reports 4 moderate vulnerabilities from the `drizzle-kit` toolchain:
+
+- `drizzle-kit`
+- `@esbuild-kit/esm-loader`
+- `@esbuild-kit/core-utils`
+- nested `esbuild@0.18.20`
+
+This is currently an upstream issue in `drizzle-kit`, which still pulls in the deprecated `@esbuild-kit/esm-loader` chain. A local `npm overrides` attempt was tested and rejected because it produced an invalid dependency tree rather than a clean resolution.
+
+Recommended approach:
+- do not run `npm audit fix --force` here, because it attempts to downgrade `drizzle-kit`
+- wait for an upstream `drizzle-kit` release that removes `@esbuild-kit/esm-loader` / `@esbuild-kit/core-utils`
+- re-run `npm audit`, `npm run lint`, and `npm run build` after that upgrade
+
+This affects development tooling, not the verified production app build.
+
 ## Development Roadmap
 
 ### Completed ✅
