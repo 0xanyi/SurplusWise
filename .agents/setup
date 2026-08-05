@@ -16,17 +16,28 @@ if [[ "$node_version" != "v$node_release" ]]; then
   sudo apt-get install -y --no-install-recommends ca-certificates curl xz-utils
 
   case "$(uname -m)" in
-    x86_64) node_arch="x64" ;;
-    aarch64) node_arch="arm64" ;;
+    x86_64)
+      node_arch="x64"
+      node_sha256="d60acfe00a2932254bb0ad20e01b0d74397a0875595de719654b214f4b03f307"
+      ;;
+    aarch64)
+      node_arch="arm64"
+      node_sha256="fff4078c5def658577f92c88db7db3bc0072924bfb93fe52c1e744a54e94abb8"
+      ;;
     *) echo "[setup] Unsupported architecture: $(uname -m)" >&2; exit 1 ;;
   esac
 
   archive="$(mktemp)"
   trap 'rm -f "$archive"' EXIT
   curl -fsSL "https://nodejs.org/dist/v$node_release/node-v$node_release-linux-$node_arch.tar.xz" -o "$archive"
+  echo "$node_sha256  $archive" | sha256sum --check --status || {
+    echo "[setup] Node.js archive checksum verification failed" >&2
+    exit 1
+  }
   sudo rm -rf "/opt/node-v$node_release"
   sudo mkdir -p "/opt/node-v$node_release"
-  sudo tar -xJf "$archive" --strip-components=1 -C "/opt/node-v$node_release"
+  sudo tar -xJf "$archive" --strip-components=1 --no-same-owner --no-same-permissions \
+    -C "/opt/node-v$node_release"
   for executable in node npm npx corepack; do
     sudo ln -sfn "/opt/node-v$node_release/bin/$executable" "/usr/local/bin/$executable"
   done
@@ -37,11 +48,21 @@ fi
 if [[ ! -d /etc/postgresql/16/main ]]; then
   echo "[setup] Installing PostgreSQL 16"
   sudo apt-get update
-  sudo apt-get install -y --no-install-recommends ca-certificates curl
+  sudo apt-get install -y --no-install-recommends ca-certificates curl gpg
   sudo install -d -m 0755 /usr/share/postgresql-common/pgdg
-  sudo curl -fsSL \
-    -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
-    https://www.postgresql.org/media/keys/ACCC4CF8.asc
+  pgdg_key="$(mktemp)"
+  trap 'rm -f "$pgdg_key"' EXIT
+  curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o "$pgdg_key"
+  pgdg_fingerprint="$(gpg --batch --show-keys --with-colons "$pgdg_key" \
+    | awk -F: '$1 == "fpr" { print $10; exit }')"
+  if [[ "$pgdg_fingerprint" != "B97B0AFCAA1A47F044F244A07FCC7D46ACCC4CF8" ]]; then
+    echo "[setup] PostgreSQL signing-key fingerprint verification failed" >&2
+    exit 1
+  fi
+  sudo install -m 0644 "$pgdg_key" \
+    /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc
+  rm -f "$pgdg_key"
+  trap - EXIT
   echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main" \
     | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
   sudo apt-get update
