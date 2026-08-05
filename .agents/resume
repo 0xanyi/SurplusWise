@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "[resume] Checking PostgreSQL"
+if ! command -v pg_ctlcluster >/dev/null 2>&1; then
+  echo "[resume] PostgreSQL is not installed; run .agents/setup" >&2
+  exit 1
+fi
+
+if ! sudo pg_ctlcluster 16 main status >/dev/null 2>&1; then
+  sudo pg_ctlcluster 16 main start
+fi
+
+for _ in {1..10}; do
+  if pg_isready -q -h localhost -p 5432; then
+    echo "[resume] PostgreSQL is ready"
+    exit 0
+  fi
+  sleep 0.25
+done
+
+echo "[resume] PostgreSQL did not become ready" >&2
+exit 1
