@@ -79,7 +79,7 @@ A modern finance management application designed to help users track their expen
 
 ### Prerequisites
 
-- Node.js 22.x (22.13.0 or newer; Node 23+ is not supported) and npm
+- Node.js 24.x (24.13.0 or newer; Node 25+ is not supported) and npm
 - PostgreSQL 16+ (local, Neon, Supabase, or Dokploy-managed)
 - An OpenAI API key ([get one here](https://platform.openai.com))
 - S3-compatible storage for receipt images (optional)
@@ -209,23 +209,36 @@ npm run build
 
 Both commands pass on the current dependency set.
 
-### Remaining npm audit warnings
+### esbuild override (GHSA-67mh-4wv8-2f99)
 
-`npm audit` still reports 5 moderate vulnerabilities from the `drizzle-kit` toolchain:
+`npm audit` reports 0 vulnerabilities. Keeping it that way depends on the `overrides`
+block in `package.json`:
 
-- `drizzle-kit`
-- `@esbuild-kit/esm-loader`
-- `@esbuild-kit/core-utils`
-- nested `esbuild@0.18.20`
+```json
+"overrides": {
+  "@esbuild-kit/core-utils": {
+    "esbuild": "^0.25.12"
+  }
+}
+```
 
-These are all one upstream issue in `drizzle-kit`, which still pulls in the deprecated `@esbuild-kit/esm-loader` chain. A local `npm overrides` attempt was tested and rejected because it produced an invalid dependency tree rather than a clean resolution. `npm audit --omit=dev` reports no high or critical runtime dependency advisories. The Docker image still includes and executes `drizzle-kit` during startup migrations, so scanners may report its five moderate transitive advisories even though the affected esbuild development-server functionality is not used.
+`drizzle-kit` still depends on the deprecated `@esbuild-kit/esm-loader` chain, which
+otherwise pulls in `esbuild@0.18.20` and four moderate advisories. The override forces
+that nested copy onto a patched release, where it dedupes onto the `esbuild` version
+`drizzle-kit` already ships.
 
-Recommended approach:
-- do not run `npm audit fix --force` here, because it attempts to downgrade `drizzle-kit`
-- wait for an upstream `drizzle-kit` release that removes `@esbuild-kit/esm-loader` / `@esbuild-kit/core-utils`
-- re-run `npm audit`, `npm run lint`, and `npm run build` after that upgrade
+Do not remove this block until `drizzle-kit` drops `@esbuild-kit/esm-loader`; doing so
+silently reintroduces the advisories, and no CI job currently runs `npm audit`.
 
-This affects production startup migration tooling, but the advised esbuild development-server behavior is not used by the migration command or the request-serving Next.js process.
+Do not run `npm audit fix --force` here either, because it tries to downgrade
+`drizzle-kit` to 0.18.1.
+
+An earlier attempt at this override was recorded as producing an invalid dependency
+tree. The cause was a stale `node_modules`/lockfile: npm reuses the existing tree and
+will not apply a new override on top of it. Removing the affected subtree and letting
+the lockfile regenerate resolves it cleanly, which is how the current tree was produced.
+
+After changing `drizzle-kit`, re-run `npm audit`, `npm run lint`, and `npm run build`.
 
 ## Development Roadmap
 
