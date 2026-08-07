@@ -79,7 +79,7 @@ A modern finance management application designed to help users track their expen
 
 ### Prerequisites
 
-- Node.js 22.x (22.13.0 or newer; Node 23+ is not supported) and npm
+- Node.js 24.x (24.13.0 or newer; Node 25+ is not supported) and npm
 - PostgreSQL 16+ (local, Neon, Supabase, or Dokploy-managed)
 - An OpenAI API key ([get one here](https://platform.openai.com))
 - S3-compatible storage for receipt images (optional)
