@@ -34,6 +34,12 @@ updates:
       # not the latest published major.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # typescript-eslint peer-requires typescript <6.1.0, so a TypeScript major
+      # cannot install alongside the lint toolchain and fails npm ci outright.
+      # Remove this once typescript-eslint supports TypeScript 7, then bump both
+      # in the same PR via the dev-tooling group.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: "/"
