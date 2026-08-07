@@ -1,6 +1,6 @@
-# SurplusWise Improvements Roadmap
+# Sika Improvements Roadmap
 
-This document tracks implemented improvements and future enhancements for the SurplusWise application.
+This document tracks implemented improvements and future enhancements for the Sika application.
 
 ## ✅ Recently Implemented (v0.10.0 - Feb 25, 2026)
 

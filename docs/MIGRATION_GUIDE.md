@@ -4,7 +4,7 @@
 
 ## Summary
 
-SurplusWise went through two backend migrations:
+Sika went through two backend migrations:
 
 1. **Supabase → Convex + Better Auth** (v0.5) — moved to Convex's real-time document database with Better Auth for authentication.
 2. **Convex → PostgreSQL + Drizzle ORM** (v0.9) — moved to a self-hosted Postgres stack for full infrastructure control.

@@ -1,6 +1,6 @@
 {
-  "name": "SurplusWise - Personal Finance Manager",
-  "short_name": "SurplusWise",
+  "name": "Sika - Personal Finance Manager",
+  "short_name": "Sika",
   "description": "Track expenditures, manage church givings, and gain financial insights with AI-powered receipt scanning.",
   "start_url": "/",
   "display": "standalone",

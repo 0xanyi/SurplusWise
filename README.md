@@ -1,6 +1,69 @@
-# SurplusWise - Personal & Business Finance Manager
+# Sika
 
-A modern finance management application designed to help users track their expenditures, monitor monthly outgoings, and manage church givings such as tithes and partnerships. Built with AI-powered receipt scanning for seamless transaction capture. Supports separate **Personal** and **Business** workspaces so all features are available across both contexts with fully isolated data.
+[![CI](https://github.com/tickideasintl/sika/actions/workflows/ci.yml/badge.svg)](https://github.com/tickideasintl/sika/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
+**Self-hosted personal and business finance manager.** Track expenditures, monitor
+monthly outgoings, and manage faith-based giving such as tithes and partnership,
+with optional AI-powered receipt scanning. Separate **Personal** and **Business**
+workspaces keep data fully isolated.
+
+*Sika* is Twi for "money".
+
+Your financial data stays on your own server. Nothing is sent anywhere unless you
+explicitly enable the optional AI and storage integrations.
+
+## Quick start
+
+You need Docker and Docker Compose.
+
+```bash
+git clone https://github.com/tickideasintl/sika.git
+cd sika
+cp .env.example .env
+
+# Required: generate an auth secret and set a database password
+sed -i "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=$(openssl rand -base64 32)|" .env
+echo "POSTGRES_PASSWORD=$(openssl rand -base64 24)" >> .env
+
+docker compose up -d
+```
+
+Sika is now on [http://localhost:3000](http://localhost:3000). Migrations run
+automatically on startup, so there is no separate setup step. Create an account
+from the signup page; the first account is an ordinary user, and there is no
+admin tier.
+
+### Minimum configuration
+
+Only three variables are required:
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Postgres connection string |
+| `BETTER_AUTH_SECRET` | Session signing secret, `openssl rand -base64 32` |
+| `NEXT_PUBLIC_SITE_URL` | Public origin, e.g. `https://sika.example.com` |
+
+Everything else is optional. **Receipt scanning and file storage are off unless
+you configure them**, so Sika runs fully offline with no third-party API keys.
+Set `OPENAI_API_KEY` to enable receipt scanning, and the `S3_*` variables to store
+receipt images. The AI provider is configurable per user in Settings and works
+with any OpenAI-compatible endpoint, including a local Ollama instance.
+
+See `.env.example` for the complete list.
+
+### Before exposing it to the internet
+
+The bundled `docker-compose.yml` is tuned for local use. For a public deployment:
+
+- Remove the `ports:` mapping on the `db` service so Postgres is not reachable
+- Set `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` to strong generated values
+- Put Sika behind a reverse proxy with TLS and set `NEXT_PUBLIC_SITE_URL` to the
+  HTTPS origin
+- Set up database backups; Sika does not back itself up
+
+See [SECURITY.md](SECURITY.md) for the full checklist, and
+[DOKPLOY.md](DOKPLOY.md) if you deploy with Dokploy.
 
 ## Features
 
@@ -81,15 +144,15 @@ A modern finance management application designed to help users track their expen
 
 - Node.js 24.x (24.13.0 or newer; Node 25+ is not supported) and npm
 - PostgreSQL 16+ (local, Neon, Supabase, or Dokploy-managed)
-- An OpenAI API key ([get one here](https://platform.openai.com))
-- S3-compatible storage for receipt images (optional)
+- An OpenAI-compatible API key — optional, only for receipt scanning
+- S3-compatible storage for receipt images — optional
 
 ### Installation
 
 1. Clone the repository:
 ```bash
-git clone <your-repo-url>
-cd SurplusWise
+git clone https://github.com/tickideasintl/sika.git
+cd sika
 ```
 
 2. Install dependencies:
@@ -107,7 +170,7 @@ cp .env.example .env.local
 
 Key variables:
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/surpluswise
+DATABASE_URL=postgresql://user:password@localhost:5432/sika
 BETTER_AUTH_SECRET=<openssl rand -base64 32>
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 OPENAI_API_KEY=your_openai_api_key
@@ -138,7 +201,7 @@ npm run dev
 ## Project Structure
 
 ```
-SurplusWise/
+Sika/
 ├── app/
 │   ├── api/            # API route handlers
 │   │   ├── auth/       # Better Auth endpoints
@@ -228,7 +291,7 @@ that nested copy onto a patched release, where it dedupes onto the `esbuild` ver
 `drizzle-kit` already ships.
 
 Do not remove this block until `drizzle-kit` drops `@esbuild-kit/esm-loader`; doing so
-silently reintroduces the advisories, and no CI job currently runs `npm audit`.
+silently reintroduces the advisories. The `audit` job in CI guards against this.
 
 Do not run `npm audit fix --force` here either, because it tries to downgrade
 `drizzle-kit` to 0.18.1.
@@ -259,8 +322,12 @@ After changing `drizzle-kit`, re-run `npm audit`, `npm run lint`, and `npm run b
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup,
+the checks CI runs, and how to handle database migrations.
+
+Found a security issue? Please report it privately; see [SECURITY.md](SECURITY.md).
 
 ## License
 
-This project is licensed under the MIT License.
+Released under the [MIT License](LICENSE). You are free to use, modify, and
+self-host Sika, including commercially.

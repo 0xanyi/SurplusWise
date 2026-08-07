@@ -75,16 +75,16 @@ if ! sudo pg_ctlcluster 16 main status >/dev/null 2>&1; then
 fi
 
 echo "[setup] Provisioning local database"
-if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = 'surpluswise'" | grep -q 1; then
+if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = 'sika'" | grep -q 1; then
   sudo -u postgres psql -v ON_ERROR_STOP=1 \
-    -c "CREATE ROLE surpluswise LOGIN PASSWORD 'localdev'"
+    -c "CREATE ROLE sika LOGIN PASSWORD 'localdev'"
 else
   sudo -u postgres psql -v ON_ERROR_STOP=1 \
-    -c "ALTER ROLE surpluswise WITH LOGIN PASSWORD 'localdev'" >/dev/null
+    -c "ALTER ROLE sika WITH LOGIN PASSWORD 'localdev'" >/dev/null
 fi
 
-if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = 'surpluswise'" | grep -q 1; then
-  sudo -u postgres createdb --owner=surpluswise surpluswise
+if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = 'sika'" | grep -q 1; then
+  sudo -u postgres createdb --owner=sika sika
 fi
 
 if [[ ! -f .env.local ]]; then
@@ -92,7 +92,7 @@ if [[ ! -f .env.local ]]; then
   umask 077
   auth_secret="$(openssl rand -base64 32)"
   cat > .env.local <<EOF
-DATABASE_URL=postgresql://surpluswise:localdev@localhost:5432/surpluswise
+DATABASE_URL=postgresql://sika:localdev@localhost:5432/sika
 BETTER_AUTH_SECRET=$auth_secret
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 OPENAI_API_KEY=
@@ -108,6 +108,6 @@ echo "[setup] Installing npm dependencies"
 npm ci
 
 echo "[setup] Applying database migrations"
-DATABASE_URL=postgresql://surpluswise:localdev@localhost:5432/surpluswise npm run db:migrate
+DATABASE_URL=postgresql://sika:localdev@localhost:5432/sika npm run db:migrate
 
 echo "[setup] Complete"

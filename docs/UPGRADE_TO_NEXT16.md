@@ -2,7 +2,7 @@
 
 ## ✅ Successfully Upgraded!
 
-Your SurplusWise application has been successfully upgraded to the latest versions of Next.js and React.
+Your Sika application has been successfully upgraded to the latest versions of Next.js and React.
 
 ## Version Changes
 

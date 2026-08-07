@@ -2,15 +2,15 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: surpluswise
+      POSTGRES_USER: sika
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev}
-      POSTGRES_DB: surpluswise
+      POSTGRES_DB: sika
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U surpluswise"]
+      test: ["CMD-SHELL", "pg_isready -U sika"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,14 +23,14 @@ services:
       args:
         - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
     environment:
-      - DATABASE_URL=postgresql://surpluswise:${POSTGRES_PASSWORD:-localdev}@db:5432/surpluswise
+      - DATABASE_URL=postgresql://sika:${POSTGRES_PASSWORD:-localdev}@db:5432/sika
     command: ["npm", "run", "db:migrate"]
     depends_on:
       db:
         condition: service_healthy
     restart: "no"
 
-  surpluswise:
+  sika:
     build:
       context: .
       dockerfile: Dockerfile
@@ -40,7 +40,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://surpluswise:${POSTGRES_PASSWORD:-localdev}@db:5432/surpluswise
+      - DATABASE_URL=postgresql://sika:${POSTGRES_PASSWORD:-localdev}@db:5432/sika
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
       - OPENAI_API_KEY=${OPENAI_API_KEY}

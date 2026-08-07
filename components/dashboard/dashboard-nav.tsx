@@ -76,7 +76,7 @@ export default function DashboardNav({ user }: DashboardNavProps) {
             <div className="rounded-xl bg-primary p-2">
               <Wallet className="size-4 text-primary-foreground" />
             </div>
-            <span className="hidden text-lg font-semibold sm:block">SurplusWise</span>
+            <span className="hidden text-lg font-semibold sm:block">Sika</span>
           </Link>
 
           <WorkspaceSwitcher />

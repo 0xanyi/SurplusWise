@@ -10,7 +10,7 @@ export function DashboardFooter() {
             <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <Wallet className="size-4 text-primary" />
             </div>
-            <span className="font-semibold text-sm">SurplusWise</span>
+            <span className="font-semibold text-sm">Sika</span>
           </div>
           
           <div className="flex gap-6 text-sm text-muted-foreground">
@@ -20,7 +20,14 @@ export function DashboardFooter() {
           </div>
           
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} SurplusWise. All rights reserved.
+            Sika is free and open source under the{" "}
+            <Link
+              href="https://github.com/tickideasintl/sika/blob/main/LICENSE"
+              className="hover:text-primary transition-colors underline underline-offset-4"
+            >
+              MIT License
+            </Link>
+            .
           </p>
         </div>
       </div>

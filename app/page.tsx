@@ -19,7 +19,7 @@ export default async function Home() {
             <div className="rounded-xl bg-primary p-2">
               <Wallet className="size-5 text-primary-foreground" />
             </div>
-            <span className="font-semibold text-lg">SurplusWise</span>
+            <span className="font-semibold text-lg">Sika</span>
           </div>
 
           <div className="flex items-center gap-2">
