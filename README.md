@@ -79,7 +79,7 @@ A modern finance management application designed to help users track their expen
 
 ### Prerequisites
 
-- Node.js 20+ and npm
+- Node.js 22.x (22.13.0 or newer; Node 23+ is not supported) and npm
 - PostgreSQL 16+ (local, Neon, Supabase, or Dokploy-managed)
 - An OpenAI API key ([get one here](https://platform.openai.com))
 - S3-compatible storage for receipt images (optional)
@@ -211,21 +211,21 @@ Both commands pass on the current dependency set.
 
 ### Remaining npm audit warnings
 
-`npm audit` still reports 4 moderate vulnerabilities from the `drizzle-kit` toolchain:
+`npm audit` still reports 5 moderate vulnerabilities from the `drizzle-kit` toolchain:
 
 - `drizzle-kit`
 - `@esbuild-kit/esm-loader`
 - `@esbuild-kit/core-utils`
 - nested `esbuild@0.18.20`
 
-This is currently an upstream issue in `drizzle-kit`, which still pulls in the deprecated `@esbuild-kit/esm-loader` chain. A local `npm overrides` attempt was tested and rejected because it produced an invalid dependency tree rather than a clean resolution.
+These are all one upstream issue in `drizzle-kit`, which still pulls in the deprecated `@esbuild-kit/esm-loader` chain. A local `npm overrides` attempt was tested and rejected because it produced an invalid dependency tree rather than a clean resolution. `npm audit --omit=dev` reports no high or critical runtime dependency advisories. The Docker image still includes and executes `drizzle-kit` during startup migrations, so scanners may report its five moderate transitive advisories even though the affected esbuild development-server functionality is not used.
 
 Recommended approach:
 - do not run `npm audit fix --force` here, because it attempts to downgrade `drizzle-kit`
 - wait for an upstream `drizzle-kit` release that removes `@esbuild-kit/esm-loader` / `@esbuild-kit/core-utils`
 - re-run `npm audit`, `npm run lint`, and `npm run build` after that upgrade
 
-This affects development tooling, not the verified production app build.
+This affects production startup migration tooling, but the advised esbuild development-server behavior is not used by the migration command or the request-serving Next.js process.
 
 ## Development Roadmap
 
