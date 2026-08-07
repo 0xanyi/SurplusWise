@@ -44,3 +44,10 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
+    ignore:
+      # The Node base image must stay on the Active LTS line and stay in step
+      # with engines, .nvmrc, and @types/node. A major bump here passes CI
+      # (npm does not enforce engines) while silently moving the runtime off
+      # LTS, so it is a deliberate four-file change, not an automated one.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
