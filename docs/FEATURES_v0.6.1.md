@@ -1,6 +1,6 @@
 # New Features Guide - v0.10.0
 
-Welcome to SurplusWise v0.10.0! The biggest addition in this release is **Finance Workspaces** — switch between Personal and Business contexts with all features available in both.
+Welcome to Sika v0.10.0! The biggest addition in this release is **Finance Workspaces** — switch between Personal and Business contexts with all features available in both.
 
 ## 🏢 Finance Workspaces (New in v0.10.0)
 
@@ -52,7 +52,7 @@ Speed up your workflow with these keyboard shortcuts:
 
 ## 🔍 SEO & Sharing
 
-Your SurplusWise instance is now optimized for search engines and social media:
+Your Sika instance is now optimized for search engines and social media:
 
 - **Better Search Rankings**: Comprehensive meta tags help search engines understand your site
 - **Social Media Previews**: When you share links, they now display rich previews with images

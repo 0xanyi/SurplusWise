@@ -267,7 +267,7 @@ export function AnalyticsCharts() {
 
     const a = document.createElement("a");
     a.href = url;
-    a.download = `surpluswise-report-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `sika-report-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
 
     URL.revokeObjectURL(url);

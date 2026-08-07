@@ -56,7 +56,7 @@ export default function SignupPage() {
           <div className="rounded-xl bg-primary p-2">
             <Wallet className="size-5 text-primary-foreground" />
           </div>
-          <span className="text-lg font-semibold">SurplusWise</span>
+          <span className="text-lg font-semibold">Sika</span>
         </Link>
 
         <div className="rounded-2xl border border-border/60 bg-card p-7 shadow-sm shadow-black/[0.02] sm:p-8">

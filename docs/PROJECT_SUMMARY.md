@@ -1,4 +1,4 @@
-# SurplusWise - Project Summary
+# Sika - Project Summary
 
 A modern personal and business finance management application built with Next.js, PostgreSQL, and Better Auth. Features AI-powered receipt scanning, budget tracking, analytics, and workspace-based data isolation for managing personal and business finances separately.
 
@@ -93,7 +93,7 @@ A modern personal and business finance management application built with Next.js
 ## File Structure
 
 ```
-SurplusWise/
+Sika/
 ├── app/
 │   ├── api/               # API route handlers
 │   │   ├── auth/          # Better Auth endpoints

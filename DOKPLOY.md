@@ -1,4 +1,4 @@
-# SurplusWise - Dokploy Deployment Guide
+# Sika - Dokploy Deployment Guide
 
 > For a more detailed walkthrough, see [docs/SETUP.md](docs/SETUP.md#dokploy-deployment).
 
@@ -22,14 +22,14 @@
 **Runtime env vars** (Application → Environment):
 
 ```
-DATABASE_URL=postgresql://postgres:pw@surpluswise-db:5432/surpluswise
+DATABASE_URL=postgresql://postgres:pw@sika-db:5432/sika
 BETTER_AUTH_SECRET=<openssl rand -base64 32>
 NEXT_PUBLIC_SITE_URL=https://your-app-domain.com
 OPENAI_API_KEY=your_openai_api_key
 
 # S3 storage (optional)
 S3_ENDPOINT=http://minio:9000
-S3_BUCKET=surpluswise-receipts
+S3_BUCKET=sika-receipts
 S3_REGION=us-east-1
 S3_ACCESS_KEY_ID=minioadmin
 S3_SECRET_ACCESS_KEY=minioadmin

@@ -1,10 +1,10 @@
 ## Brief Description
 
-SurplusWise is a personal and business finance management app designed to help users track their expenditures, monitor monthly outgoings, and manage church givings such as tithes and partnerships. Powered by AI, it features receipt scanning for seamless transaction capture, automatic categorization, and insightful financial summaries by custom time periods. Users can switch between **Personal** and **Business** workspaces, keeping their finances cleanly separated while accessing all features in both contexts. The app empowers individuals to wisely steward their finances and giving, offering clear visibility and control over their financial flow.
+Sika is a personal and business finance management app designed to help users track their expenditures, monitor monthly outgoings, and manage church givings such as tithes and partnerships. Powered by AI, it features receipt scanning for seamless transaction capture, automatic categorization, and insightful financial summaries by custom time periods. Users can switch between **Personal** and **Business** workspaces, keeping their finances cleanly separated while accessing all features in both contexts. The app empowers individuals to wisely steward their finances and giving, offering clear visibility and control over their financial flow.
 
 ***
 
-## Product Requirements Document (PRD) for SurplusWise
+## Product Requirements Document (PRD) for Sika
 
 ### 1. Purpose
 - Provide users with an easy-to-use personal finance manager tailored for both general expenses and church-related giving.

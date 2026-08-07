@@ -1,4 +1,4 @@
-# SurplusWise — Production Go-Live Checklist (Dokploy)
+# Sika — Production Go-Live Checklist (Dokploy)
 
 This is the exact command/order checklist for single-service Dockerfile deploys.
 
@@ -32,7 +32,7 @@ node --import tsx --test lib/db/*.test.ts
 Required:
 
 ```env
-DATABASE_URL=postgresql://postgres:<password>@<db-host>:5432/surpluswise
+DATABASE_URL=postgresql://postgres:<password>@<db-host>:5432/sika
 BETTER_AUTH_SECRET=<openssl rand -base64 32>
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
 ```

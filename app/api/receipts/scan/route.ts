@@ -100,7 +100,7 @@ async function extractReceiptData(
       // OpenRouter-specific headers
       ...(endpoint.includes("openrouter.ai") && {
         "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-        "X-Title": "SurplusWise",
+        "X-Title": "Sika",
       }),
     },
     body: JSON.stringify({

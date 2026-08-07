@@ -1,8 +1,38 @@
 # Changelog
 
-All notable changes to SurplusWise will be documented in this file.
+All notable changes to Sika will be documented in this file.
 
-## [Unreleased] - Analytics & AI Provider Configuration
+## [Unreleased] - Open Source Release
+
+### Renamed 🏷️
+
+- **SurplusWise is now Sika** (Twi for "money")
+  - Application UI, metadata, PWA manifest, and documentation updated
+  - npm package name is now `sika`
+  - Default Postgres role and database renamed to `sika`
+  - Default S3 bucket example renamed to `sika-receipts`
+
+> **Upgrading an existing deployment:** the database name only changes if you use
+> the bundled `docker-compose.yml` or `.agents/setup` defaults. Deployments that
+> set `DATABASE_URL` explicitly (including Dokploy) are unaffected. If you rely on
+> the defaults, either rename your database or keep pointing `DATABASE_URL` at the
+> existing `surpluswise` database.
+
+### Added
+
+- MIT `LICENSE` file — the project previously claimed MIT in the README without
+  granting it, which left it all-rights-reserved
+- `CONTRIBUTING.md`, `SECURITY.md`, and `CODE_OF_CONDUCT.md`
+- GitHub issue forms, pull request template, and Dependabot configuration
+- CI workflow running lint, typecheck, build, dependency audit, and a Docker build
+- Release workflow publishing multi-arch images to GHCR on version tags
+- `.nvmrc` pinning the Node version used by CI and the Dockerfile
+
+### Changed
+
+- README restructured for self-hosters, with a Docker Compose quick start and an
+  explicit note that receipt scanning and S3 storage are optional
+- Dashboard footer now links to the MIT license instead of reserving all rights
 
 ### Configurable AI Provider 🤖
 
@@ -218,7 +248,7 @@ All notable changes to SurplusWise will be documented in this file.
   - Automatic pagination for large reports
   - Category breakdowns with percentages in PDF
   - Period-based report generation
-  - Branded PDF reports with SurplusWise branding
+  - Branded PDF reports with Sika branding
 
 - **Dark Mode Support**
   - System-aware theme detection

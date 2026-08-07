@@ -1,5 +1,5 @@
 -- ============================================================================
--- SurplusWise – Postgres Schema Reference
+-- Sika – Postgres Schema Reference
 -- ============================================================================
 -- IMPORTANT: This file is for **documentation only**.
 -- The source of truth is db/schema.ts (Drizzle ORM).

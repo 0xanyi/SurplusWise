@@ -1,4 +1,4 @@
-# SurplusWise Setup Guide
+# Sika Setup Guide
 
 ## Quick Start (Local Development)
 
@@ -14,10 +14,10 @@ Use any Postgres 16+ instance — local, Neon, Supabase, or Docker:
 
 ```bash
 # Docker one-liner for local dev
-docker run -d --name surpluswise-db \
-  -e POSTGRES_USER=surpluswise \
+docker run -d --name sika-db \
+  -e POSTGRES_USER=sika \
   -e POSTGRES_PASSWORD=localdev \
-  -e POSTGRES_DB=surpluswise \
+  -e POSTGRES_DB=sika \
   -p 5432:5432 postgres:16-alpine
 ```
 
@@ -30,14 +30,14 @@ cp .env.example .env.local
 Edit `.env.local`:
 
 ```env
-DATABASE_URL=postgresql://surpluswise:localdev@localhost:5432/surpluswise
+DATABASE_URL=postgresql://sika:localdev@localhost:5432/sika
 BETTER_AUTH_SECRET=<run: openssl rand -base64 32>
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 OPENAI_API_KEY=your_openai_api_key
 
 # S3-compatible storage (optional — required for receipt image uploads)
 S3_ENDPOINT=https://s3.amazonaws.com
-S3_BUCKET=surpluswise-receipts
+S3_BUCKET=sika-receipts
 S3_REGION=us-east-1
 S3_ACCESS_KEY_ID=your_access_key
 S3_SECRET_ACCESS_KEY=your_secret_key
@@ -61,7 +61,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Dokploy Deployment
 
-SurplusWise is designed for self-hosted deployment via [Dokploy](https://dokploy.com).
+Sika is designed for self-hosted deployment via [Dokploy](https://dokploy.com).
 
 ### Architecture
 
@@ -77,11 +77,11 @@ All components run on a single Dokploy server. No external SaaS dependencies req
 ### Step 1: Create Services in Dokploy
 
 1. **PostgreSQL service** — use Dokploy's built-in Postgres template.
-   - Set `POSTGRES_DB=surpluswise`
-   - Note the internal connection string (e.g., `postgresql://postgres:pw@surpluswise-db:5432/surpluswise`).
+   - Set `POSTGRES_DB=sika`
+   - Note the internal connection string (e.g., `postgresql://postgres:pw@sika-db:5432/sika`).
 
 2. **(Optional) MinIO service** — for receipt image storage.
-   - Create a bucket named `surpluswise-receipts`.
+   - Create a bucket named `sika-receipts`.
 
 3. **Application service** — Docker build from your Git repo.
    - Set Dockerfile path: `Dockerfile`
@@ -166,7 +166,7 @@ For exact production command order, use:
 
 ### Database connection errors
 - Verify `DATABASE_URL` is correct and the Postgres service is running.
-- Ensure the database exists (`CREATE DATABASE surpluswise;`).
+- Ensure the database exists (`CREATE DATABASE sika;`).
 
 ### Auth errors
 - Ensure `NEXT_PUBLIC_SITE_URL` matches your actual domain (including protocol).

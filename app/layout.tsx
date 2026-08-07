@@ -13,8 +13,8 @@ const jakarta = Plus_Jakarta_Sans({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: {
-    default: "SurplusWise - Smart Personal Finance Manager",
-    template: "%s | SurplusWise"
+    default: "Sika - Smart Personal Finance Manager",
+    template: "%s | Sika"
   },
   description:
     "Track expenditures, manage church givings, and gain financial insights with AI-powered receipt scanning. Simple, secure, and smart finance management.",
@@ -29,34 +29,33 @@ export const metadata: Metadata = {
     "money management",
     "financial insights"
   ],
-  authors: [{ name: "SurplusWise" }],
-  creator: "SurplusWise",
-  publisher: "SurplusWise",
+  authors: [{ name: "Sika" }],
+  creator: "Sika",
+  publisher: "Sika",
   manifest: "/manifest.json",
   openGraph: {
     type: "website",
     locale: "en_US",
     url: "/",
-    title: "SurplusWise - Smart Personal Finance Manager",
+    title: "Sika - Smart Personal Finance Manager",
     description:
       "Track expenditures, manage church givings, and gain financial insights with AI-powered receipt scanning.",
-    siteName: "SurplusWise",
+    siteName: "Sika",
     images: [
       {
         url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "SurplusWise - Personal Finance Manager"
+        alt: "Sika - Personal Finance Manager"
       }
     ]
   },
   twitter: {
     card: "summary_large_image",
-    title: "SurplusWise - Smart Personal Finance Manager",
+    title: "Sika - Smart Personal Finance Manager",
     description:
       "Track expenditures, manage church givings, and gain financial insights with AI-powered receipt scanning.",
-    images: ["/og-image.png"],
-    creator: "@surpluswise"
+    images: ["/og-image.png"]
   },
   robots: {
     index: true,
