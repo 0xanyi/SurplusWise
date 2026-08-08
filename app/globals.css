@@ -1,7 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme {
+  /* Self-hosted by next/font in app/layout.tsx; never fetch fonts remotely. */
+  --font-sans: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+
   /* ─── Light mode (default) ─── */
   --color-background: hsl(0 0% 99%);
   --color-foreground: hsl(240 6% 10%);
@@ -34,7 +37,6 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

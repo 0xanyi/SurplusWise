@@ -41,3 +41,9 @@ next-env.d.ts
 
 # local tooling artifacts
 .factory/
+# agent scratch memory written by local coding agents; never shared
+memory/
+
+# Impeccable: keep the DESIGN.md sidecar, drop local session state
+.impeccable/*
+!.impeccable/design.json

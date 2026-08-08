@@ -32,7 +32,7 @@ node --import tsx --test lib/db/*.test.ts
 Required:
 
 ```env
-DATABASE_URL=postgresql://postgres:<password>@<db-host>:5432/sika
+DATABASE_URL=postgresql://USER:PASSWORD@<db-host>:5432/sika
 BETTER_AUTH_SECRET=<openssl rand -base64 32>
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
 ```

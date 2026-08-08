@@ -75,12 +75,28 @@ if ! sudo pg_ctlcluster 16 main status >/dev/null 2>&1; then
 fi
 
 echo "[setup] Provisioning local database"
+db_password="${SIKA_DB_PASSWORD:-localdev}"
+# Double every single quote so the password is a safe SQL string literal.
+db_password_sql="${db_password//\'/\'\'}"
+# Percent-encode the password so reserved characters survive the connection URI.
+url_encode() {
+  local string="$1" encoded="" i char
+  for (( i = 0; i < ${#string}; i++ )); do
+    char="${string:i:1}"
+    case "$char" in
+      [A-Za-z0-9.~_-]) encoded+="$char" ;;
+      *) encoded+="$(printf '%%%02X' "'$char")" ;;
+    esac
+  done
+  printf '%s' "$encoded"
+}
+db_url="postgresql://sika:$(url_encode "$db_password")@localhost:5432/sika"
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = 'sika'" | grep -q 1; then
   sudo -u postgres psql -v ON_ERROR_STOP=1 \
-    -c "CREATE ROLE sika LOGIN PASSWORD 'localdev'"
+    -c "CREATE ROLE sika LOGIN PASSWORD '$db_password_sql'"
 else
   sudo -u postgres psql -v ON_ERROR_STOP=1 \
-    -c "ALTER ROLE sika WITH LOGIN PASSWORD 'localdev'" >/dev/null
+    -c "ALTER ROLE sika WITH LOGIN PASSWORD '$db_password_sql'" >/dev/null
 fi
 
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = 'sika'" | grep -q 1; then
@@ -92,7 +108,7 @@ if [[ ! -f .env.local ]]; then
   umask 077
   auth_secret="$(openssl rand -base64 32)"
   cat > .env.local <<EOF
-DATABASE_URL=postgresql://sika:localdev@localhost:5432/sika
+DATABASE_URL=$db_url
 BETTER_AUTH_SECRET=$auth_secret
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 OPENAI_API_KEY=
@@ -108,6 +124,6 @@ echo "[setup] Installing npm dependencies"
 npm ci
 
 echo "[setup] Applying database migrations"
-DATABASE_URL=postgresql://sika:localdev@localhost:5432/sika npm run db:migrate
+DATABASE_URL="$db_url" npm run db:migrate
 
 echo "[setup] Complete"

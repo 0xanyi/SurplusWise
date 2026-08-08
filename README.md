@@ -170,7 +170,7 @@ cp .env.example .env.local
 
 Key variables:
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/sika
+DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/sika
 BETTER_AUTH_SECRET=<openssl rand -base64 32>
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 OPENAI_API_KEY=your_openai_api_key
