@@ -44,6 +44,14 @@
   --color-income-surface: oklch(97% 0.014 254.604);
   --color-expense: oklch(51.4% 0.222 16.935);
   --color-expense-surface: oklch(96.9% 0.015 12.422);
+  /* A single-type expense chart stays within Outflow Rose instead of borrowing
+     colors whose tokens mean income, giving, or obligations. */
+  --color-expense-chart-1: oklch(41% 0.159 10.272);
+  --color-expense-chart-2: oklch(45.5% 0.188 13.697);
+  --color-expense-chart-3: oklch(51.4% 0.222 16.935);
+  --color-expense-chart-4: oklch(58.6% 0.253 17.585);
+  --color-expense-chart-5: oklch(64.5% 0.246 16.439);
+  --color-expense-chart-6: oklch(71.2% 0.194 13.428);
   --color-giving: oklch(50.8% 0.118 165.612);
   --color-giving-surface: oklch(97.9% 0.021 166.113);
   --color-obligation: oklch(55.5% 0.163 48.998);
@@ -102,6 +110,12 @@
   --color-income-surface: oklch(28.2% 0.091 267.935 / 0.3);
   --color-expense: oklch(71.2% 0.194 13.428);
   --color-expense-surface: oklch(27.1% 0.105 12.094 / 0.3);
+  --color-expense-chart-1: oklch(89.2% 0.058 10.001);
+  --color-expense-chart-2: oklch(81% 0.117 11.638);
+  --color-expense-chart-3: oklch(71.2% 0.194 13.428);
+  --color-expense-chart-4: oklch(64.5% 0.246 16.439);
+  --color-expense-chart-5: oklch(58.6% 0.253 17.585);
+  --color-expense-chart-6: oklch(51.4% 0.222 16.935);
   --color-giving: oklch(76.5% 0.177 163.223);
   --color-giving-surface: oklch(26.2% 0.051 172.552 / 0.3);
   --color-obligation: oklch(82.8% 0.189 84.429);

@@ -219,12 +219,12 @@ export function InvestmentsManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Invested</p>
-                <p className="text-2xl font-semibold text-income tabular-nums">
+                <p className="text-2xl font-semibold text-foreground tabular-nums">
                   {formatCurrency(totalCostBasis)}
                 </p>
               </div>
-              <div className="rounded-xl bg-income-surface p-3">
-                <Landmark className="size-6 text-income" />
+              <div className="rounded-xl bg-muted p-3">
+                <Landmark className="size-6 text-muted-foreground" />
               </div>
             </div>
           </CardContent>
@@ -382,8 +382,8 @@ export function InvestmentsManagement() {
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-xl p-2 bg-income-surface">
-                        <Landmark className="size-4 text-income" />
+                      <div className="rounded-xl bg-muted p-2">
+                        <Landmark className="size-4 text-muted-foreground" />
                       </div>
                       <div>
                         <CardTitle className="text-base">{item.name}</CardTitle>

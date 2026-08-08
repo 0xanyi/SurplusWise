@@ -94,9 +94,9 @@ export function InvestmentsOverview() {
         ) : (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-xl bg-blue-50/50 dark:bg-blue-950/20 p-3">
+              <div className="rounded-xl bg-muted p-3">
                 <p className="text-xs text-muted-foreground">Invested</p>
-                <p className="font-semibold tabular-nums text-income">
+                <p className="font-semibold tabular-nums text-foreground">
                   {formatCurrency(total_cost_basis)}
                 </p>
               </div>

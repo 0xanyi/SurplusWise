@@ -271,7 +271,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="h-9 flex-1 border-rose-200 text-expense hover:bg-rose-50 dark:border-rose-900 dark:hover:bg-rose-950/30 sm:flex-none"
+                      className="h-9 flex-1 border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-400 dark:hover:bg-rose-950/30 sm:flex-none"
                       onClick={() => handleDelete(transaction.id)}
                     >
                       <Trash2 className="mr-2 size-3.5" />

@@ -249,12 +249,12 @@ export function DebtsCreditsManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Outstanding</p>
-                <p className="text-2xl font-semibold text-expense tabular-nums">
+                <p className="text-2xl font-semibold text-obligation tabular-nums">
                   {formatCurrency(data?.total_balance ?? 0)}
                 </p>
               </div>
-              <div className="rounded-xl bg-expense-surface p-3">
-                <CreditCard className="size-6 text-expense" />
+              <div className="rounded-xl bg-obligation-surface p-3">
+                <CreditCard className="size-6 text-obligation" />
               </div>
             </div>
           </CardContent>
@@ -283,8 +283,8 @@ export function DebtsCreditsManagement() {
                   {data?.active_count ?? 0}
                 </p>
               </div>
-              <div className="rounded-xl bg-income-surface p-3">
-                <Building2 className="size-6 text-income" />
+              <div className="rounded-xl bg-muted p-3">
+                <Building2 className="size-6 text-muted-foreground" />
               </div>
             </div>
           </CardContent>
@@ -358,21 +358,13 @@ export function DebtsCreditsManagement() {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div
-                      className={`rounded-xl p-2 ${
-                        item.debt_type === "credit_card"
-                          ? "bg-purple-50 dark:bg-purple-950/30"
-                          : item.debt_type === "mortgage"
-                          ? "bg-income-surface"
-                          : "bg-expense-surface"
-                      }`}
-                    >
+                    <div className="rounded-xl bg-obligation-surface p-2">
                       {item.debt_type === "credit_card" ? (
-                        <CreditCard className="size-4 text-purple-600 dark:text-purple-400" />
+                        <CreditCard className="size-4 text-obligation" />
                       ) : item.debt_type === "mortgage" ? (
-                        <Building2 className="size-4 text-income" />
+                        <Building2 className="size-4 text-obligation" />
                       ) : (
-                        <TrendingDown className="size-4 text-expense" />
+                        <TrendingDown className="size-4 text-obligation" />
                       )}
                     </div>
                     <div>
@@ -409,7 +401,7 @@ export function DebtsCreditsManagement() {
               <CardContent className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Balance</span>
-                  <span className="font-semibold tabular-nums text-expense">
+                  <span className="font-semibold tabular-nums text-obligation">
                     {formatCurrency(item.current_balance)}
                   </span>
                 </div>

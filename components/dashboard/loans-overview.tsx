@@ -16,10 +16,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  active: "bg-income-surface text-income",
-  partially_repaid: "bg-obligation-surface text-obligation",
+  active: "bg-muted text-foreground",
+  partially_repaid: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
   fully_repaid: "bg-muted text-foreground",
-  defaulted: "bg-expense-surface text-expense",
+  defaulted: "bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400",
 };
 
 interface LoansResponse {
@@ -93,13 +93,13 @@ export function LoansOverview() {
         ) : (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2">
-              <div className="rounded-xl bg-blue-50/50 dark:bg-blue-950/20 p-3">
+              <div className="rounded-xl bg-muted p-3">
                 <p className="text-xs text-muted-foreground">Total Lent</p>
-                <p className="font-semibold tabular-nums text-income">
+                <p className="font-semibold tabular-nums text-foreground">
                   {formatCurrency(total_lent)}
                 </p>
               </div>
-              <div className="rounded-xl bg-amber-50/50 dark:bg-amber-950/20 p-3">
+              <div className="rounded-xl bg-obligation-surface p-3">
                 <p className="text-xs text-muted-foreground">Outstanding</p>
                 <p className="font-semibold tabular-nums text-obligation">
                   {formatCurrency(total_outstanding)}

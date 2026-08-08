@@ -204,15 +204,15 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
               <div className="grid gap-3 rounded-xl border border-border/60 p-4 sm:grid-cols-3">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Rows found</p>
-                  <p className="mt-1 text-2xl font-semibold">{analysis.totalRows}</p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums">{analysis.totalRows}</p>
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ready to import</p>
-                  <p className="mt-1 text-2xl font-semibold text-foreground">{analysis.validRowCount}</p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{analysis.validRowCount}</p>
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Needs attention</p>
-                  <p className="mt-1 text-2xl font-semibold text-expense">{analysis.invalidRowCount}</p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums text-rose-700 dark:text-rose-400">{analysis.invalidRowCount}</p>
                 </div>
               </div>
 
@@ -241,7 +241,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
               </div>
 
               {missingRequiredMappings.length > 0 && (
-                <p className="text-sm text-expense">
+                <p className="text-sm text-rose-700 dark:text-rose-400">
                   Map required fields before importing: {missingRequiredMappings.join(", ")}
                 </p>
               )}
@@ -249,7 +249,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-semibold">Preview</h3>
-                  <p className="text-xs text-muted-foreground">Showing first {previewRows.length} rows</p>
+                  <p className="text-xs tabular-nums text-muted-foreground">Showing first {previewRows.length} rows</p>
                 </div>
                 <div className="overflow-x-auto rounded-xl border border-border/60">
                   <table className="min-w-full text-sm">
@@ -266,12 +266,12 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                     <tbody>
                       {previewRows.map((row) => (
                         <tr key={row.lineNumber} className="border-t border-border/60 align-top">
-                          <td className="px-3 py-2 font-medium">{row.lineNumber}</td>
+                          <td className="px-3 py-2 font-medium tabular-nums">{row.lineNumber}</td>
                           <td className="px-3 py-2">{row.mapped.date || "-"}</td>
-                          <td className="px-3 py-2">{row.mapped.amount ? formatCurrency(Number.parseFloat(row.mapped.amount) || 0) : "-"}</td>
+                          <td className="px-3 py-2 tabular-nums">{row.mapped.amount ? formatCurrency(Number.parseFloat(row.mapped.amount) || 0) : "-"}</td>
                           <td className="px-3 py-2">{row.mapped.type || "-"}</td>
                           <td className="px-3 py-2">{row.mapped.category || "-"}</td>
-                          <td className={`px-3 py-2 ${row.valid ? "text-foreground" : "text-expense"}`}>
+                          <td className={`px-3 py-2 ${row.valid ? "text-foreground" : "text-rose-700 dark:text-rose-400"}`}>
                             {row.valid ? "Ready" : row.errors.join(", ")}
                           </td>
                         </tr>

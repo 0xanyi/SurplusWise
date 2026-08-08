@@ -153,7 +153,7 @@ export function BillReminders() {
           <div className="space-y-4">
             {/* Summary */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-xl bg-rose-50/50 dark:bg-rose-950/20 p-3">
+              <div className="rounded-xl bg-expense-surface p-3">
                 <p className="text-xs text-muted-foreground">Unpaid this month</p>
                 <p className="mt-1 text-lg font-semibold tabular-nums text-expense">
                   {formatCurrency(totalUnpaid)}

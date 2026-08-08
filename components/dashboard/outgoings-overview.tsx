@@ -101,7 +101,7 @@ export function OutgoingsOverview() {
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="flex items-center justify-between rounded-xl bg-rose-50/50 dark:bg-rose-950/20 p-3">
+            <div className="flex items-center justify-between rounded-xl bg-expense-surface p-3">
               <span className="text-sm text-muted-foreground">Total per month</span>
               <span className="font-semibold tabular-nums text-expense">
                 {formatCurrency(monthly_total)}

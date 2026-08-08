@@ -8,7 +8,7 @@ colors:
   foreground: "hsl(240 6% 10%)"
   card: "hsl(0 0% 100%)"
   muted: "hsl(240 5% 96%)"
-  muted-foreground: "hsl(240 4% 46%)"
+  muted-foreground: "hsl(240 4% 44%)"
   border: "hsl(240 6% 90%)"
   ring: "hsl(221 83% 53%)"
   destructive: "hsl(0 84% 60%)"
@@ -219,11 +219,12 @@ WCAG AA on white for giving (3.65:1) and obligations (3.20:1), and only scrapes 
 expenses (4.48:1). Every token above clears 4.5:1 on the page, on card white, and on its
 own surface tint, in both themes.
 
-### Tertiary
+### Chart ramps
 
-- **Chart Violet** (`#8b5cf6`) and **Chart Cyan** (`#06b6d4`): category-breakdown charts
-  only, extending the semantic four when a pie needs more than four slices. They carry
-  no meaning outside a chart legend.
+A chart that breaks down one money type stays within that type's hue. The expense pie,
+for example, uses six `--color-expense-chart-*` tones rather than borrowing Income Blue,
+Giving Green, or Obligation Amber to distinguish expense categories. Multi-series charts
+use the semantic token for each series.
 
 ### Neutral
 
@@ -257,6 +258,10 @@ a button, link, or focus ring.
 component is a bug even when it looks right: it has no dark-mode value, it is not
 contrast-checked, and it detaches the colour from the meaning. Raw palette steps remain
 fine for things that are not money: a status tick, a decorative accent.
+
+**The Single-Type Chart Rule.** A breakdown of one money type uses a tonal ramp of that
+same type. An expense category may be a lighter or darker Outflow Rose; it may never turn
+Income Blue, Giving Green, or Obligation Amber merely to make the slices different.
 
 > **Tension, reduced but not resolved.** Signal Blue `hsl(221 83% 53%)` (≈ `#2463eb`) and
 > Inflow Blue were the same colour. Moving income to the 700 step for contrast also moved
@@ -526,7 +531,8 @@ alone; the percentage label beside it is required, not decorative, and the track
 - **Do** separate surfaces with a translucent hairline (`border-border/50`) before
   considering a shadow.
 - **Do** keep the semantic four bound to their meanings in charts and exports, not just in
-  the UI: income blue, expenses rose, giving green — as `analytics-charts.tsx` already does.
+  the UI. Multi-series charts use one token per money type; single-type breakdowns use a
+  tonal ramp of that same type.
 
 ### Don't:
 

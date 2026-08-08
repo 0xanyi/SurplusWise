@@ -222,7 +222,7 @@ export function BalanceLogSection({ debtId, onChanged }: BalanceLogSectionProps)
                       change < 0
                         ? "text-foreground"
                         : change > 0
-                        ? "text-expense"
+                        ? "text-obligation"
                         : "text-muted-foreground"
                     }`}
                   >

@@ -41,7 +41,7 @@ export function NetWorthOverview() {
         <CardTitle>Net Worth</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className={`rounded-xl p-4 ${positive ? "bg-emerald-50/50 dark:bg-emerald-950/20" : "bg-rose-50/50 dark:bg-rose-950/20"}`}>
+        <div className={`rounded-xl p-4 ${positive ? "bg-muted" : "bg-expense-surface"}`}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm text-muted-foreground">Current net worth</p>
@@ -54,13 +54,13 @@ export function NetWorthOverview() {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-blue-50/50 p-3 dark:bg-blue-950/20">
+          <div className="rounded-xl bg-muted p-3">
             <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
               <Landmark className="size-3.5" /> Assets
             </div>
-            <p className="font-semibold tabular-nums text-income">{formatCurrency(data.assets)}</p>
+            <p className="font-semibold tabular-nums text-foreground">{formatCurrency(data.assets)}</p>
           </div>
-          <div className="rounded-xl bg-amber-50/50 p-3 dark:bg-amber-950/20">
+          <div className="rounded-xl bg-obligation-surface p-3">
             <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
               <Scale className="size-3.5" /> Liabilities
             </div>
