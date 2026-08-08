@@ -4,10 +4,11 @@
 
 ## How was it verified?
 
-<!-- There is no automated test suite yet, so describe your manual testing. -->
+<!-- Test coverage is partial, so describe your manual testing too. -->
 
 - [ ] `npm run lint`
 - [ ] `npx tsc --noEmit`
+- [ ] `npm test`
 - [ ] `npm run build`
 - [ ] Verified manually in the browser
 

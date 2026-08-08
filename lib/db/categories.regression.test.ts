@@ -1,10 +1,31 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { before, describe, it } from "node:test";
 import { eq } from "drizzle-orm";
 
-import { db } from "@/db/client";
-import { users, workspaces } from "@/db/schema";
-import * as categoriesService from "./categories";
+// These are integration tests: they need a migrated Postgres. The modules below
+// connect at import time, so they are loaded lazily and the suite skips itself
+// when DATABASE_URL is absent. CI always sets it; a laptop without Postgres does
+// not have to.
+type Db = typeof import("@/db/client").db;
+type Schema = typeof import("@/db/schema");
+type CategoriesService = typeof import("./categories");
+
+let db: Db;
+let users: Schema["users"];
+let workspaces: Schema["workspaces"];
+let categoriesService: CategoriesService;
+
+async function loadDeps() {
+  const [client, schema, service] = await Promise.all([
+    import("@/db/client"),
+    import("@/db/schema"),
+    import("./categories"),
+  ]);
+  db = client.db;
+  users = schema.users;
+  workspaces = schema.workspaces;
+  categoriesService = service;
+}
 
 function makeTempUser() {
   const id = crypto.randomUUID();
@@ -34,7 +55,9 @@ async function cleanupUser(userId: string) {
   await db.delete(users).where(eq(users.id, userId));
 }
 
-describe("categories regression", () => {
+describe("categories regression", { skip: process.env.DATABASE_URL ? false : "requires DATABASE_URL" }, () => {
+  before(loadDeps);
+
   it("renaming a default category persists and is not recreated", async () => {
     const user = await createTempUser();
 
