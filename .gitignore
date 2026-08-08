@@ -41,3 +41,8 @@ next-env.d.ts
 
 # local tooling artifacts
 .factory/
+memory/
+
+# Impeccable: keep the DESIGN.md sidecar, drop local session state
+.impeccable/*
+!.impeccable/design.json
