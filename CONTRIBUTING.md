@@ -35,11 +35,16 @@ Run the same checks CI runs:
 ```bash
 npm run lint
 npx tsc --noEmit
+npm test
 npm run build
 ```
 
-All three must pass. There is no automated test suite yet, so please describe how
-you verified your change by hand.
+All four must pass. `npm test` runs the unit tests anywhere; the database-backed
+integration tests skip themselves unless `DATABASE_URL` points at a migrated
+Postgres, which is what CI provides. To run them locally, start the bundled
+database with `docker compose up db` and apply migrations first.
+
+Coverage is partial, so please also describe how you verified your change by hand.
 
 ## Database changes
 

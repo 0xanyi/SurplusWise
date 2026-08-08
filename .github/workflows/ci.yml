@@ -31,6 +31,44 @@ jobs:
         env:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
 
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sika
+          POSTGRES_PASSWORD: localdev
+          POSTGRES_DB: sika
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sika"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://sika:localdev@localhost:5432/sika
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # The integration tests skip themselves without DATABASE_URL, so the
+      # migration step is what makes them actually run here.
+      - run: npm run db:migrate
+
+      - run: npm test
+
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest

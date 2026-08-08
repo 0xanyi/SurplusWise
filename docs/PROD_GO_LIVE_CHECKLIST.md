@@ -22,7 +22,7 @@ git pull origin feat/postgres-cutover
 npm install
 npm run lint
 npx tsc --noEmit
-node --import tsx --test lib/db/*.test.ts
+npm test
 ```
 
 ---
