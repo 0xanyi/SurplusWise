@@ -110,7 +110,7 @@ export function OutgoingsOverview() {
 
             {/* Payment progress */}
             <div className="flex items-center gap-3 text-xs">
-              <span className="flex items-center gap-1 text-giving">
+              <span className="flex items-center gap-1 text-foreground">
                 <CheckCircle2 className="size-3" />
                 {paidCount} paid
               </span>
@@ -152,7 +152,7 @@ export function OutgoingsOverview() {
                   >
                     <div className="flex items-center gap-2">
                       {isPaid ? (
-                        <CheckCircle2 className="size-3.5 text-giving" />
+                        <CheckCircle2 className="size-3.5 text-muted-foreground" />
                       ) : isOverdue ? (
                         <Clock className="size-3.5 text-obligation" />
                       ) : (
@@ -162,7 +162,7 @@ export function OutgoingsOverview() {
                         {item.name}
                       </span>
                       {isPaid && (
-                        <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/40 text-giving px-1.5 py-0.5 rounded-full font-medium">
+                        <span className="text-[10px] bg-muted text-foreground px-1.5 py-0.5 rounded-full font-medium">
                           Paid
                         </span>
                       )}
@@ -183,7 +183,7 @@ export function OutgoingsOverview() {
                       )}
                     </div>
                     <div className="text-right">
-                      <p className={`font-medium tabular-nums ${isPaid ? "text-giving" : "text-expense"}`}>
+                      <p className={`font-medium tabular-nums ${isPaid ? "text-foreground" : "text-expense"}`}>
                         {formatCurrency(item.amount)}
                       </p>
                       <p className="text-[10px] text-muted-foreground">

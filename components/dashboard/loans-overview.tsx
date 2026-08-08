@@ -18,7 +18,7 @@ const STATUS_LABELS: Record<string, string> = {
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-income-surface text-income",
   partially_repaid: "bg-obligation-surface text-obligation",
-  fully_repaid: "bg-giving-surface text-giving",
+  fully_repaid: "bg-muted text-foreground",
   defaulted: "bg-expense-surface text-expense",
 };
 
