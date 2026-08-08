@@ -44,8 +44,8 @@ const STATUS_CONFIG: Record<LoanStatus, { label: string; color: string; bg: stri
   },
   fully_repaid: {
     label: "Fully Repaid",
-    color: "text-giving",
-    bg: "bg-giving-surface",
+    color: "text-foreground",
+    bg: "bg-muted",
   },
   defaulted: {
     label: "Defaulted",
@@ -274,8 +274,8 @@ export function LoansGivenManagement() {
                   {data?.active_count ?? 0}
                 </p>
               </div>
-              <div className="rounded-xl bg-giving-surface p-3">
-                <Users className="size-6 text-giving" />
+              <div className="rounded-xl bg-muted p-3">
+                <Users className="size-6 text-muted-foreground" />
               </div>
             </div>
           </CardContent>

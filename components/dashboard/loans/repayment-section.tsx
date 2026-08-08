@@ -188,7 +188,7 @@ export function RepaymentSection({ loanId, onChanged }: RepaymentSectionProps) {
                 className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm"
               >
                 <div>
-                  <p className="font-medium tabular-nums text-giving">
+                  <p className="font-medium tabular-nums text-foreground">
                     {formatCurrency(repayment.amount)}
                   </p>
                   <p className="text-xs text-muted-foreground">
@@ -202,7 +202,7 @@ export function RepaymentSection({ loanId, onChanged }: RepaymentSectionProps) {
                   <span
                     className={`text-xs font-medium tabular-nums flex items-center gap-0.5 ${
                       change > 0
-                        ? "text-giving"
+                        ? "text-foreground"
                         : change < 0
                         ? "text-expense"
                         : "text-muted-foreground"

@@ -247,7 +247,7 @@ export function InvestmentsManagement() {
               <div
                 className={`rounded-xl p-3 ${
                   isPositiveReturn
-                    ? "bg-giving-surface"
+                    ? "bg-muted"
                     : "bg-expense-surface"
                 }`}
               >
@@ -295,12 +295,12 @@ export function InvestmentsManagement() {
               <div
                 className={`rounded-xl p-3 ${
                   isPositiveReturn
-                    ? "bg-giving-surface"
+                    ? "bg-muted"
                     : "bg-expense-surface"
                 }`}
               >
                 {isPositiveReturn ? (
-                  <TrendingUp className="size-6 text-giving" />
+                  <TrendingUp className="size-6 text-foreground" />
                 ) : (
                   <TrendingDown className="size-6 text-expense" />
                 )}
@@ -440,7 +440,7 @@ export function InvestmentsManagement() {
                     <span
                       className={`font-semibold tabular-nums flex items-center gap-1 ${
                         isPositive
-                          ? "text-giving"
+                          ? "text-foreground"
                           : "text-expense"
                       }`}
                     >

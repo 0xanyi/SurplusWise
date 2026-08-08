@@ -208,7 +208,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ready to import</p>
-                  <p className="mt-1 text-2xl font-semibold text-giving">{analysis.validRowCount}</p>
+                  <p className="mt-1 text-2xl font-semibold text-foreground">{analysis.validRowCount}</p>
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Needs attention</p>
@@ -271,7 +271,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                           <td className="px-3 py-2">{row.mapped.amount ? formatCurrency(Number.parseFloat(row.mapped.amount) || 0) : "-"}</td>
                           <td className="px-3 py-2">{row.mapped.type || "-"}</td>
                           <td className="px-3 py-2">{row.mapped.category || "-"}</td>
-                          <td className={`px-3 py-2 ${row.valid ? "text-giving" : "text-expense"}`}>
+                          <td className={`px-3 py-2 ${row.valid ? "text-foreground" : "text-expense"}`}>
                             {row.valid ? "Ready" : row.errors.join(", ")}
                           </td>
                         </tr>

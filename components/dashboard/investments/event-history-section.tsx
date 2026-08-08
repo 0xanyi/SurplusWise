@@ -42,7 +42,7 @@ function getEventColor(eventType: InvestmentEventType) {
   switch (eventType) {
     case "return":
     case "dividend":
-      return "text-giving";
+      return "text-income";
     case "sale":
     case "partial_sale":
       return "text-income";
@@ -58,7 +58,7 @@ function getEventBg(eventType: InvestmentEventType) {
   switch (eventType) {
     case "return":
     case "dividend":
-      return "bg-giving-surface";
+      return "bg-income-surface";
     case "sale":
     case "partial_sale":
       return "bg-income-surface";

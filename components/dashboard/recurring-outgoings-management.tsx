@@ -387,15 +387,15 @@ export function RecurringOutgoingsManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Paid This Month</p>
-                <p className="text-2xl font-semibold text-giving tabular-nums">
+                <p className="text-2xl font-semibold text-foreground tabular-nums">
                   {formatCurrency(paidTotal)}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {paidCount} of {activeOutgoings.length} paid
                 </p>
               </div>
-              <div className="rounded-xl bg-giving-surface p-3">
-                <CheckCircle2 className="size-6 text-giving" />
+              <div className="rounded-xl bg-muted p-3">
+                <CheckCircle2 className="size-6 text-muted-foreground" />
               </div>
             </div>
           </CardContent>
@@ -511,14 +511,14 @@ export function RecurringOutgoingsManagement() {
                       <div
                         className={`rounded-xl p-2 ${
                           isPaid
-                            ? "bg-giving-surface"
+                            ? "bg-muted"
                             : isOverdue
                             ? "bg-obligation-surface"
                             : "bg-expense-surface"
                         }`}
                       >
                         {isPaid ? (
-                          <CheckCircle2 className="size-4 text-giving" />
+                          <CheckCircle2 className="size-4 text-muted-foreground" />
                         ) : isOverdue ? (
                           <Clock className="size-4 text-obligation" />
                         ) : (
@@ -532,7 +532,7 @@ export function RecurringOutgoingsManagement() {
                             <p className="text-xs text-muted-foreground">{item.category}</p>
                           )}
                           {isPaid && (
-                            <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/40 text-giving px-1.5 py-0.5 rounded-full font-medium">
+                            <span className="text-[10px] bg-muted text-foreground px-1.5 py-0.5 rounded-full font-medium">
                               Paid
                             </span>
                           )}
@@ -599,7 +599,7 @@ export function RecurringOutgoingsManagement() {
                     <div className="pt-2 border-t border-border/50">
                       {isPaid ? (
                         <div className="flex items-center justify-between">
-                          <p className="text-xs text-giving flex items-center gap-1">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
                             <CheckCircle2 className="size-3" />
                             Paid on {new Date(item.payment_status.paid_at!).toLocaleDateString("en-GB")}
                           </p>
