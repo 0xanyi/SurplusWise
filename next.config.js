@@ -3,6 +3,9 @@ const nextConfig = {
   // Enable standalone output for Docker deployment
   output: "standalone",
 
+  // Don't write AGENTS.md / CLAUDE.md into the repo root on every dev run
+  agentRules: false,
+
   images: {
     remotePatterns: [
       {

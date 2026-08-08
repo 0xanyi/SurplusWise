@@ -43,6 +43,7 @@ next-env.d.ts
 .factory/
 # agent scratch memory written by local coding agents; never shared
 memory/
+MEMORY.md
 
 # Impeccable: keep the DESIGN.md sidecar, drop local session state
 .impeccable/*
