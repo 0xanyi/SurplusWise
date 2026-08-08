@@ -49,7 +49,7 @@ export function NetWorthOverview() {
                 {formatCurrency(data.netWorth)}
               </p>
             </div>
-            <Wallet className={`size-6 ${positive ? "text-income" : "text-expense"}`} />
+            <Wallet className={`size-6 ${positive ? "text-giving" : "text-expense"}`} />
           </div>
         </div>
 

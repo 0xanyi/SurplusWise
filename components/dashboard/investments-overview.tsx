@@ -142,7 +142,7 @@ export function InvestmentsOverview() {
                   >
                     <div className="flex items-center gap-2">
                       <TrendingUp
-                        className={`size-3.5 ${itemGain ? "text-income" : "text-expense"}`}
+                        className={`size-3.5 ${itemGain ? "text-giving" : "text-expense"}`}
                       />
                       <div>
                         <p className="font-medium">{item.name}</p>

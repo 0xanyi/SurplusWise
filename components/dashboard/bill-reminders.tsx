@@ -28,7 +28,7 @@ const URGENCY_CONFIG: Record<DueUrgency, { label: string; color: string; bgColor
   overdue: { label: "Overdue", color: "text-expense", bgColor: "bg-expense-surface", icon: AlertCircle },
   today: { label: "Due today", color: "text-obligation", bgColor: "bg-obligation-surface", icon: Clock },
   soon: { label: "Due soon", color: "text-obligation", bgColor: "bg-obligation-surface", icon: Clock },
-  upcoming: { label: "Upcoming", color: "text-income", bgColor: "bg-income-surface", icon: Calendar },
+  upcoming: { label: "Upcoming", color: "text-blue-700 dark:text-blue-400", bgColor: "bg-blue-50 dark:bg-blue-950/30", icon: Calendar },
   future: { label: "Later", color: "text-muted-foreground", bgColor: "bg-muted", icon: Calendar },
 };
 

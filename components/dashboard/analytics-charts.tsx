@@ -608,7 +608,7 @@ export function AnalyticsCharts() {
                   <XAxis type="number" tick={{ fontSize: 12 }} />
                   <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12 }} />
                   <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
-                  <Bar dataKey="value" fill="var(--color-income)" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="value" fill="var(--color-expense)" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
