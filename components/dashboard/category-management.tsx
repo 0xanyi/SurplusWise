@@ -170,7 +170,7 @@ export function CategoryManagement() {
                   setFormData((prev) => ({ ...prev, type: value }))
                 }
               >
-                <SelectTrigger id="category-type">
+                <SelectTrigger id="category-type" aria-label="Category type">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>

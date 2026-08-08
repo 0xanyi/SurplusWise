@@ -101,6 +101,7 @@ export function ReceiptScanner({ onScanComplete, onCancel }: ReceiptScannerProps
                 type="button"
                 variant="secondary"
                 size="icon"
+                aria-label="Remove receipt image"
                 className="absolute right-2 top-2 h-8 w-8"
                 onClick={() => {
                   setPreview(null);

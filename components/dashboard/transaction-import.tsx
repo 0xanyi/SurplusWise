@@ -224,7 +224,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                       value={mapping[field.value] ?? UNMAPPED_VALUE}
                       onValueChange={(value) => updateMapping(field.value, value)}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label={`Column for ${field.label}`}>
                         <SelectValue placeholder="Select column" />
                       </SelectTrigger>
                       <SelectContent>

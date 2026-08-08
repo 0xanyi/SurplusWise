@@ -288,7 +288,7 @@ export function AnalyticsCharts() {
           <div className="flex items-center gap-2">
             <Calendar className="size-4 text-muted-foreground" />
           <Select value={period} onValueChange={(value) => setPeriod(value as Period)}>
-            <SelectTrigger className="h-9 w-[170px]">
+            <SelectTrigger className="h-9 w-[170px]" aria-label="Reporting period">
               <SelectValue placeholder="Select period" />
             </SelectTrigger>
             <SelectContent>

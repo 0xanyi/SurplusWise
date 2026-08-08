@@ -94,7 +94,6 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - 🥧 Category breakdown (pie charts)
 - 📅 Period-based filtering (weekly, monthly, quarterly, yearly, custom)
 - 💾 CSV data export
-- 📄 PDF report generation
 
 **Category Management**
 - ✅ Default expense categories (10 categories)
@@ -309,7 +308,7 @@ After changing `drizzle-kit`, re-run `npm audit`, `npm run lint`, and `npm run b
 - Project setup, auth, UI foundation
 - Transaction, category, and budget management
 - AI receipt scanning
-- Analytics and reports (CSV + PDF export)
+- Analytics and reports (CSV export)
 - Dark mode, PWA configuration
 - PostgreSQL migration (Convex → Postgres + Drizzle)
 - Recurring outgoings, debts/credits, loans given, investments tracking

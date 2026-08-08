@@ -380,6 +380,7 @@ export function LoansGivenManagement() {
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8"
+                        aria-label={`Edit loan to ${item.borrower_name}`}
                         onClick={() => openEditDialog(item)}
                       >
                         <Edit2 className="h-3.5 w-3.5" />
@@ -388,6 +389,7 @@ export function LoansGivenManagement() {
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 text-destructive hover:text-destructive"
+                        aria-label={`Delete loan to ${item.borrower_name}`}
                         onClick={() => handleDelete(item)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />

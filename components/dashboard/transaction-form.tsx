@@ -223,7 +223,7 @@ export function TransactionForm({
                     setFormData((prev) => ({ ...prev, type: value, category: "" }))
                   }
                 >
-                  <SelectTrigger id="type">
+                  <SelectTrigger id="type" aria-label="Transaction type">
                     <SelectValue placeholder="Select type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -267,7 +267,7 @@ export function TransactionForm({
                   value={formData.category}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
                 >
-                  <SelectTrigger id="category">
+                  <SelectTrigger id="category" aria-label="Category">
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>

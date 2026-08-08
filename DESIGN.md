@@ -482,7 +482,8 @@ dashboard and sets the color language for everything below it.
 A `9999px`-radius track in Wash with a fill that animates over 500ms — the slowest motion
 in the system, and the only place duration is used expressively. Fill color shifts by
 utilization, which makes it the one component at genuine risk of communicating by color
-alone; the percentage label beside it is required, not decorative.
+alone; the percentage label beside it is required, not decorative, and the track carries
+`role="progressbar"` with `aria-valuenow` so the value is available without sight of it.
 
 ## Do's and Don'ts
 
@@ -491,8 +492,8 @@ alone; the percentage label beside it is required, not decorative.
 - **Do** put new tokens in the `@theme` block of `app/globals.css`, and add the matching
   `.dark` override in the same commit. That block is the only live source of truth.
 - **Do** pair every semantic color with a glyph, a label, or a sign. Financial state is
-  never conveyed by hue alone — colorblind users and greyscale PDF exports both depend on
-  this, and the PDF export path makes it a correctness issue, not just an a11y one.
+  never conveyed by hue alone (WCAG 1.4.1). Every budget bar, status badge, and net-worth
+  figure states its condition in words as well as colour.
 - **Do** use `tabular-nums` on every currency figure, percentage, and total.
 - **Do** size transaction-entry controls at 2.75rem, per the Thumb Row Rule.
 - **Do** separate surfaces with a translucent hairline (`border-border/50`) before

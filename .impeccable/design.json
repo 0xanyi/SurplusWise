@@ -8,37 +8,91 @@
         "role": "primary",
         "displayName": "Signal Blue",
         "canonical": "hsl(221 83% 53%)",
-        "tonalRamp": ["#172554", "#1e40af", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#dbeafe"]
+        "tonalRamp": [
+          "#172554",
+          "#1e40af",
+          "#1d4ed8",
+          "#2563eb",
+          "#3b82f6",
+          "#60a5fa",
+          "#93c5fd",
+          "#dbeafe"
+        ]
       },
       "inflow-blue": {
         "role": "secondary",
         "displayName": "Inflow Blue",
         "canonical": "#2563eb",
-        "tonalRamp": ["#172554", "#1e40af", "#1d4ed8", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd", "#dbeafe"]
+        "tonalRamp": [
+          "#172554",
+          "#1e40af",
+          "#1d4ed8",
+          "#2563eb",
+          "#3b82f6",
+          "#60a5fa",
+          "#93c5fd",
+          "#dbeafe"
+        ]
       },
       "outflow-rose": {
         "role": "secondary",
         "displayName": "Outflow Rose",
         "canonical": "#e11d48",
-        "tonalRamp": ["#4c0519", "#9f1239", "#be123c", "#e11d48", "#f43f5e", "#fb7185", "#fda4af", "#ffe4e6"]
+        "tonalRamp": [
+          "#4c0519",
+          "#9f1239",
+          "#be123c",
+          "#e11d48",
+          "#f43f5e",
+          "#fb7185",
+          "#fda4af",
+          "#ffe4e6"
+        ]
       },
       "giving-green": {
         "role": "secondary",
         "displayName": "Giving Green",
         "canonical": "#059669",
-        "tonalRamp": ["#022c22", "#065f46", "#047857", "#059669", "#10b981", "#34d399", "#6ee7b7", "#d1fae5"]
+        "tonalRamp": [
+          "#022c22",
+          "#065f46",
+          "#047857",
+          "#059669",
+          "#10b981",
+          "#34d399",
+          "#6ee7b7",
+          "#d1fae5"
+        ]
       },
       "obligation-amber": {
         "role": "secondary",
         "displayName": "Obligation Amber",
         "canonical": "#d97706",
-        "tonalRamp": ["#451a03", "#92400e", "#b45309", "#d97706", "#f59e0b", "#fbbf24", "#fcd34d", "#fef3c7"]
+        "tonalRamp": [
+          "#451a03",
+          "#92400e",
+          "#b45309",
+          "#d97706",
+          "#f59e0b",
+          "#fbbf24",
+          "#fcd34d",
+          "#fef3c7"
+        ]
       },
       "background": {
         "role": "neutral",
         "displayName": "Paper",
         "canonical": "hsl(0 0% 99%)",
-        "tonalRamp": ["hsl(240 10% 4%)", "hsl(240 10% 7%)", "hsl(240 6% 14%)", "hsl(240 6% 16%)", "hsl(240 4% 46%)", "hsl(240 5% 58%)", "hsl(240 6% 90%)", "hsl(0 0% 99%)"]
+        "tonalRamp": [
+          "hsl(240 10% 4%)",
+          "hsl(240 10% 7%)",
+          "hsl(240 6% 14%)",
+          "hsl(240 6% 16%)",
+          "hsl(240 4% 46%)",
+          "hsl(240 5% 58%)",
+          "hsl(240 6% 90%)",
+          "hsl(0 0% 99%)"
+        ]
       },
       "foreground": {
         "role": "neutral",
@@ -67,35 +121,115 @@
       }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Landing headline. Once per page, marketing surfaces only." },
-      "headline": { "displayName": "Headline", "purpose": "The dashboard page h1. One per screen, top-left." },
-      "title": { "displayName": "Title", "purpose": "Card titles and section headings." },
-      "body": { "displayName": "Body", "purpose": "Default text across the app. The application is built at 14px, not 16px." },
-      "control": { "displayName": "Control", "purpose": "Buttons, nav items, input values, table cells." },
-      "label": { "displayName": "Label", "purpose": "Field labels, stat captions, metadata. Always Graphite." },
-      "amount": { "displayName": "Amount", "purpose": "Every currency figure. Tabular figures are mandatory." }
+      "display": {
+        "displayName": "Display",
+        "purpose": "Landing headline. Once per page, marketing surfaces only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The dashboard page h1. One per screen, top-left."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles and section headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default text across the app. The application is built at 14px, not 16px."
+      },
+      "control": {
+        "displayName": "Control",
+        "purpose": "Buttons, nav items, input values, table cells."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels, stat captions, metadata. Always Graphite."
+      },
+      "amount": {
+        "displayName": "Amount",
+        "purpose": "Every currency figure. Tabular figures are mandatory."
+      }
     },
     "shadows": [
-      { "name": "resting-surface", "value": "0 1px 2px 0 rgb(0 0 0 / 0.02)", "purpose": "Cards and panels. Barely perceptible; the hairline border does the work." },
-      { "name": "control", "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)", "purpose": "Filled primary and destructive buttons only. Outline and ghost stay flat." },
-      { "name": "transient", "value": "0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05)", "purpose": "Toasts and dropdown menus." },
-      { "name": "modal", "value": "0 25px 50px -12px rgb(0 0 0 / 0.1)", "purpose": "Dialogs, paired with a 60% black overlay and a 4px backdrop blur." }
+      {
+        "name": "resting-surface",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.02)",
+        "purpose": "Cards and panels. Barely perceptible; the hairline border does the work."
+      },
+      {
+        "name": "control",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        "purpose": "Filled primary and destructive buttons only. Outline and ghost stay flat."
+      },
+      {
+        "name": "transient",
+        "value": "0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05)",
+        "purpose": "Toasts and dropdown menus."
+      },
+      {
+        "name": "modal",
+        "value": "0 25px 50px -12px rgb(0 0 0 / 0.1)",
+        "purpose": "Dialogs, paired with a 60% black overlay and a 4px backdrop blur."
+      }
     ],
     "motion": [
-      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing for every state transition." },
-      { "name": "duration-state", "value": "200ms", "purpose": "Buttons, inputs, nav, and Radix open/close animations." },
-      { "name": "duration-expressive", "value": "500ms", "purpose": "Budget progress fill only. The slowest motion in the system." },
-      { "name": "press", "value": "scale(0.98)", "purpose": "Active state on every button. The system's tactile signature." },
-      { "name": "reduced-motion", "value": "0.01ms", "purpose": "Global prefers-reduced-motion override in app/globals.css. Must stay honored." },
-      { "name": "overlay-enter", "value": "enter 200ms: fade + scale(0.95) + short directional slide", "purpose": "Dialogs, dropdowns and selects. Supplied by tw-animate-css, imported at the top of app/globals.css." },
-      { "name": "overlay-exit", "value": "exit 200ms: fade + scale(0.95), reversing the entry direction", "purpose": "Same surfaces on close. Toasts differ: they exit to the right and fade to 80%, so a swiped toast looks thrown rather than deleted." }
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default easing for every state transition."
+      },
+      {
+        "name": "duration-state",
+        "value": "200ms",
+        "purpose": "Buttons, inputs, nav, and Radix open/close animations."
+      },
+      {
+        "name": "duration-expressive",
+        "value": "500ms",
+        "purpose": "Budget progress fill only. The slowest motion in the system."
+      },
+      {
+        "name": "press",
+        "value": "scale(0.98)",
+        "purpose": "Active state on every button. The system's tactile signature."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "Global prefers-reduced-motion override in app/globals.css. Must stay honored."
+      },
+      {
+        "name": "overlay-enter",
+        "value": "enter 200ms: fade + scale(0.95) + short directional slide",
+        "purpose": "Dialogs, dropdowns and selects. Supplied by tw-animate-css, imported at the top of app/globals.css."
+      },
+      {
+        "name": "overlay-exit",
+        "value": "exit 200ms: fade + scale(0.95), reversing the entry direction",
+        "purpose": "Same surfaces on close. Toasts differ: they exit to the right and fade to 80%, so a swiped toast looks thrown rather than deleted."
+      }
     ],
     "breakpoints": [
-      { "name": "sm", "value": "640px" },
-      { "name": "md", "value": "768px" },
-      { "name": "lg", "value": "1024px" },
-      { "name": "xl", "value": "1280px" },
-      { "name": "2xl", "value": "1536px" }
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      },
+      {
+        "name": "2xl",
+        "value": "1536px"
+      }
     ]
   },
   "components": [
@@ -185,20 +319,60 @@
       "Full light/dark parity via a single class-scoped token override"
     ],
     "rules": [
-      { "name": "The Earned Ink Rule", "body": "Saturated color appears only where money changes meaning. If a colored element is not classifying an amount, a category, or a financial state, it should be Ink, Graphite, or Hairline. Decoration does not earn color in this system.", "section": "colors" },
-      { "name": "The Chrome-and-Amount Rule", "body": "Signal Blue is for things you click. Inflow Blue is for money that arrived. Never apply Signal Blue to a figure, and never apply Inflow Blue to a button, link, or focus ring — they are close enough in hue that the only thing keeping them legible is the discipline of never mixing their jobs.", "section": "colors" },
-      { "name": "The Giving-Is-Not-Green-Money Rule", "body": "Giving Green marks giving specifically, not 'positive' generally. Income is blue. Do not let a chart, a badge, or a summary card recruit Giving Green to mean 'good' or 'up' — it collapses the distinction the product exists to make.", "section": "colors" },
-      { "name": "The Tabular Rule", "body": "Any number a user could compare against another number vertically uses tabular figures. Currency amounts, balances, percentages, and totals are never proportional.", "section": "typography" },
-      { "name": "The Two-Weight Rule", "body": "Hierarchy comes from size and color, not from weight variety. 400 for prose, 500 for interactive and label text, 600 for headings and figures. Reaching for 300 or 700 means the size scale is being under-used.", "section": "typography" },
-      { "name": "The Thumb Row Rule", "body": "Every control on a transaction-entry path — quick add, the transaction form, onboarding — is 2.75rem tall, not the default 2.5rem. Entry happens one-handed on a phone, and the record's accuracy depends on entry never being fiddly.", "section": "layout" },
-      { "name": "The Two-Up Ceiling Rule", "body": "Dashboard panels go at most two across. A third column shrinks financial figures below comfortable reading size and has never earned its place.", "section": "layout" },
-      { "name": "The Hairline Rule", "body": "Separation is a border, not a shadow. When two surfaces need to be distinguished, reach for border-border/50 or a tonal step before reaching for elevation.", "section": "elevation" },
-      { "name": "The Float-Or-Flat Rule", "body": "An element either sits on the page (flat, hairline, tonal) or floats above it (modal/transient shadow, plus scrim or blur). There is no middle tier, and hover does not promote a surface between the two.", "section": "elevation" },
-      { "name": "The Radius-Scales-With-Surface Rule", "body": "8px for things you click, 12px for things that hold an icon, 16px for things that hold content. A 16px-radius button or an 8px-radius card is out of system.", "section": "shapes" }
+      {
+        "name": "The Earned Ink Rule",
+        "body": "Saturated color appears only where money changes meaning. If a colored element is not classifying an amount, a category, or a financial state, it should be Ink, Graphite, or Hairline. Decoration does not earn color in this system.",
+        "section": "colors"
+      },
+      {
+        "name": "The Chrome-and-Amount Rule",
+        "body": "Signal Blue is for things you click. Inflow Blue is for money that arrived. Never apply Signal Blue to a figure, and never apply Inflow Blue to a button, link, or focus ring — they are close enough in hue that the only thing keeping them legible is the discipline of never mixing their jobs.",
+        "section": "colors"
+      },
+      {
+        "name": "The Giving-Is-Not-Green-Money Rule",
+        "body": "Giving Green marks giving specifically, not 'positive' generally. Income is blue. Do not let a chart, a badge, or a summary card recruit Giving Green to mean 'good' or 'up' — it collapses the distinction the product exists to make.",
+        "section": "colors"
+      },
+      {
+        "name": "The Tabular Rule",
+        "body": "Any number a user could compare against another number vertically uses tabular figures. Currency amounts, balances, percentages, and totals are never proportional.",
+        "section": "typography"
+      },
+      {
+        "name": "The Two-Weight Rule",
+        "body": "Hierarchy comes from size and color, not from weight variety. 400 for prose, 500 for interactive and label text, 600 for headings and figures. Reaching for 300 or 700 means the size scale is being under-used.",
+        "section": "typography"
+      },
+      {
+        "name": "The Thumb Row Rule",
+        "body": "Every control on a transaction-entry path — quick add, the transaction form, onboarding — is 2.75rem tall, not the default 2.5rem. Entry happens one-handed on a phone, and the record's accuracy depends on entry never being fiddly.",
+        "section": "layout"
+      },
+      {
+        "name": "The Two-Up Ceiling Rule",
+        "body": "Dashboard panels go at most two across. A third column shrinks financial figures below comfortable reading size and has never earned its place.",
+        "section": "layout"
+      },
+      {
+        "name": "The Hairline Rule",
+        "body": "Separation is a border, not a shadow. When two surfaces need to be distinguished, reach for border-border/50 or a tonal step before reaching for elevation.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Float-Or-Flat Rule",
+        "body": "An element either sits on the page (flat, hairline, tonal) or floats above it (modal/transient shadow, plus scrim or blur). There is no middle tier, and hover does not promote a surface between the two.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Radius-Scales-With-Surface Rule",
+        "body": "8px for things you click, 12px for things that hold an icon, 16px for things that hold content. A 16px-radius button or an 8px-radius card is out of system.",
+        "section": "shapes"
+      }
     ],
     "dos": [
       "Do put new tokens in the @theme block of app/globals.css, and add the matching .dark override in the same commit. That block is the only live source of truth.",
-      "Do pair every semantic color with a glyph, a label, or a sign. Financial state is never conveyed by hue alone — colorblind users and greyscale PDF exports both depend on this, and the PDF export path makes it a correctness issue, not just an a11y one.",
+      "Do pair every semantic color with a glyph, a label, or a sign. Financial state is never conveyed by hue alone (WCAG 1.4.1). Every budget bar, status badge, and net-worth figure states its condition in words as well as colour.",
       "Do use tabular-nums on every currency figure, percentage, and total.",
       "Do size transaction-entry controls at 2.75rem, per the Thumb Row Rule.",
       "Do separate surfaces with a translucent hairline (border-border/50) before considering a shadow.",

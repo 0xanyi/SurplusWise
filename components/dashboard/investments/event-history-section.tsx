@@ -161,7 +161,7 @@ export function EventHistorySection({ investmentId, onChanged }: EventHistorySec
                     }))
                   }
                 >
-                  <SelectTrigger id="event-type">
+                  <SelectTrigger id="event-type" aria-label="Event type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

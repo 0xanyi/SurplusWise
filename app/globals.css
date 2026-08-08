@@ -17,7 +17,9 @@
   --color-secondary: hsl(240 5% 96%);
   --color-secondary-foreground: hsl(240 6% 10%);
   --color-muted: hsl(240 5% 96%);
-  --color-muted-foreground: hsl(240 4% 46%);
+  /* 44%, not 46%: at 46% this fails WCAG AA (4.40:1) on the muted tint it is
+     most often drawn on. 44% clears 4.5:1 on every light surface in the system. */
+  --color-muted-foreground: hsl(240 4% 44%);
   --color-accent: hsl(240 5% 96%);
   --color-accent-foreground: hsl(240 6% 10%);
   --color-destructive: hsl(0 84% 60%);

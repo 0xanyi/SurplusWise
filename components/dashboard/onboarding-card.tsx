@@ -106,7 +106,7 @@ export function OnboardingCard({ onCompleted }: OnboardingCardProps) {
           <div className="space-y-2">
             <Label>Currency</Label>
             <Select value={currency} onValueChange={setCurrency}>
-              <SelectTrigger>
+              <SelectTrigger aria-label="Workspace currency">
                 <SelectValue placeholder="Select currency" />
               </SelectTrigger>
               <SelectContent>
