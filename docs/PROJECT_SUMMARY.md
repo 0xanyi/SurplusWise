@@ -47,7 +47,7 @@ A modern personal and business finance management application built with Next.js
    - Interactive charts with Recharts
    - Spending trends (line charts) and category breakdown (pie charts)
    - Period filtering (weekly, monthly, quarterly, yearly, custom)
-   - CSV export and PDF report generation
+   - CSV export
 
 **Phase 4: Budget Tracking**
 

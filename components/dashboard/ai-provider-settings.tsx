@@ -183,6 +183,7 @@ export function AIProviderSettings() {
             </p>
           </div>
           <Switch
+            aria-label="Enable AI features"
             checked={settings.isEnabled}
             onCheckedChange={(checked: boolean) =>
               setSettings({ ...settings, isEnabled: checked })
@@ -197,7 +198,7 @@ export function AIProviderSettings() {
             value={settings.provider}
             onValueChange={(value) => handleProviderChange(value as AIProvider)}
           >
-            <SelectTrigger id="provider">
+            <SelectTrigger id="provider" aria-label="AI provider">
               <SelectValue placeholder="Select a provider" />
             </SelectTrigger>
             <SelectContent>
@@ -251,6 +252,7 @@ export function AIProviderSettings() {
               size="icon"
               className="absolute right-2 top-1/2 -translate-y-1/2"
               onClick={() => setShowApiKey(!showApiKey)}
+              aria-label={showApiKey ? "Hide API key" : "Show API key"}
             >
               {showApiKey ? (
                 <EyeOff className="size-4" />
@@ -274,7 +276,7 @@ export function AIProviderSettings() {
               value={settings.model}
               onValueChange={(value) => setSettings({ ...settings, model: value })}
             >
-              <SelectTrigger id="model">
+              <SelectTrigger id="model" aria-label="Model">
                 <SelectValue placeholder="Select a model" />
               </SelectTrigger>
               <SelectContent>

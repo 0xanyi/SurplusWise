@@ -99,7 +99,7 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
                 Type
               </Label>
               <Select value={type} onValueChange={(value: TransactionType) => setType(value)}>
-                <SelectTrigger id="quick-type" className="h-11">
+                <SelectTrigger id="quick-type" className="h-11" aria-label="Transaction type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -132,7 +132,7 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
                 Category
               </Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger id="quick-category" className="h-11">
+                <SelectTrigger id="quick-category" className="h-11" aria-label="Category">
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>

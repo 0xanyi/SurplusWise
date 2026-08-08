@@ -183,7 +183,7 @@ export default function DashboardPage() {
             Here&apos;s your finance snapshot for the selected period.
           </p>
           <Select value={period} onValueChange={(value) => setPeriod(value as DashboardPeriod)}>
-            <SelectTrigger className="h-9 w-full sm:w-[170px]">
+            <SelectTrigger className="h-9 w-full sm:w-[170px]" aria-label="Dashboard period">
               <SelectValue placeholder="Select period" />
             </SelectTrigger>
             <SelectContent>

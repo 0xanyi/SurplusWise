@@ -152,7 +152,7 @@ export function GoalsManagement() {
       <div className="space-y-2">
         <Label>Category</Label>
         <Select value={formData.category} onValueChange={(value: GoalCategory) => setFormData((prev) => ({ ...prev, category: value }))}>
-          <SelectTrigger>
+          <SelectTrigger aria-label="Goal category">
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
           <SelectContent>
@@ -242,10 +242,10 @@ export function GoalsManagement() {
                     <p className="text-xs capitalize text-muted-foreground">{goal.category.replace(/_/g, " ")}</p>
                   </div>
                   <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(goal)}>
+                    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Edit goal ${goal.name}`} onClick={() => openEdit(goal)}>
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(goal)}>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" aria-label={`Delete goal ${goal.name}`} onClick={() => handleDelete(goal)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>

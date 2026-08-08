@@ -58,7 +58,7 @@ export function DebtFormFields({ formData, onChange }: DebtFormFieldsProps) {
             value={formData.debtType}
             onValueChange={(value: DebtType) => onChange({ debtType: value })}
           >
-            <SelectTrigger id="debt-type">
+            <SelectTrigger id="debt-type" aria-label="Debt type">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

@@ -58,7 +58,7 @@ export function InvestmentFormFields({ formData, onChange }: InvestmentFormField
             onChange({ investmentType: val as InvestmentType })
           }
         >
-          <SelectTrigger id="inv-type">
+          <SelectTrigger id="inv-type" aria-label="Investment type">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

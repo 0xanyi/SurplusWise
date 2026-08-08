@@ -124,7 +124,14 @@ export function BudgetOverview() {
               </div>
             </div>
 
-            <div className="h-2.5 overflow-hidden rounded-full bg-muted">
+            <div
+              role="progressbar"
+              aria-valuenow={Math.min(Math.round(budget.percentage), 100)}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={`${budget.category} budget used`}
+              className="h-2.5 overflow-hidden rounded-full bg-muted"
+            >
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
                   budget.status === "exceeded"
@@ -138,6 +145,15 @@ export function BudgetOverview() {
             </div>
 
             <p className="text-xs text-muted-foreground">
+              {/* The bar's colour also encodes status, so name the status in text. */}
+              <span className="font-medium text-foreground">
+                {budget.status === "exceeded"
+                  ? "Over budget"
+                  : budget.status === "warning"
+                  ? "Near limit"
+                  : "On track"}
+              </span>
+              {" · "}
               {budget.remaining >= 0
                 ? `${formatCurrency(budget.remaining)} remaining`
                 : `${formatCurrency(Math.abs(budget.remaining))} over budget`}

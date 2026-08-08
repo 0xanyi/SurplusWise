@@ -218,7 +218,7 @@ export function BudgetManagement() {
                   }))
                 }
               >
-                <SelectTrigger id="budget-type">
+                <SelectTrigger id="budget-type" aria-label="Budget type">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -235,7 +235,7 @@ export function BudgetManagement() {
                 value={formData.category}
                 onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
               >
-                <SelectTrigger id="budget-category">
+                <SelectTrigger id="budget-category" aria-label="Budget category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -267,7 +267,7 @@ export function BudgetManagement() {
                 value={formData.period}
                 onValueChange={(value: BudgetPeriod) => setFormData((prev) => ({ ...prev, period: value }))}
               >
-                <SelectTrigger id="budget-period">
+                <SelectTrigger id="budget-period" aria-label="Budget period">
                   <SelectValue placeholder="Select period" />
                 </SelectTrigger>
                 <SelectContent>
@@ -364,13 +364,14 @@ export function BudgetManagement() {
                     </div>
 
                     <div className="flex gap-1">
-                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEditDialog(budget)}>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Edit ${budget.category} budget`} onClick={() => openEditDialog(budget)}>
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
                       <Button
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 text-destructive hover:text-destructive"
+                        aria-label={`Delete ${budget.category} budget`}
                         onClick={() => handleDeleteBudget(budget)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -389,7 +390,14 @@ export function BudgetManagement() {
                     <span className="font-semibold tabular-nums">{formatCurrency(budget.amount)}</span>
                   </div>
 
-                  <div className="h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    role="progressbar"
+                    aria-valuenow={Math.min(Math.round(budget.percentage), 100)}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-label={`${budget.category} budget used`}
+                    className="h-2.5 w-full overflow-hidden rounded-full bg-muted"
+                  >
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
                         status === "exceeded"

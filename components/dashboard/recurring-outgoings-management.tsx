@@ -334,7 +334,7 @@ export function RecurringOutgoingsManagement() {
           value={formData.category}
           onValueChange={(value) => setFormData((prev) => ({ ...prev, category: value }))}
         >
-          <SelectTrigger id="outgoing-category">
+          <SelectTrigger id="outgoing-category" aria-label="Category">
             <SelectValue placeholder="Select..." />
           </SelectTrigger>
           <SelectContent>
@@ -549,6 +549,7 @@ export function RecurringOutgoingsManagement() {
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8"
+                        aria-label={`Edit ${item.name}`}
                         onClick={() => openEditDialog(item)}
                       >
                         <Edit2 className="h-3.5 w-3.5" />
@@ -557,6 +558,7 @@ export function RecurringOutgoingsManagement() {
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8 text-destructive hover:text-destructive"
+                        aria-label={`Delete ${item.name}`}
                         onClick={() => handleDelete(item)}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
