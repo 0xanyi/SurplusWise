@@ -164,8 +164,9 @@ export default function DashboardPage() {
       title: "Net balance",
       value: Math.abs(netBalance),
       subtitle: netBalance >= 0 ? "Surplus" : "Deficit",
-      color: netBalance >= 0 ? "text-giving" : "text-expense",
-      bgColor: netBalance >= 0 ? "bg-giving-surface" : "bg-expense-surface",
+      // Surplus is not giving: polarity earns no money-type colour.
+      color: netBalance >= 0 ? "text-foreground" : "text-expense",
+      bgColor: netBalance >= 0 ? "bg-muted" : "bg-expense-surface",
       icon: Wallet,
     },
   ];

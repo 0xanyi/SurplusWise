@@ -133,18 +133,18 @@ components:
     rounded: "{rounded.control}"
     padding: "0.5rem 0.75rem"
   type-tile-income:
-    backgroundColor: "#eff6ff"
-    textColor: "{colors.inflow-blue}"
+    backgroundColor: "{colors.income-surface}"
+    textColor: "{colors.income}"
     rounded: "{rounded.tile}"
     size: "2.5rem"
   type-tile-expense:
-    backgroundColor: "#fff1f2"
-    textColor: "{colors.outflow-rose}"
+    backgroundColor: "{colors.expense-surface}"
+    textColor: "{colors.expense}"
     rounded: "{rounded.tile}"
     size: "2.5rem"
   type-tile-giving:
-    backgroundColor: "#ecfdf5"
-    textColor: "{colors.giving-green}"
+    backgroundColor: "{colors.giving-surface}"
+    textColor: "{colors.giving}"
     rounded: "{rounded.tile}"
     size: "2.5rem"
 ---

@@ -237,7 +237,7 @@ export function InvestmentsManagement() {
                 <p
                   className={`text-2xl font-semibold tabular-nums ${
                     isPositiveReturn
-                      ? "text-giving"
+                      ? "text-foreground"
                       : "text-expense"
                   }`}
                 >
@@ -255,7 +255,7 @@ export function InvestmentsManagement() {
                   <TrendingUp
                     className={`size-6 ${
                       isPositiveReturn
-                        ? "text-giving"
+                        ? "text-foreground"
                         : "text-expense"
                     }`}
                   />
@@ -274,7 +274,7 @@ export function InvestmentsManagement() {
                 <p
                   className={`text-2xl font-semibold tabular-nums ${
                     isPositiveReturn
-                      ? "text-giving"
+                      ? "text-foreground"
                       : "text-expense"
                   }`}
                 >
@@ -284,7 +284,7 @@ export function InvestmentsManagement() {
                 <p
                   className={`text-xs font-medium tabular-nums ${
                     isPositiveReturn
-                      ? "text-giving"
+                      ? "text-foreground"
                       : "text-expense"
                   }`}
                 >

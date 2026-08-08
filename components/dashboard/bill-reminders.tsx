@@ -142,9 +142,9 @@ export function BillReminders() {
         ) : displayBills.length === 0 ? (
           <div className="py-6 text-center">
             <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-giving-surface">
-              <CheckCircle2 className="size-5 text-giving" />
+              <CheckCircle2 className="size-5 text-muted-foreground" />
             </div>
-            <p className="font-medium text-giving">All caught up!</p>
+            <p className="font-medium text-foreground">All caught up!</p>
             <p className="mt-1 text-sm text-muted-foreground">
               No upcoming bills due.
             </p>

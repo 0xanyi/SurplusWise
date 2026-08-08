@@ -45,11 +45,11 @@ export function NetWorthOverview() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm text-muted-foreground">Current net worth</p>
-              <p className={`text-2xl font-semibold tabular-nums ${positive ? "text-giving" : "text-expense"}`}>
+              <p className={`text-2xl font-semibold tabular-nums ${positive ? "text-foreground" : "text-expense"}`}>
                 {formatCurrency(data.netWorth)}
               </p>
             </div>
-            <Wallet className={`size-6 ${positive ? "text-giving" : "text-expense"}`} />
+            <Wallet className={`size-6 ${positive ? "text-foreground" : "text-expense"}`} />
           </div>
         </div>
 

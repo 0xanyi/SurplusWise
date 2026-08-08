@@ -103,7 +103,7 @@ function formatChangeLabel(value: number | null) {
 function getComparisonTone(value: number | null, positiveIsGood = true) {
   if (value === null || Math.abs(value) < 0.05) return "text-muted-foreground";
   const improved = positiveIsGood ? value > 0 : value < 0;
-  return improved ? "text-giving" : "text-expense";
+  return improved ? "text-foreground" : "text-expense";
 }
 
 function ComparisonHint({
@@ -377,7 +377,7 @@ export function AnalyticsCharts() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Net</CardTitle>
           </CardHeader>
-          <CardContent className={`text-xl font-semibold ${netBalance >= 0 ? "text-giving" : "text-expense"}`}>
+          <CardContent className={`text-xl font-semibold ${netBalance >= 0 ? "text-foreground" : "text-expense"}`}>
             {netBalance >= 0 ? <Wallet className="mr-1 inline size-4" /> : <TrendingDown className="mr-1 inline size-4" />}
             {formatCurrency(Math.abs(netBalance))}
             <span className="ml-1 text-xs text-muted-foreground">{netBalance >= 0 ? "surplus" : "deficit"}</span>
@@ -389,7 +389,7 @@ export function AnalyticsCharts() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Safe to spend</CardTitle>
           </CardHeader>
-          <CardContent className={`text-xl font-semibold ${analytics.safeToSpend >= 0 ? "text-income" : "text-expense"}`}>
+          <CardContent className={`text-xl font-semibold ${analytics.safeToSpend >= 0 ? "text-foreground" : "text-expense"}`}>
             <PiggyBank className="mr-1 inline size-4" />
             {formatCurrency(Math.abs(analytics.safeToSpend))}
             <span className="ml-1 text-xs text-muted-foreground">{analytics.safeToSpend >= 0 ? "available" : "overcommitted"}</span>
@@ -423,7 +423,7 @@ export function AnalyticsCharts() {
               <p className="text-sm text-muted-foreground">Trend Direction</p>
               <p className={`mt-2 flex items-center gap-2 text-lg font-semibold ${
                 analytics.spendingPrediction.trendDirection === "improving"
-                  ? "text-giving"
+                  ? "text-foreground"
                   : analytics.spendingPrediction.trendDirection === "declining"
                     ? "text-expense"
                     : "text-obligation"
@@ -439,7 +439,7 @@ export function AnalyticsCharts() {
               <p className="text-sm text-muted-foreground">Days of Runway</p>
               <p className={`mt-2 text-lg font-semibold ${
                 analytics.spendingPrediction.daysOfRunway === null
-                  ? "text-giving"
+                  ? "text-foreground"
                   : analytics.spendingPrediction.daysOfRunway > 30
                     ? "text-obligation"
                     : "text-expense"
@@ -494,7 +494,7 @@ export function AnalyticsCharts() {
             <div className="rounded-xl border border-border/60 p-4">
               <p className="text-sm text-muted-foreground">Remaining</p>
               <p className={`mt-2 text-lg font-semibold ${
-                analytics.safeToSpendBreakdown.remaining >= 0 ? "text-giving" : "text-expense"
+                analytics.safeToSpendBreakdown.remaining >= 0 ? "text-foreground" : "text-expense"
               }`}>
                 {formatCurrency(analytics.safeToSpendBreakdown.remaining)}
               </p>

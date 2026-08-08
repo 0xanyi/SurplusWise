@@ -111,7 +111,7 @@ export function InvestmentsOverview() {
                 <p
                   className={`font-semibold tabular-nums ${
                     isGain
-                      ? "text-giving"
+                      ? "text-foreground"
                       : "text-expense"
                   }`}
                 >
@@ -123,7 +123,7 @@ export function InvestmentsOverview() {
             <p
               className={`text-center text-xs font-medium ${
                 isGain
-                  ? "text-giving"
+                  ? "text-foreground"
                   : "text-expense"
               }`}
             >
@@ -142,7 +142,7 @@ export function InvestmentsOverview() {
                   >
                     <div className="flex items-center gap-2">
                       <TrendingUp
-                        className={`size-3.5 ${itemGain ? "text-giving" : "text-expense"}`}
+                        className={`size-3.5 ${itemGain ? "text-foreground" : "text-expense"}`}
                       />
                       <div>
                         <p className="font-medium">{item.name}</p>
@@ -158,7 +158,7 @@ export function InvestmentsOverview() {
                       <p
                         className={`text-[10px] font-medium ${
                           itemGain
-                            ? "text-giving"
+                            ? "text-foreground"
                             : "text-expense"
                         }`}
                       >
