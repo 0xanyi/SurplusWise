@@ -152,7 +152,7 @@ export function OutgoingsOverview() {
                   >
                     <div className="flex items-center gap-2">
                       {isPaid ? (
-                        <CheckCircle2 className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <CheckCircle2 className="size-3.5 text-giving" />
                       ) : isOverdue ? (
                         <Clock className="size-3.5 text-obligation" />
                       ) : (

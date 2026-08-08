@@ -16,10 +16,10 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  active: "bg-blue-100 dark:bg-blue-900/30 text-income",
-  partially_repaid: "bg-amber-100 dark:bg-amber-900/30 text-obligation",
-  fully_repaid: "bg-emerald-100 dark:bg-emerald-900/30 text-giving",
-  defaulted: "bg-rose-100 dark:bg-rose-900/30 text-expense",
+  active: "bg-income-surface text-income",
+  partially_repaid: "bg-obligation-surface text-obligation",
+  fully_repaid: "bg-giving-surface text-giving",
+  defaulted: "bg-expense-surface text-expense",
 };
 
 interface LoansResponse {
