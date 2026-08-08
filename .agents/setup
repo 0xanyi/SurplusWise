@@ -76,9 +76,21 @@ fi
 
 echo "[setup] Provisioning local database"
 db_password="${SIKA_DB_PASSWORD:-localdev}"
-db_url="postgresql://sika:${db_password}@localhost:5432/sika"
 # Double every single quote so the password is a safe SQL string literal.
 db_password_sql="${db_password//\'/\'\'}"
+# Percent-encode the password so reserved characters survive the connection URI.
+url_encode() {
+  local string="$1" encoded="" i char
+  for (( i = 0; i < ${#string}; i++ )); do
+    char="${string:i:1}"
+    case "$char" in
+      [A-Za-z0-9.~_-]) encoded+="$char" ;;
+      *) encoded+="$(printf '%%%02X' "'$char")" ;;
+    esac
+  done
+  printf '%s' "$encoded"
+}
+db_url="postgresql://sika:$(url_encode "$db_password")@localhost:5432/sika"
 if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname = 'sika'" | grep -q 1; then
   sudo -u postgres psql -v ON_ERROR_STOP=1 \
     -c "CREATE ROLE sika LOGIN PASSWORD '$db_password_sql'"
