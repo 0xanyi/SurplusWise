@@ -392,7 +392,7 @@ export function BudgetManagement() {
 
                   <div
                     role="progressbar"
-                    aria-valuenow={Math.round(budget.percentage)}
+                    aria-valuenow={Math.min(Math.round(budget.percentage), 100)}
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-label={`${budget.category} budget used`}
