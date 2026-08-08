@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @theme {
   /* Self-hosted by next/font in app/layout.tsx; never fetch fonts remotely. */
