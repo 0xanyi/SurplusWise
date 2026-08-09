@@ -1,8 +1,16 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { useApiQuery } from "@/hooks/use-api";
+import type { ApiRecurringOutgoing } from "@/types";
+import {
+  getDaysUntilDue,
+  getDueUrgency,
+  getNextDueDate,
+} from "@/lib/outgoings-date";
 import { SikaLogo } from "@/components/sika-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
@@ -59,15 +67,36 @@ export function NavLink({
       {badge != null && badge > 0 && (
         <span className="ml-auto rounded-md bg-obligation-surface px-1.5 py-0.5 text-[11px] font-semibold text-obligation tabular-nums">
           {badge}
+          <span className="sr-only"> due or overdue</span>
         </span>
       )}
     </Link>
   );
 }
 
+/** Count of outgoings that are unpaid and already due — the sidebar badge. */
+function useDueOutgoingsCount() {
+  const { data } = useApiQuery<{ outgoings: ApiRecurringOutgoing[] }>(
+    "/api/recurring-outgoings"
+  );
+
+  return useMemo(() => {
+    if (!data?.outgoings) return 0;
+    const now = new Date();
+    return data.outgoings.filter((outgoing) => {
+      if (!outgoing.is_active || outgoing.payment_status?.paid) return false;
+      const urgency = getDueUrgency(
+        getDaysUntilDue(getNextDueDate(outgoing.day_of_month, now), now)
+      );
+      return urgency === "overdue" || urgency === "today";
+    }).length;
+  }, [data]);
+}
+
 export function DashboardSidebar({ user }: { user: SidebarUser }) {
   const router = useRouter();
   const { toast } = useToast();
+  const dueCount = useDueOutgoingsCount();
 
   const handleLogout = async () => {
     await authClient.signOut();
@@ -100,6 +129,7 @@ export function DashboardSidebar({ user }: { user: SidebarUser }) {
                 href={item.href}
                 label={item.label}
                 icon={item.icon}
+                badge={item.href === "/dashboard/outgoings" ? dueCount : undefined}
               />
             ))}
           </div>
