@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Plus,
   Edit2,
@@ -32,6 +32,7 @@ import {
   type DebtFormData,
 } from "@/components/dashboard/debts/debt-form-fields";
 import { BalanceLogSection } from "@/components/dashboard/debts/balance-log-section";
+import { EmptyState } from "@/components/dashboard/panel";
 
 const DEBT_TYPE_LABELS: Record<DebtType, string> = {
   credit_card: "Credit Card",
@@ -58,6 +59,14 @@ interface DebtsResponse {
   active_count: number;
 }
 
+/**
+ * Shared by the column head and every row so the two cannot drift apart.
+ * Passed as a custom property rather than interpolated into the class name:
+ * Tailwind scans source for literal class strings, so a built-up
+ * `grid-cols-[...]` would never be compiled.
+ */
+const DEBT_COLUMNS = "minmax(0,1.4fr) minmax(0,1fr) 90px 100px 110px 88px";
+
 export function DebtsCreditsManagement() {
   const { toast } = useToast();
   const {
@@ -68,6 +77,59 @@ export function DebtsCreditsManagement() {
   } = useApiQuery<DebtsResponse>("/api/debts-credits");
 
   const debts = data?.debts;
+
+  // Balance-weighted, so a large cheap loan does not get averaged away by a
+  // small expensive card. Null when nothing carries a rate.
+  const averageApr = useMemo(() => {
+    const rated = (debts ?? []).filter(
+      (d) => d.is_active && d.current_balance > 0 && d.interest_rate != null,
+    );
+    const balance = rated.reduce((sum, d) => sum + d.current_balance, 0);
+    if (balance === 0) return null;
+    return (
+      rated.reduce((sum, d) => sum + d.current_balance * Number(d.interest_rate), 0) /
+      balance
+    );
+  }, [debts]);
+
+  /**
+   * When the minimum payment clears the debt, at today's balances and rates.
+   * Amortised month by month rather than balance/payment, because interest on
+   * a 21.9% card eats a large share of a minimum payment. Null when the
+   * minimums do not outrun the interest — there is no honest date to give.
+   */
+  const debtFreeBy = useMemo(() => {
+    const active = (debts ?? []).filter(
+      (d) => d.is_active && d.current_balance > 0 && (d.minimum_payment ?? 0) > 0,
+    );
+    if (active.length === 0) return null;
+
+    let balances = active.map((d) => ({
+      balance: d.current_balance,
+      payment: d.minimum_payment!,
+      monthlyRate: (Number(d.interest_rate ?? 0) / 100) / 12,
+    }));
+
+    for (let month = 1; month <= 600; month++) {
+      balances = balances.map((b) => ({
+        ...b,
+        balance: b.balance * (1 + b.monthlyRate) - b.payment,
+      }));
+      if (balances.every((b) => b.balance <= 0)) {
+        const date = new Date();
+        date.setMonth(date.getMonth() + month);
+        return date;
+      }
+      // A balance that grew this month will never be cleared by this payment.
+      if (balances.some((b) => b.balance >= b.balance / (1 + b.monthlyRate))) {
+        const stuck = balances.some(
+          (b) => b.balance > 0 && b.balance * b.monthlyRate >= b.payment,
+        );
+        if (stuck) return null;
+      }
+    }
+    return null;
+  }, [debts]);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -242,53 +304,40 @@ export function DebtsCreditsManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Outstanding</p>
-                <p className="text-2xl font-semibold text-obligation tabular-nums">
-                  {formatCurrency(data?.total_balance ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-obligation-surface p-3">
-                <CreditCard className="size-6 text-obligation" />
-              </div>
+      {/* Total owed — the page's anchor figure, on the obligation-toned hero.
+          The slab is dark in both themes; globals.css keeps money tokens at
+          their dark-mode values inside it. */}
+      <div className="flex flex-wrap items-end justify-between gap-6 rounded-[20px] bg-hero-debt p-6 sm:px-[26px]">
+        <div>
+          <p className="text-[12.5px] text-obligation">Total owed</p>
+          <p className="mt-1.5 font-display text-[34px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-hero-debt-ink sm:text-[44px]">
+            {formatCurrency(data?.total_balance ?? 0)}
+          </p>
+          <p className="mt-2.5 text-[13px] text-hero-debt-muted tabular-nums">
+            {formatCurrency(data?.total_min_payment ?? 0)} minimum due each month
+            {debtFreeBy &&
+              ` · debt-free by ${debtFreeBy.toLocaleDateString("en-GB", {
+                month: "short",
+                year: "numeric",
+              })} at this rate`}
+          </p>
+        </div>
+        <div className="flex gap-7">
+          <div>
+            <p className="text-[11.5px] text-hero-debt-muted">Active accounts</p>
+            <p className="mt-1 text-lg font-semibold tabular-nums text-hero-debt-ink">
+              {data?.active_count ?? 0}
+            </p>
+          </div>
+          {averageApr !== null && (
+            <div>
+              <p className="text-[11.5px] text-hero-debt-muted">Avg. interest</p>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-hero-debt-ink">
+                {averageApr.toFixed(1)}%
+              </p>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Monthly Min. Payments</p>
-                <p className="text-2xl font-semibold text-obligation tabular-nums">
-                  {formatCurrency(data?.total_min_payment ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-obligation-surface p-3">
-                <TrendingDown className="size-6 text-obligation" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Active Accounts</p>
-                <p className="text-2xl font-semibold tabular-nums">
-                  {data?.active_count ?? 0}
-                </p>
-              </div>
-              <div className="rounded-xl bg-muted p-3">
-                <Building2 className="size-6 text-muted-foreground" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       </div>
 
       {/* Add button + dialogs */}
@@ -343,156 +392,161 @@ export function DebtsCreditsManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Debts list */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* One scannable table: account, type, APR, minimum, balance. The
+          utilisation bar and balance history live in the expanded row, so the
+          columns stay comparable down the page. */}
+      <div className="overflow-hidden rounded-[18px] border border-border/70 bg-card">
         {debts.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6 text-center text-muted-foreground">
-              <p className="font-medium text-foreground">No debts or credit accounts</p>
-              <p className="text-sm mt-1">Add credit cards, loans, or other debts to track them.</p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={CreditCard}
+            title="No debts tracked"
+            description="Add a card or loan to see your balance sheet."
+          />
         ) : (
-          debts.map((item) => (
-            <Card key={item.id} className={!item.is_active ? "opacity-60" : ""}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-xl bg-obligation-surface p-2">
-                      {item.debt_type === "credit_card" ? (
-                        <CreditCard className="size-4 text-obligation" />
-                      ) : item.debt_type === "mortgage" ? (
-                        <Building2 className="size-4 text-obligation" />
-                      ) : (
-                        <TrendingDown className="size-4 text-obligation" />
-                      )}
-                    </div>
-                    <div>
-                      <CardTitle className="text-base">{item.name}</CardTitle>
-                      <p className="text-xs text-muted-foreground">
+          <>
+            <div
+              className="hidden gap-4 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground sm:grid sm:grid-cols-[var(--cols)] sm:px-6"
+              style={{ "--cols": DEBT_COLUMNS } as React.CSSProperties}
+            >
+              <span>Account</span>
+              <span>Type</span>
+              <span className="text-right">APR</span>
+              <span className="text-right">Min / mo</span>
+              <span className="text-right">Balance</span>
+              <span className="sr-only">Actions</span>
+            </div>
+
+            <ul>
+              {debts.map((item) => {
+                const expanded = expandedId === item.id;
+                const utilisation =
+                  item.credit_limit != null && item.credit_limit > 0
+                    ? (item.current_balance / item.credit_limit) * 100
+                    : null;
+
+                return (
+                  <li key={item.id} className="border-t border-border/60">
+                    <div
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-5 py-3.5 sm:grid-cols-[var(--cols)] sm:px-6"
+                      style={{ "--cols": DEBT_COLUMNS } as React.CSSProperties}
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-[13.5px] font-medium">{item.name}</p>
+                        {item.lender && (
+                          <p className="truncate text-[11.5px] text-muted-foreground">
+                            {item.lender}
+                          </p>
+                        )}
+                      </div>
+
+                      <span className="hidden truncate text-[13px] text-muted-foreground sm:block">
                         {DEBT_TYPE_LABELS[item.debt_type]}
-                        {item.lender && ` · ${item.lender}`}
+                      </span>
+                      <span className="hidden text-right text-[13px] tabular-nums sm:block">
+                        {item.interest_rate != null ? `${item.interest_rate}%` : "—"}
+                      </span>
+                      <span className="hidden text-right text-[13px] tabular-nums sm:block">
+                        {item.minimum_payment != null
+                          ? formatCurrency(item.minimum_payment)
+                          : "—"}
+                      </span>
+
+                      <span className="text-right text-sm font-semibold text-obligation tabular-nums sm:col-auto">
+                        {formatCurrency(item.current_balance)}
+                      </span>
+
+                      <span className="col-span-2 flex items-center justify-end gap-1 sm:col-auto">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8"
+                          aria-label={`${expanded ? "Hide" : "Show"} balance history for ${item.name}`}
+                          aria-expanded={expanded}
+                          onClick={() => setExpandedId(expanded ? null : item.id)}
+                        >
+                          {expanded ? (
+                            <ChevronUp className="size-3.5" />
+                          ) : (
+                            <History className="size-3.5" />
+                          )}
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8"
+                          aria-label={`Edit ${item.name}`}
+                          onClick={() => openEditDialog(item)}
+                        >
+                          <Edit2 className="size-3.5" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 text-destructive hover:text-destructive"
+                          aria-label={`Delete ${item.name}`}
+                          onClick={() => handleDelete(item)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </span>
+
+                      {/* The columns hidden above sm, restated as a caption. */}
+                      <p className="col-span-2 text-[11.5px] text-muted-foreground sm:hidden">
+                        {DEBT_TYPE_LABELS[item.debt_type]}
+                        {item.interest_rate != null && ` · ${item.interest_rate}% APR`}
+                        {item.minimum_payment != null &&
+                          ` · ${formatCurrency(item.minimum_payment)}/mo`}
                       </p>
                     </div>
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8"
-                      aria-label={`Edit ${item.name}`}
-                      onClick={() => openEditDialog(item)}
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      aria-label={`Delete ${item.name}`}
-                      onClick={() => handleDelete(item)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
 
-              <CardContent className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Balance</span>
-                  <span className="font-semibold tabular-nums text-obligation">
-                    {formatCurrency(item.current_balance)}
-                  </span>
-                </div>
+                    {expanded && (
+                      <div className="space-y-4 border-t border-border/60 bg-sunken px-5 py-4 sm:px-6">
+                        {utilisation !== null && (
+                          <div>
+                            <div className="flex items-baseline justify-between text-[12.5px]">
+                              <span className="tabular-nums text-muted-foreground">
+                                Credit limit {formatCurrency(item.credit_limit!)}
+                              </span>
+                              <span className="tabular-nums text-muted-foreground">
+                                {formatCurrency(
+                                  Math.max(item.credit_limit! - item.current_balance, 0)
+                                )}{" "}
+                                available
+                              </span>
+                            </div>
+                            {/* Low utilisation is neutral, not green: a small
+                                balance is still a debt. */}
+                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-track">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${
+                                  utilisation >= 90
+                                    ? "bg-expense"
+                                    : utilisation >= 70
+                                    ? "bg-obligation"
+                                    : "bg-foreground/70"
+                                }`}
+                                style={{ width: `${Math.min(utilisation, 100)}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
 
-                {item.debt_type === "credit_card" && item.credit_limit != null && (
-                  <>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Credit Limit</span>
-                      <span className="font-medium tabular-nums">
-                        {formatCurrency(item.credit_limit)}
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          (item.current_balance / item.credit_limit) * 100 >= 90
-                            ? "bg-rose-500"
-                            : (item.current_balance / item.credit_limit) * 100 >= 70
-                            ? "bg-amber-500"
-                            : "bg-emerald-500"
-                        }`}
-                        style={{
-                          width: `${Math.min(
-                            (item.current_balance / item.credit_limit) * 100,
-                            100,
-                          )}%`,
-                        }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      {formatCurrency(
-                        Math.max(item.credit_limit - item.current_balance, 0),
-                      )}{" "}
-                      available
-                    </p>
-                  </>
-                )}
+                        {item.payment_day_of_month != null && (
+                          <p className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
+                            <CalendarDays className="size-3.5" />
+                            Payment due {item.payment_day_of_month}
+                            {getOrdinalSuffix(item.payment_day_of_month)} of each month
+                          </p>
+                        )}
 
-                {item.minimum_payment != null && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Min. Payment</span>
-                    <span className="font-medium tabular-nums">
-                      {formatCurrency(item.minimum_payment)}
-                    </span>
-                  </div>
-                )}
-
-                {item.payment_day_of_month != null && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground flex items-center gap-1.5">
-                      <CalendarDays className="size-3.5" />
-                      Payment due
-                    </span>
-                    <span className="font-medium">
-                      {item.payment_day_of_month}
-                      {getOrdinalSuffix(item.payment_day_of_month)} of each month
-                    </span>
-                  </div>
-                )}
-
-                {item.interest_rate != null && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">APR</span>
-                    <span className="font-medium tabular-nums">{item.interest_rate}%</span>
-                  </div>
-                )}
-
-                {/* Expand/collapse balance history */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full h-8 text-xs text-muted-foreground mt-2"
-                  onClick={() =>
-                    setExpandedId(expandedId === item.id ? null : item.id)
-                  }
-                >
-                  <History className="size-3 mr-1" />
-                  {expandedId === item.id ? "Hide" : "Show"} Balance History
-                  {expandedId === item.id ? (
-                    <ChevronUp className="size-3 ml-1" />
-                  ) : (
-                    <ChevronDown className="size-3 ml-1" />
-                  )}
-                </Button>
-
-                {expandedId === item.id && (
-                  <BalanceLogSection debtId={item.id} onChanged={refresh} />
-                )}
-              </CardContent>
-            </Card>
-          ))
+                        <BalanceLogSection debtId={item.id} onChanged={refresh} />
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </div>
     </div>

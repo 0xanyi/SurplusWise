@@ -32,7 +32,7 @@ export function DashboardClient({ onDataChanged }: DashboardClientProps) {
 
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="h-11 w-full sm:w-auto" onClick={() => openForm("expense", "scan")}>
-            <ScanLine className="mr-2 size-4" />
+            <ScanLine className="size-4" />
             Scan receipt
           </Button>
         </div>

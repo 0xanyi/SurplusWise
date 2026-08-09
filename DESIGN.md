@@ -2,16 +2,19 @@
 name: Sika
 description: A quiet ledger for income, expenses, and giving.
 colors:
-  primary: "hsl(221 83% 53%)"
-  primary-foreground: "hsl(0 0% 100%)"
-  background: "hsl(0 0% 99%)"
-  foreground: "hsl(240 6% 10%)"
+  primary: "hsl(240 6% 5%)"
+  primary-foreground: "hsl(45 20% 96%)"
+  background: "hsl(45 15% 97%)"
+  foreground: "hsl(240 6% 5%)"
   card: "hsl(0 0% 100%)"
-  muted: "hsl(240 5% 96%)"
-  muted-foreground: "hsl(240 4% 44%)"
-  border: "hsl(240 6% 90%)"
-  ring: "hsl(221 83% 53%)"
+  sunken: "hsl(45 12% 95%)"
+  track: "hsl(45 8% 89%)"
+  muted: "hsl(45 12% 93%)"
+  muted-foreground: "hsl(240 4% 42%)"
+  border: "hsl(45 8% 88%)"
+  ring: "hsl(157 72% 26%)"
   destructive: "hsl(0 84% 60%)"
+  brand: "hsl(157 72% 26%)"
   income: "#1447e6"
   income-surface: "#eff6ff"
   expense: "#c20039"
@@ -20,60 +23,74 @@ colors:
   giving-surface: "#ecfdf5"
   obligation: "#b75000"
   obligation-surface: "#fffbeb"
-  dark-income: "#51a2ff"
-  dark-expense: "#ff667f"
-  dark-giving: "#00d294"
-  dark-obligation: "#ffb900"
-  dark-background: "hsl(240 10% 4%)"
-  dark-card: "hsl(240 10% 7%)"
-  dark-foreground: "hsl(0 0% 98%)"
-  dark-primary: "hsl(217 91% 60%)"
-  dark-muted-foreground: "hsl(240 5% 58%)"
+  dark-income: "#8ab4ff"
+  dark-expense: "#ff8a9b"
+  dark-giving: "#6fe3b0"
+  dark-obligation: "#ffc46b"
+  dark-background: "#0b0b0d"
+  dark-card: "#141416"
+  dark-sunken: "#0f0f11"
+  dark-track: "#22222a"
+  dark-foreground: "#f4f3ef"
+  dark-primary: "#f4f3ef"
+  dark-muted: "#1c1c20"
+  dark-muted-foreground: "#96959d"
   dark-border: "hsl(240 6% 16%)"
+  dark-brand: "#7ee0a8"
+  hero: "#10291d"
+  hero-ink: "#f1fbf5"
+  hero-accent: "#7ee0a8"
+  hero-muted: "#9bc0ab"
+  hero-debt: "#2a1f10"
+  hero-debt-ink: "#ffe0b0"
+  hero-debt-muted: "#b79a70"
 typography:
   display:
-    fontFamily: "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
+    fontFamily: "Bricolage Grotesque, Geist, system-ui, sans-serif"
     fontSize: "clamp(2.25rem, 5vw, 3.75rem)"
     fontWeight: 600
     lineHeight: 1.05
     letterSpacing: "-0.025em"
   headline:
-    fontFamily: "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
+    fontFamily: "Bricolage Grotesque, Geist, system-ui, sans-serif"
     fontSize: "clamp(1.5rem, 3vw, 1.875rem)"
     fontWeight: 600
     lineHeight: 1.2
     letterSpacing: "-0.025em"
   title:
-    fontFamily: "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
-    fontSize: "1.125rem"
+    fontFamily: "Bricolage Grotesque, Geist, system-ui, sans-serif"
+    fontSize: "1rem"
     fontWeight: 600
     lineHeight: 1
-    letterSpacing: "-0.025em"
+    letterSpacing: "-0.015em"
   body:
-    fontFamily: "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
+    fontFamily: "Geist, system-ui, -apple-system, sans-serif"
     fontSize: "0.875rem"
     fontWeight: 400
     lineHeight: 1.5
   control:
-    fontFamily: "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
-    fontSize: "0.875rem"
+    fontFamily: "Geist, system-ui, -apple-system, sans-serif"
+    fontSize: "0.8125rem"
     fontWeight: 500
     lineHeight: 1
   label:
-    fontFamily: "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
+    fontFamily: "Geist, system-ui, -apple-system, sans-serif"
     fontSize: "0.75rem"
     fontWeight: 500
     lineHeight: 1
   amount:
-    fontFamily: "Plus Jakarta Sans, system-ui, -apple-system, sans-serif"
+    fontFamily: "Bricolage Grotesque, Geist, system-ui, sans-serif"
     fontSize: "clamp(1.125rem, 2vw, 1.5rem)"
     fontWeight: 600
     lineHeight: 1.2
     fontFeature: "tnum"
 rounded:
-  control: "0.5rem"
-  tile: "0.75rem"
-  surface: "1rem"
+  control: "0.6875rem"
+  control-compact: "0.625rem"
+  tile: "1rem"
+  surface: "1.125rem"
+  hero: "1.25rem"
+  marketing: "0.8125rem"
   placeholder: "0.375rem"
   pill: "9999px"
 spacing:
@@ -88,39 +105,40 @@ components:
     textColor: "{colors.primary-foreground}"
     typography: "{typography.control}"
     rounded: "{rounded.control}"
-    height: "2.5rem"
-    padding: "0 1rem"
+    height: "2.375rem"
+    padding: "0 0.9375rem"
   button-primary-hover:
-    backgroundColor: "hsl(221 83% 53% / 0.9)"
+    backgroundColor: "{colors.primary}"
+    opacity: 0.9
     textColor: "{colors.primary-foreground}"
   button-outline:
-    backgroundColor: "{colors.background}"
+    backgroundColor: "{colors.card}"
     textColor: "{colors.foreground}"
     typography: "{typography.control}"
     rounded: "{rounded.control}"
-    height: "2.5rem"
-    padding: "0 1rem"
+    height: "2.375rem"
+    padding: "0 0.9375rem"
   button-ghost:
     backgroundColor: "transparent"
     textColor: "{colors.foreground}"
     typography: "{typography.control}"
     rounded: "{rounded.control}"
-    height: "2.5rem"
-    padding: "0 1rem"
+    height: "2.375rem"
+    padding: "0 0.9375rem"
   input-field:
-    backgroundColor: "{colors.background}"
-    textColor: "{colors.foreground}"
-    typography: "{typography.body}"
-    rounded: "{rounded.control}"
-    height: "2.5rem"
-    padding: "0.5rem 0.75rem"
-  input-field-entry:
-    backgroundColor: "{colors.background}"
+    backgroundColor: "{colors.sunken}"
     textColor: "{colors.foreground}"
     typography: "{typography.body}"
     rounded: "{rounded.control}"
     height: "2.75rem"
-    padding: "0.5rem 0.75rem"
+    padding: "0.5rem 0.875rem"
+  input-field-entry:
+    backgroundColor: "{colors.sunken}"
+    textColor: "{colors.foreground}"
+    typography: "{typography.body}"
+    rounded: "{rounded.control}"
+    height: "2.75rem"
+    padding: "0.5rem 0.875rem"
   card-surface:
     backgroundColor: "{colors.card}"
     textColor: "{colors.foreground}"
@@ -135,18 +153,18 @@ components:
   type-tile-income:
     backgroundColor: "{colors.income-surface}"
     textColor: "{colors.income}"
-    rounded: "{rounded.tile}"
-    size: "2.5rem"
+    rounded: "0.5625rem"
+    size: "1.75rem"
   type-tile-expense:
     backgroundColor: "{colors.expense-surface}"
     textColor: "{colors.expense}"
-    rounded: "{rounded.tile}"
-    size: "2.5rem"
+    rounded: "0.5625rem"
+    size: "1.75rem"
   type-tile-giving:
     backgroundColor: "{colors.giving-surface}"
     textColor: "{colors.giving}"
-    rounded: "{rounded.tile}"
-    size: "2.5rem"
+    rounded: "0.5625rem"
+    size: "1.75rem"
 ---
 
 # Design System: Sika
@@ -155,9 +173,9 @@ components:
 
 **Creative North Star: "The Quiet Ledger"**
 
-Sika looks like a well-kept book of accounts, not a trading terminal. The page is
-near-white paper. Structure comes from hairline borders, not from shadows or filled
-panels. Chrome recedes — the navigation is a translucent blur, cards are almost
+Sika looks like a well-kept book of accounts, not a trading terminal. The page is a
+near-black canvas by default, with a warm paper counterpart in light mode. Structure
+comes from hairline borders, not from shadows or filled panels. Chrome recedes — the navigation is a translucent blur, cards are almost
 borderless, buttons are modest — so that the only things with real presence on screen
 are the numbers and the four colors that tell you what kind of money you are looking at.
 
@@ -176,11 +194,11 @@ crypto-terminal look and the gamified budgeting app with streaks, confetti, masc
 emoji-as-interface.
 
 **Key Characteristics:**
-- Paper-white ground (`hsl(0 0% 99%)`), never pure white, with pure-white cards floating a shade above it
+- Near-black ground (`{colors.dark-background}`) with cards a shade lighter above it, and wells a shade darker below; light mode is the warm-paper counterpart
 - Hairline borders at fractional opacity doing all the separation work
 - Four semantic finance hues, used exclusively for financial meaning
 - Tabular figures on every comparable number
-- Radius that scales with surface size: 8px controls → 12px tiles → 16px surfaces
+- Radius that scales with surface size: 11px controls → 16px tiles → 18px surfaces → 20px heroes
 - Shadows reserved for things that genuinely float; flat everywhere else
 - Full light/dark parity via a single class-scoped token override
 
@@ -191,9 +209,14 @@ piece of text, and a small saturated set that exists only to classify money.
 
 ### Primary
 
-- **Signal Blue** (`{colors.primary}`): interactive chrome and nothing else. Filled
-  primary buttons, focus rings, the app mark, selected-state checks, active links.
-  Lightens to `{colors.dark-primary}` in dark mode so it holds against near-black.
+- **Contrast Slab** (`{colors.primary}`): the primary action is a neutral, not a hue —
+  cream on near-black in dark, ink on paper in light. At 17.7:1 it is the highest
+  contrast pairing in the system, and because it carries no hue, pressing a button can
+  never be mistaken for reading a money figure. Filled primary buttons and nothing else.
+- **Sika Mint** (`{colors.brand}` / `{colors.dark-brand}`): identity and non-money chrome
+  — the logo tile, the workspace chip, focus rings, the selection highlight, marketing
+  kickers. Darkens to a forest step in light mode so it clears AA on paper. Bound by the
+  Mint-Is-Chrome Rule below.
 
 ### Secondary
 
@@ -231,6 +254,11 @@ use the semantic token for each series.
 - **Paper** (`{colors.background}`): the page ground. Deliberately off pure white so
   card surfaces can sit above it without a border.
 - **Card White** (`{colors.card}`): raised surfaces — cards, dialogs, popovers, dropdowns.
+- **Sunken** (`{colors.sunken}`): surfaces that sit *below* the card — inputs, table
+  zebra bands, nested wells. Cards rise, wells drop; that difference is what tells you a
+  field is a hole you can type into rather than a tile you can click.
+- **Track** (`{colors.track}`): progress and meter rails. Never a money colour — the fill
+  carries the meaning, the rail is chrome.
 - **Ink** (`{colors.foreground}`): primary text, headings, and figures.
 - **Graphite** (`{colors.muted-foreground}`): labels, secondary text, captions, inactive
   navigation, and every icon that is not carrying semantic color.
@@ -239,9 +267,27 @@ use the semantic token for each series.
 - **Hairline** (`{colors.border}`): all borders and input strokes. Used at 40–60% opacity
   in most places, which is the system's actual signature separator.
 
-Dark mode is a token swap, not a redesign: ground drops to `{colors.dark-background}`,
-cards rise to `{colors.dark-card}` (lighter than the page — surfaces gain light as they
-rise), and the semantic four step from 600-level to 400-level.
+### Hero surfaces
+
+Two tinted grounds carry the app's two biggest figures, and nothing else:
+
+- **Forest** (`{colors.hero}` with `hero-ink`, `hero-accent`, `hero-muted`): the dashboard
+  net-position slab, the auth marketing panel, the landing showcase.
+- **Ember** (`{colors.hero-debt}` with `hero-debt-ink`, `hero-debt-muted`): the debts page
+  total-owed slab.
+
+A hero is a surface in its own right, not a card with a background colour: it brings its
+own ink and muted step because neutral Ink would not clear contrast on the tint. Do not
+put body copy, tables, or form controls on one. A hero holds one anchor figure, one
+sentence, at most one small control, and — set apart to the side — a cluster of no more
+than two supporting stats. The moment it needs a third, it wants to be a card.
+
+Dark mode is where this palette was designed; light is the derived counterpart. Ground
+drops to `{colors.dark-background}`, cards rise to `{colors.dark-card}` (lighter than the
+page — surfaces gain light as they rise), wells drop to `{colors.dark-sunken}`, and the
+semantic four soften rather than brighten: on a near-black canvas the old 400 step glared,
+so each hue lost saturation and gained lightness. All four clear 7.5:1 on both the page
+and a card.
 
 ### Named Rules
 
@@ -249,9 +295,9 @@ rise), and the semantic four step from 600-level to 400-level.
 colored element is not classifying an amount, a category, or a financial state, it should
 be Ink, Graphite, or Hairline. Decoration does not earn color in this system.
 
-**The Chrome-and-Amount Rule.** Signal Blue is for things you click. Inflow Blue is for
-money that arrived. Never apply Signal Blue to a figure, and never apply Inflow Blue to
-a button, link, or focus ring.
+**The Chrome-and-Amount Rule.** Chrome is for things you click; a money token is for an
+amount. Never colour a figure with a chrome token, and never apply Inflow Blue to a
+button, link, or focus ring.
 
 **The Token-Or-Nothing Rule.** A money type is coloured with its token — `text-income`,
 `bg-expense-surface` — and never with a raw palette class. `text-emerald-600` in a
@@ -263,37 +309,71 @@ fine for things that are not money: a status tick, a decorative accent.
 same type. An expense category may be a lighter or darker Outflow Rose; it may never turn
 Income Blue, Giving Green, or Obligation Amber merely to make the slices different.
 
-> **Tension, reduced but not resolved.** Signal Blue `hsl(221 83% 53%)` (≈ `#2463eb`) and
-> Inflow Blue were the same colour. Moving income to the 700 step for contrast also moved
-> it to `#1447e6`, which is now visibly darker than the primary, so the two no longer
-> collide at a glance. They remain the same hue family, and a full resolution still means
-> moving one of them off blue.
+> **Tension, resolved.** Signal Blue and Inflow Blue used to be the same colour, and two
+> rounds of contrast tuning only reduced the collision. The 2026 redesign resolved it by
+> moving the primary off blue entirely: the primary action is now a neutral contrast slab,
+> so blue means income and nothing else. The tension moved rather than vanished — see the
+> Mint-Is-Chrome Rule for its new home.
 
 **The Giving-Is-Not-Green-Money Rule.** Giving Green marks giving specifically, not
 "positive" generally. Income is blue. Do not let a chart, a badge, or a summary card
 recruit Giving Green to mean "good" or "up" — it collapses the distinction the product
 exists to make.
 
+> **Where this bites in practice.** Investment gains, shrinking debt balances, loan
+> repayments, paid outgoings, valid import rows and under-budget states are all things a
+> designer will reach for green to express. All of them are neutral ink here. The tick
+> glyph and the words *Paid*, *Repaid*, *under budget* already carry the meaning; the
+> colour would only duplicate it, and the duplicate costs the giving distinction. The
+> 2026 redesign arrived colouring every one of these `#6FE3B0` and each was reverted to
+> ink on import.
+
+**The Mint-Is-Chrome Rule.** Sika Mint (`{colors.brand}` / `{colors.dark-brand}`) is
+identity and non-money chrome: the logo tile, the workspace chip, the focus ring, the
+selection highlight, a marketing kicker. It is adjacent in hue to Giving Green, so the
+line has to be absolute — Mint never colours a figure, a badge on an amount, a chart
+series, or a table cell. If a mint pixel sits next to a number, it is a bug.
+
+> **Tension, acknowledged.** Mint and Giving Green are closer to each other than Signal
+> Blue and Inflow Blue ever were. They are kept apart by *role* rather than by hue: money
+> lives in the content column, Mint lives in the chrome around it, and the two never
+> appear in the same row. A full resolution means moving Mint off green — worth doing if
+> the two are ever seen to collide.
+
 ## Typography
 
-**Display / Body / Label Font:** Plus Jakarta Sans (with `system-ui`, `-apple-system`,
-`sans-serif`). One family for everything; there is no display/body pairing and no mono.
+**Body / Control / Label Font:** Geist (with `system-ui`, `-apple-system`, `sans-serif`),
+exposed as `--font-sans` and applied by `font-sans` on `<body>`.
 
-**Character:** A geometric humanist sans with slightly narrow, open counters and
-noticeably tall lowercase — it stays crisp at 12px label sizes and reads as contemporary
-without novelty. It is doing a plain, competent job, which suits a ledger. Weight range
-is deliberately narrow: 400 for prose, 500 for controls and labels, 600 for headings and
-figures. 300 and 700 are loaded but effectively unused.
+**Display Font:** Bricolage Grotesque, exposed as `--font-display` and applied with the
+`font-display` utility. It is reserved for **figures and headings** — the net-position
+number, page `<h1>`s, `CardTitle`, stat values, the landing headline. It never sets
+prose, labels, controls, or table body text.
 
-> **How the family is wired.** `app/layout.tsx` self-hosts Plus Jakarta Sans via
-> `next/font` and exposes it as `--font-jakarta`; `app/globals.css` maps that into
-> `--font-sans` inside `@theme`, which is what the `font-sans` utility on `<body>`
-> resolves. That is the whole chain, and it is deliberately the only one — a previous
-> `@import` from `fonts.googleapis.com` and a competing `body` font-family declaration
-> were removed because the utility class silently beat the base rule (utilities win over
-> base regardless of specificity), leaving the app rendering in the system stack while
-> making an external request on every page load. Change the family in exactly one place:
-> the `next/font` call, then `--font-sans`.
+**Character:** Geist is a neutral grotesque that stays crisp at 11px label sizes and gets
+out of the way, which is what a ledger's UI strings need. Bricolage Grotesque carries the
+personality: slightly condensed, high contrast at large sizes, with tight negative
+tracking (-0.02em to -0.04em) that lets a £-figure sit large without shouting. The
+pairing is the point — the money is in the display face and everything else is not, so
+the eye finds the figure before it finds the label. Weight range stays narrow: 400 for
+prose, 500 for controls, 600 for headings and figures.
+
+> **Why two families now.** The system ran on one family (Plus Jakarta Sans) until the
+> 2026 redesign, on the principle that a ledger does not need a display face. The
+> redesign inverted that: with ten equal-weight cards replaced by one hero figure, the
+> figure had to carry hierarchy on its own, and a single family at one weight step could
+> not do it. Two families, strictly divided by role, buys that hierarchy without adding a
+> third weight.
+
+> **How the families are wired.** `app/layout.tsx` self-hosts both via `next/font/google`
+> and exposes them as `--font-geist` and `--font-bricolage`; `app/globals.css` maps those
+> into `--font-sans` and `--font-display` inside `@theme`. That is the whole chain, and
+> it is deliberately the only one — a previous `@import` from `fonts.googleapis.com` and
+> a competing `body` font-family declaration were removed because the utility class
+> silently beat the base rule (utilities win over base regardless of specificity),
+> leaving the app rendering in the system stack while making an external request on every
+> page load. Change a family in exactly one place: the `next/font` call, then the
+> matching `--font-*` mapping.
 
 ### Hierarchy
 
@@ -301,13 +381,22 @@ figures. 300 and 700 are loaded but effectively unused.
   Appears once per page, on marketing surfaces only.
 - **Headline** (600, fluid to 1.875rem, -0.025em): the page `h1` inside the dashboard.
   One per screen, top-left, no exceptions.
-- **Title** (600, 1.125rem, leading-none, -0.025em): card titles and section headings.
+- **Title** (display face, 600, 1rem, leading-none, -0.015em): card titles and section
+  headings. Dropped from 1.125rem when the display face arrived — Bricolage carries more
+  presence per pixel than the old single family did.
   Drops to 1rem on compact cards.
 - **Body** (400, 0.875rem, 1.5): the default text size across the entire application.
   The app is built at 14px, not 16px; marketing surfaces step up to 1rem/1.125rem.
-- **Control** (500, 0.875rem): buttons, navigation items, input values, table cells.
+- **Control** (500, 0.8125rem): navigation items, input values, table cells, and the
+  outline/ghost/secondary buttons. Filled primary and destructive buttons step to 600 —
+  the only weight bump in the system, and it is what makes a filled action read as the
+  one thing on the row you are meant to press.
 - **Label** (500, 0.75rem, Graphite): field labels, stat-card captions, metadata.
-- **Amount** (600, fluid 1.125rem → 1.5rem, tabular): every currency figure.
+- **Amount** (600, fluid 1.125rem → 1.5rem, tabular): every currency figure in a row,
+  table cell, or list.
+- **Figure** (display face, 600, 1.4375rem → 3.75rem, tabular, -0.02em to -0.035em): the
+  one number a surface exists to show — the net-position hero, a stat tile, a page's
+  total-owed or total-invested. One per surface; if a card has two, neither is a Figure.
 
 ### Named Rules
 
@@ -322,8 +411,9 @@ for 300 or 700 means the size scale is being under-used.
 
 ## Layout
 
-A centered-container system with a hard ceiling: `max-w-7xl` (80rem) for the application,
-`max-w-5xl` (64rem) for marketing, gutters at 1rem rising to 1.5rem at `sm`. Nothing goes
+A sidebar-plus-column system, not a centered container: the rail is a fixed 15.5rem and
+the content column caps at 77.5rem beside it, so the measure never outruns the rail.
+Marketing caps at 67.5rem. Gutters run 1rem rising to 2rem at `lg`. Nothing goes
 edge-to-edge.
 
 Vertical rhythm runs on a 4px base with a strong preference for three steps: 0.5rem
@@ -331,50 +421,54 @@ between related controls, 1rem between grouped blocks, 1.5rem between sections. 
 interiors are a uniform 1.5rem, compressing to 1rem on the compact stat row at mobile
 widths.
 
-The dashboard is a stacked sequence of full-width bands rather than a true grid: a
-2-column stat row that becomes 4 columns at `lg`, then a run of `md:grid-cols-2` panel
-pairs, then a full-width recent-activity card. Breakpoints are Tailwind defaults
+The dashboard is a stacked sequence of bands rather than a true grid: the net-position
+hero and its three stat tiles, a two-up row pairing what is late with what is next, then
+full-width activity, budgets, net worth and goals. Breakpoints are Tailwind defaults
 (640 / 768 / 1024 / 1280 / 1536); the meaningful shifts are `sm` (padding and type step
-up), `md` (navigation goes from hamburger to inline, panels go two-up), and `lg` (stats
-go four-up).
+up) and `lg` (the tab bar becomes the sidebar and the two-up rows split).
 
-Control heights encode intent: 2.25rem compact, 2.5rem default, **2.75rem on transaction
-entry**, 3rem for marketing calls to action. The navigation bar is a fixed 4rem and
-sticks with `backdrop-blur-xl` over an 80%-opaque ground.
+Control heights encode intent: 2.25rem compact, 2.375rem default, **2.75rem on
+transaction entry**, 3rem for marketing calls to action.
 
 ### Named Rules
 
 **The Thumb Row Rule.** Every control on a transaction-entry path — quick add, the
-transaction form, onboarding — is 2.75rem tall, not the default 2.5rem. Entry happens
+transaction form, onboarding — is 2.75rem tall, not the 2.375rem default. Entry happens
 one-handed on a phone, and the record's accuracy depends on entry never being fiddly.
 
-**The Two-Up Ceiling Rule.** Dashboard panels go at most two across. A third column
-shrinks financial figures below comfortable reading size and has never earned its place.
+**The Two-Up Ceiling Rule.** Dashboard *panels* go at most two across — a panel being
+anything with a heading and its own internal structure. A third column shrinks financial
+figures below comfortable reading size and has never earned its place.
+
+Stat *tiles* are not panels and go up to three: a label and one figure survive a narrow
+column where a table or a list does not. The hero's three tiles and the budget row are
+the sanctioned cases.
 
 ## Elevation & Depth
 
-This system is flat by conviction. Cards carry `0 1px 2px rgb(0 0 0 / 0.02)` — a shadow
-so faint it is effectively decorative — and rely on a 60%-opacity hairline border plus the
-white-on-paper-white value step to read as raised. Depth is tonal, not cast.
+This system is flat by conviction. Cards carry **no shadow at all** and rely on a
+70%-opacity hairline border plus the value step against the ground to read as raised —
+lighter than the page in dark, white against paper in light. Depth is tonal, not cast.
 
 Real shadow is reserved for the two things that genuinely float above the page, and it
 arrives together with a scrim or a blur, never alone.
 
 ### Shadow Vocabulary
 
-- **Resting surface** (`box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.02)`): cards and panels.
-  Barely perceptible; the border is doing the work.
 - **Control** (`box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05)`): filled primary and
   destructive buttons only. Outline and ghost buttons stay flat.
 - **Transient** (`box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05)`):
   toasts and dropdown menus.
 - **Modal** (`box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.1)`): dialogs, paired with a
   60%-black overlay and a 4px backdrop blur.
+- **Floating bar** (`box-shadow: 0 14px 34px rgb(0 0 0 / 0.2)`, deepening to `0.55` in
+  dark): the mobile tab bar, which genuinely floats over scrolling content. The only
+  tier that changes value between themes — it has to read against both grounds.
 
 ### Named Rules
 
 **The Hairline Rule.** Separation is a border, not a shadow. When two surfaces need to be
-distinguished, reach for `border-border/50` or a tonal step before reaching for elevation.
+distinguished, reach for `border-border/60` or a tonal step before reaching for elevation.
 
 **The Float-Or-Flat Rule.** An element either sits on the page (flat, hairline, tonal) or
 floats above it (modal/transient shadow, plus scrim or blur). There is no middle tier, and
@@ -386,22 +480,32 @@ Rectangles with softened corners, and the softening scales with the surface. Sma
 interactive things are crisp; large containers are generous. Nothing is a perfect circle
 except avatars and progress tracks.
 
-- **Controls** (`0.5rem` — buttons, inputs, select triggers, nav items, menu items)
-- **Tiles** (`0.75rem` — the app mark, semantic type tiles, toasts, icon containers)
-- **Surfaces** (`1rem` — cards, dialogs at `sm` and up, feature panels)
+- **Controls** (`0.625rem`–`0.6875rem`, rising to `0.8125rem` at the 3rem marketing size
+  — buttons, inputs, select triggers, menu items;
+  nav items sit at `0.625rem`)
+- **Tiles** (`0.5625rem`–`1rem` — the app mark, semantic type tiles, toasts, icon
+  containers, stat tiles inside a card)
+- **Surfaces** (`1.125rem` — cards, dialogs at `sm` and up, feature panels)
+- **Heroes** (`1.25rem` — the net-position and total-owed slabs)
 - **Placeholders** (`0.375rem` — skeletons)
 - **Pills** (`9999px` — progress bars and their fills, avatars)
 
-Borders are uniformly 1px and almost always translucent: `border-border/40` on marketing
-chrome, `/50` on navigation, `/60` on cards and dialogs. Full-opacity `border-input` is
+The scale grew a step in the 2026 redesign: with a hero slab above the cards, cards had
+to sit between the hero and the tiles inside them, so surfaces moved 16px → 18px and the
+hero took 20px.
+
+Borders are uniformly 1px and almost always translucent: `/60` on the rows inside a
+surface, `/70` on cards, dialogs and the sidebar rail. Full-opacity `border-input` is
 reserved for form fields, where the stroke has to be findable. There are no double
 borders, no dashed strokes, and no decorative dividers where whitespace would do.
 
 ### Named Rules
 
-**The Radius-Scales-With-Surface Rule.** 8px for things you click, 12px for things that
-hold an icon, 16px for things that hold content. A 16px-radius button or an 8px-radius
-card is out of system.
+**The Radius-Scales-With-Surface Rule.** Corner softening scales with the surface:
+~11px for things you click, ~16px for things that hold an icon or a single figure, 18px
+for things that hold content, 20px for a hero slab. A hero-radius button or a
+control-radius card is out of system. The exact steps are in Shapes; this rule is the
+ordering they must keep.
 
 > **Inert token.** `--radius: 0.75rem` is declared in `@theme` but consumed by nothing;
 > the `rounded-*` utilities resolve to Tailwind's own defaults. The values above are what
@@ -414,27 +518,31 @@ card is out of system.
 Modest, confident, and physically responsive — a 200ms transition on everything plus a
 `scale(0.98)` press that makes the whole app feel connected to the finger.
 
-- **Shape:** softened corners (`0.5rem`), full height 2.5rem, 1rem horizontal padding.
-- **Primary:** Signal Blue fill, white text, faint control shadow; hover drops to 90%
-  opacity of the fill.
-- **Outline:** transparent over Paper with a full-opacity hairline; hover fills with Wash.
-  The default choice for secondary actions across the dashboard.
+- **Shape:** softened corners (`0.6875rem`), default height 2.375rem, 0.9375rem
+  horizontal padding, 0.8125rem text. Weight follows Hierarchy: 500, stepping to 600 on
+  filled primary and destructive only.
+- **Primary:** Contrast Slab fill (cream on near-black, ink on paper), no shadow; hover
+  drops to 90% opacity of the fill.
+- **Outline:** Card White fill with a full-opacity hairline; hover darkens the border and
+  fills with Wash. The default choice for secondary actions across the dashboard.
 - **Ghost:** no border, no fill; hover fills with Wash. Icon buttons and navigation
   actions.
 - **Destructive:** Rose fill, white text — used for irreversible actions only. Financial
   *outflow* uses Outflow Rose as a tint, which is a different thing; do not conflate them.
-- **Focus:** a 2px Signal Blue ring with a 2px background-colored offset, so the ring
-  floats clear of the button edge.
-- **Sizes:** 2.25rem compact, 2.5rem default, 2.75rem large / entry paths, 3rem marketing.
+- **Focus:** a 2px Mint ring with a 2px background-colored offset, so the ring floats
+  clear of the button edge.
+- **Sizes:** 2.25rem compact, 2.375rem default, 2.75rem large / entry paths, 3rem
+  marketing.
 
 ### Cards / Containers
 
-- **Corner Style:** generous (`1rem`).
+- **Corner Style:** generous (`1.125rem`).
 - **Background:** pure Card White over the Paper ground; in dark mode, one step lighter
   than the page.
-- **Shadow Strategy:** resting surface only — see Elevation.
-- **Border:** 1px hairline at 60% opacity. This, not the shadow, is what defines the card.
-- **Internal Padding:** 1.5rem uniform; 1rem on compact stat cards below `sm`.
+- **Shadow Strategy:** flat at rest — the card carries no shadow at all. See Elevation.
+- **Border:** 1px hairline at 70% opacity. This, not a shadow, is what defines the card.
+- **Internal Padding:** 1.5rem uniform, 1.25rem below `sm`. Stat tiles and table rows
+  sit tighter at 1.125rem, since they hold one line rather than a composition.
 - **Header:** title and an optional semantic icon on one row, 0.375rem gap to the
   description beneath.
 
@@ -443,36 +551,52 @@ Modest, confident, and physically responsive — a 200ms transition on everythin
 Quiet at rest and unmistakable in focus, with a hover state that exists purely to confirm
 the field is live.
 
-- **Style:** 1px `border-input` stroke over Paper, 0.5rem radius, 2.5rem tall,
-  0.75rem horizontal padding, 0.875rem text.
+- **Style:** 1px `border-input` stroke over the Sunken ground, 0.6875rem radius,
+  2.75rem tall, 0.875rem horizontal padding, 0.875rem text. Sunken rather than Paper: a
+  field reads as a hole in the card, not a tile on it.
 - **Hover:** border darkens to 20%-opacity Ink.
-- **Focus:** border becomes Signal Blue and a 2px 20%-opacity Signal Blue ring appears
-  outside it — a soft halo rather than the hard offset ring buttons use.
+- **Focus:** border becomes Mint and a 2px 25%-opacity Mint ring appears outside it — a
+  soft halo rather than the hard offset ring buttons use.
 - **Disabled:** 50% opacity, `not-allowed` cursor.
 - **Labels:** 0.75rem, weight 500, Graphite, 0.375rem above the field.
 - **Select triggers** match inputs exactly, plus a Graphite chevron at the right edge.
 
 ### Navigation
 
-- **Style:** sticky, 4rem tall, 80%-opaque Paper with `backdrop-blur-xl`, closed by a
-  50%-opacity hairline. No shadow.
-- **Items:** 0.875rem weight-500 with a 1rem leading icon; Graphite at rest, Ink over a
-  Wash fill when active. Active state is a filled pill, never an underline.
-- **Left cluster:** app mark (Signal Blue tile, white glyph) → wordmark → workspace
-  switcher → nav items, with 2rem between the brand group and the links.
-- **Right cluster:** theme toggle, avatar menu, and a hamburger below `md`.
-- **Mobile:** links collapse into a stacked panel beneath the bar with taller
-  (2.75rem-equivalent) rows.
+A grouped left sidebar at `lg` and up, a floating tab bar below it. Eight destinations in
+one flat bar gave every page equal weight and read as clutter; two named groups turn it
+into two short lists.
+
+- **Sidebar:** 15.5rem wide, sticky full-height, closed by a 70%-opacity hairline on the
+  right. Stacks logo → workspace switcher → grouped nav → settings + account footer.
+- **Groups:** *Money in & out* (Transactions, Outgoings, Reports) and *Balance sheet*
+  (Debts, Loans given, Investments). Overview sits above both, ungrouped; Settings sits in
+  the footer. Group headings are 0.65625rem weight-600 uppercase at 0.09em tracking,
+  Graphite.
+- **Items:** 2.375rem tall, 0.84375rem weight-500 with a 1rem leading icon; Graphite at
+  rest, Ink over a Wash fill when active. Active state is a filled pill, never an
+  underline, and carries `aria-current="page"`.
+- **Mobile:** the sidebar is replaced by a compact top row (logo, workspace, theme,
+  account) and a floating five-slot tab bar pinned to the bottom — Overview, Activity,
+  Outgoings, Reports, Settings. The three balance-sheet pages are reachable from Overview
+  rather than the bar, because five is the most a thumb row holds legibly.
+- **Page header:** every page opens with a kicker (the sidebar group, uppercase Graphite)
+  above the `<h1>`. The kicker answers "where am I", which is what lets the title stay
+  short and large.
 
 ### Transaction Type Tile *(signature)*
 
-The system's most characteristic element and its semantic backbone: a 2.5rem rounded-12px
-square holding a directional arrow, tinted by money type. Income gets an up-right arrow on
-blue-50; expense a down-right arrow on rose-50; giving an up-right arrow on emerald-50. In
-dark mode the tint becomes the 950-level at 30% opacity and the glyph steps to 400-level.
+The system's most characteristic element and its semantic backbone: a rounded square
+holding a directional arrow, tinted by money type. Income gets an up-right arrow on
+`bg-income-surface`; expense a down-right arrow on `bg-expense-surface`; giving an
+up-right arrow on `bg-giving-surface`. The glyph is the matching `text-*` token. Surfaces
+are translucent tints of whatever sits beneath, so the tile works on Paper, on a card, and
+on the Sunken ground without a second value.
 
-It appears in transaction rows, budget lists, and summary cards, and it is the single
-place a user learns the color language. It always pairs color with a distinct glyph — that
+It appears in transaction rows and summary cards. Budget tiles dropped it in the 2026
+redesign — a budget is a category, not a movement, so the directional arrow was claiming
+a direction it did not have. The quick-add segmented control now shares the job of being
+where a user learns the colour language. It always pairs color with a distinct glyph — that
 pairing is the accessibility contract, not a nicety.
 
 ### Overlay Motion
@@ -496,19 +620,28 @@ only registered in a JS config Tailwind v4 never loaded, so every one of these c
 emitted nothing and overlays popped instantly. Verified working since the swap.) The
 global `prefers-reduced-motion` block flattens all of it to 0.01ms.
 
-### Stat Card *(signature)*
+### Net Position Hero *(signature)*
 
-A four-across (two-across on mobile) row of compact cards, each a Graphite 0.75rem label
-on the left, a semantic icon on the right, and a weight-600 tabular figure beneath. The
-figure takes the semantic color of what it measures. This row is the first thing on the
-dashboard and sets the color language for everything below it.
+The dashboard opens on one figure, not a row of four. A `{rounded.hero}` slab in Forest
+carries the net position at up to 3.75rem in the display face, a single sentence naming
+the surplus or deficit, and an in/out/kept bar splitting income three ways. Three stat
+tiles sit beside it — Income, Expenses, Giving — each a Graphite 0.75rem label over a
+weight-600 tabular figure in the token of what it measures.
+
+The hero is what replaced the old four-across stat row: ten equal-weight cards gave
+nothing priority, and one large figure with three supporting tiles sets the colour
+language for everything below while answering "how did I do" before anything is read.
 
 ### Budget Progress Bar *(signature)*
 
-A `9999px`-radius track in Wash with a fill that animates over 500ms — the slowest motion
-in the system, and the only place duration is used expressively. Fill color shifts by
-utilization, which makes it the one component at genuine risk of communicating by color
-alone; the percentage label beside it is required, not decorative, and the track carries
+A `9999px`-radius track in `{colors.track}` with a fill that animates over 500ms — the
+slowest motion in the system, and the only place duration is used expressively. Fill
+colour shifts by utilisation: Outflow Rose over the limit, Obligation Amber near it, and
+**neutral ink on track** — never green, because staying under budget is not giving.
+
+That colour shift makes it the one component at genuine risk of communicating by colour
+alone, so two things are required rather than decorative: the percentage label beside it,
+and the remaining-or-over figure named in words beneath. The track carries
 `role="progressbar"` with `aria-valuenow` so the value is available without sight of it.
 
 ## Do's and Don'ts
@@ -542,13 +675,15 @@ alone; the percentage label beside it is required, not decorative, and the track
   `hsl(var(--border))` values pointed at variables that never existed.
 - **Don't** reference `--radius`. It is declared and unused; corner values come from the
   Shapes scale above.
-- **Don't** apply Signal Blue to a number or Inflow Blue to a control. See the
-  Chrome-and-Amount Rule and the tension recorded beneath it.
+- **Don't** apply Sika Mint to a number, badge, or chart series. See the Mint-Is-Chrome
+  Rule and the tension recorded beneath it.
 - **Don't** write `text-rose-600 dark:text-rose-400` for a money type. That pair is what
   the tokens replaced; half of its occurrences had lost their dark half.
-- **Don't** use Giving Green as a generic "positive" or "up" color.
-- **Don't** introduce a second typeface, a third text weight beyond 400/500/600, or a
-  monospace face for figures — tabular numerals already solve alignment.
+- **Don't** use Giving Green as a generic "positive" or "up" color. Gains, repayments,
+  paid bills and under-budget states are neutral ink.
+- **Don't** set prose, labels, controls, or table body text in the display face, and
+  don't add a third family, a third text weight beyond 400/500/600, or a monospace face
+  for figures — tabular numerals already solve alignment.
 - **Don't** add `@import url(...)` for fonts or any other remote asset in `globals.css`.
   Every external request contradicts the product's zero-third-party default. A Google
   Fonts import lived here and was removed; self-host through `next/font` instead.

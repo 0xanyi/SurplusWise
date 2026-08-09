@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { moneyTypeTone } from "@/lib/money-type";
 
 interface ApiCategory {
   id: string;
@@ -25,6 +27,12 @@ interface QuickAddTransactionProps {
   onOpenFullForm?: (type: TransactionType) => void;
   onTransactionAdded?: () => void;
 }
+
+const TYPE_OPTIONS: { value: TransactionType; label: string }[] = [
+  { value: "expense", label: "Expense" },
+  { value: "income", label: "Income" },
+  { value: "giving", label: "Giving" },
+];
 
 export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: QuickAddTransactionProps) {
   const { toast } = useToast();
@@ -93,22 +101,37 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
 
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="quick-type" className="text-xs font-medium text-muted-foreground">
-                Type
-              </Label>
-              <Select value={type} onValueChange={(value: TransactionType) => setType(value)}>
-                <SelectTrigger id="quick-type" className="h-11" aria-label="Transaction type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="income">Income</SelectItem>
-                  <SelectItem value="expense">Expense</SelectItem>
-                  <SelectItem value="giving">Giving</SelectItem>
-                </SelectContent>
-              </Select>
+          {/* A segmented group, not a dropdown: type is the first decision on
+              the entry path and it has exactly three answers, so it costs one
+              tap instead of two. Each option carries its own money token, which
+              is also where a user learns the colour language. */}
+          <fieldset className="min-w-0">
+            <legend className="sr-only">Transaction type</legend>
+            <div className="flex h-11 gap-[3px] rounded-[11px] bg-secondary p-[3px]">
+              {TYPE_OPTIONS.map((option) => {
+                const active = type === option.value;
+                const tone = moneyTypeTone(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => setType(option.value)}
+                    className={cn(
+                      "flex flex-1 items-center justify-center rounded-[9px] px-3 text-[13px] transition-colors",
+                      active
+                        ? cn("font-semibold", tone.surface, tone.text)
+                        : "font-medium text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
             </div>
+          </fieldset>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
 
             <div className="space-y-1.5">
               <Label htmlFor="quick-amount" className="text-xs font-medium text-muted-foreground">
@@ -162,7 +185,7 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
 
           <div className="grid grid-cols-1 gap-2 sm:flex">
             <Button type="submit" disabled={loading} className="h-11 sm:w-auto">
-              {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Plus className="mr-2 size-4" />}
+              {loading ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
               Add quickly
             </Button>
             {onOpenFullForm && (

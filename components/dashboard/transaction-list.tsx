@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apiFetch } from "@/hooks/use-api";
 import { formatCurrency, cn } from "@/lib/utils";
+import { formatSignedAmount, moneyTypeTone } from "@/lib/money-type";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,14 @@ interface TransactionListProps {
   /** Increment to force a re-fetch from page 0 */
   refreshKey?: number;
 }
+
+/**
+ * Shared by the column head and every row so the two cannot drift apart.
+ * Passed as a custom property rather than interpolated into the class name:
+ * Tailwind scans source for literal class strings, so a built-up
+ * `grid-cols-[...]` would never be compiled.
+ */
+const TX_COLUMNS = "minmax(0,1fr) 130px 100px 110px 84px";
 
 export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   const { toast } = useToast();
@@ -101,6 +110,34 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
     }
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  /**
+   * The list is already date-ordered, so grouping only has to break it where
+   * the day changes — a running date header reads faster than repeating the
+   * date on every row.
+   */
+  const groupedByDay = useMemo(() => {
+    const groups: { key: string; label: string; items: ApiTransaction[] }[] = [];
+    for (const tx of transactions) {
+      const date = new Date(tx.date);
+      const key = date.toISOString().slice(0, 10);
+      const last = groups[groups.length - 1];
+      if (last?.key === key) {
+        last.items.push(tx);
+      } else {
+        groups.push({
+          key,
+          label: date.toLocaleDateString("en-GB", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          }),
+          items: [tx],
+        });
+      }
+    }
+    return groups;
+  }, [transactions]);
+
   const handleEdit = (transaction: ApiTransaction) => {
     setSelectedTransaction(transaction);
     setIsFormOpen(true);
@@ -138,22 +175,13 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
     }
   };
 
+  /** Glyph is the one thing that varies by direction; colour comes from the
+   *  shared map, so a tile and its amount can never disagree. */
   const getIcon = (type: TransactionType) => {
-    if (type === "expense") return <ArrowDownRight className="size-4 text-expense" />;
-    if (type === "income") return <TrendingUp className="size-4 text-income" />;
-    return <ArrowUpRight className="size-4 text-giving" />;
-  };
-
-  const getIconBg = (type: TransactionType) => {
-    if (type === "expense") return "bg-expense-surface";
-    if (type === "income") return "bg-income-surface";
-    return "bg-giving-surface";
-  };
-
-  const getAmountColor = (type: TransactionType) => {
-    if (type === "expense") return "text-expense";
-    if (type === "income") return "text-income";
-    return "text-giving";
+    const cls = `size-3.5 ${moneyTypeTone(type).text}`;
+    if (type === "expense") return <ArrowDownRight className={cls} />;
+    if (type === "income") return <TrendingUp className={cls} />;
+    return <ArrowUpRight className={cls} />;
   };
 
   const displayPage = page + 1;
@@ -222,62 +250,111 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
               <p className="mt-1 text-sm text-muted-foreground">Try another filter or search term.</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {transactions.map((transaction) => (
-                <div key={transaction.id} className="rounded-xl border border-border/50 p-3.5 transition-colors hover:bg-accent/30 sm:p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <div className={cn("mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl", getIconBg(transaction.type))}>
-                        {getIcon(transaction.type)}
-                      </div>
+            <div className="-mx-5 sm:-mx-6">
+              {/* Column head, desktop only: below sm the row restates its own
+                  fields, so a header would label columns that are not there. */}
+              <div
+                className="hidden gap-4 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground sm:grid sm:grid-cols-[var(--cols)] sm:px-6"
+                style={{ "--cols": TX_COLUMNS } as React.CSSProperties}
+              >
+                <span>Category</span>
+                <span>Tags</span>
+                <span>Date</span>
+                <span className="text-right">Amount</span>
+                <span className="sr-only">Actions</span>
+              </div>
 
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium sm:text-base">{transaction.category}</p>
-                        <p className="text-xs text-muted-foreground sm:text-sm">
-                          {transaction.type} · {new Date(transaction.date).toLocaleDateString("en-GB")}
-                        </p>
-                        {transaction.notes && (
-                          <p
-                            className="mt-1 line-clamp-1 text-xs text-muted-foreground sm:text-sm"
-                            title={transaction.notes}
-                          >
-                            {transaction.notes}
-                          </p>
-                        )}
-                        {transaction.tags.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {transaction.tags.map((tag) => (
-                              <span key={tag} className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-                                #{tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
+              {groupedByDay.map((group) => (
+                <div key={group.key}>
+                  <p className="border-y border-border/60 bg-sunken px-5 py-2.5 text-[11.5px] font-semibold text-muted-foreground sm:px-6">
+                    {group.label}
+                  </p>
 
-                    <p className={cn("shrink-0 text-sm font-semibold tabular-nums sm:text-base", getAmountColor(transaction.type))}>
-                      {transaction.type === "expense" ? "-" : "+"}
-                      {formatCurrency(transaction.amount)}
-                    </p>
-                  </div>
-
-                  <div className="mt-3 flex gap-2 sm:justify-end">
-                    <Button type="button" size="sm" variant="outline" className="h-9 flex-1 sm:flex-none" onClick={() => handleEdit(transaction)}>
-                      <Pencil className="mr-2 size-3.5" />
-                      Edit
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-9 flex-1 border-rose-200 text-rose-700 hover:bg-rose-50 dark:border-rose-900 dark:text-rose-400 dark:hover:bg-rose-950/30 sm:flex-none"
-                      onClick={() => handleDelete(transaction.id)}
+                  {group.items.map((transaction) => (
+                    <div
+                      key={transaction.id}
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 border-b border-border/60 px-5 py-3.5 transition-colors hover:bg-secondary/40 sm:grid-cols-[var(--cols)] sm:px-6"
+                      style={{ "--cols": TX_COLUMNS } as React.CSSProperties}
                     >
-                      <Trash2 className="mr-2 size-3.5" />
-                      Delete
-                    </Button>
-                  </div>
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div
+                          className={cn(
+                            "flex size-7 shrink-0 items-center justify-center rounded-[9px]",
+                            moneyTypeTone(transaction.type).surface
+                          )}
+                        >
+                          {getIcon(transaction.type)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate text-[13.5px] font-medium">
+                            {transaction.category}
+                          </p>
+                          {transaction.notes && (
+                            <p
+                              className="truncate text-xs text-muted-foreground"
+                              title={transaction.notes}
+                            >
+                              {transaction.notes}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="hidden flex-wrap gap-1.5 sm:flex">
+                        {transaction.tags.length === 0 ? (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        ) : (
+                          transaction.tags.map((tag) => (
+                            <span
+                              key={tag}
+                              className="rounded-md bg-secondary px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                            >
+                              {tag}
+                            </span>
+                          ))
+                        )}
+                      </div>
+
+                      <span className="hidden text-[13px] text-muted-foreground sm:block">
+                        {new Date(transaction.date).toLocaleDateString("en-GB", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                      </span>
+
+                      <span
+                        className={cn(
+                          "text-right text-sm font-semibold tabular-nums",
+                          moneyTypeTone(transaction.type).text
+                        )}
+                      >
+                        {formatSignedAmount(transaction.type, transaction.amount)}
+                      </span>
+
+                      <span className="col-span-2 flex items-center justify-end gap-1 sm:col-auto">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-8"
+                          aria-label={`Edit ${transaction.category}`}
+                          onClick={() => handleEdit(transaction)}
+                        >
+                          <Pencil className="size-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-8 text-destructive hover:text-destructive"
+                          aria-label={`Delete ${transaction.category}`}
+                          onClick={() => handleDelete(transaction.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </span>
+                    </div>
+                  ))}
                 </div>
               ))}
             </div>

@@ -169,11 +169,11 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
   return (
     <div className="flex flex-col gap-2 sm:flex-row">
       <Button type="button" variant="outline" className="h-11" onClick={() => inputRef.current?.click()} disabled={uploading}>
-        <Upload className="mr-2 size-4" />
+        <Upload className="size-4" />
         Import CSV
       </Button>
       <Button type="button" variant="ghost" className="h-11" onClick={downloadSample}>
-        <Download className="mr-2 size-4" />
+        <Download className="size-4" />
         Sample CSV
       </Button>
       <input
@@ -212,7 +212,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Needs attention</p>
-                  <p className="mt-1 text-2xl font-semibold tabular-nums text-rose-700 dark:text-rose-400">{analysis.invalidRowCount}</p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums text-expense">{analysis.invalidRowCount}</p>
                 </div>
               </div>
 
@@ -241,7 +241,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
               </div>
 
               {missingRequiredMappings.length > 0 && (
-                <p className="text-sm text-rose-700 dark:text-rose-400">
+                <p className="text-sm text-expense">
                   Map required fields before importing: {missingRequiredMappings.join(", ")}
                 </p>
               )}
@@ -271,7 +271,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                           <td className="px-3 py-2 tabular-nums">{row.mapped.amount ? formatCurrency(Number.parseFloat(row.mapped.amount) || 0) : "-"}</td>
                           <td className="px-3 py-2">{row.mapped.type || "-"}</td>
                           <td className="px-3 py-2">{row.mapped.category || "-"}</td>
-                          <td className={`px-3 py-2 ${row.valid ? "text-foreground" : "text-rose-700 dark:text-rose-400"}`}>
+                          <td className={`px-3 py-2 ${row.valid ? "text-foreground" : "text-expense"}`}>
                             {row.valid ? "Ready" : row.errors.join(", ")}
                           </td>
                         </tr>
@@ -282,7 +282,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
               </div>
 
               {(invalidPreviewRows.length > 0 || serverErrorRows.length > 0) && (
-                <div className="space-y-2 rounded-xl border border-rose-200 bg-rose-50/60 p-4 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950/20 dark:text-rose-300">
+                <div className="space-y-2 rounded-xl border border-expense/30 bg-expense-surface/60 p-4 text-sm text-expense">
                   <p className="font-medium">Rows with issues</p>
                   {invalidPreviewRows.map((row) => (
                     <p key={row.lineNumber}>Row {row.lineNumber}: {row.errors.join(", ")}</p>

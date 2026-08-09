@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Wallet, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,88 +50,79 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
-      <div className="mx-auto w-full max-w-md">
-        <Link href="/" className="mb-10 flex items-center justify-center gap-2.5">
-          <div className="rounded-xl bg-primary p-2">
-            <Wallet className="size-5 text-primary-foreground" />
-          </div>
-          <span className="text-lg font-semibold">Sika</span>
-        </Link>
+    <>
+      <h1 className="font-display text-[32px] font-semibold leading-[1.1] tracking-[-0.03em]">
+        Create account
+      </h1>
+      <p className="mt-2.5 text-sm text-muted-foreground">
+        Start tracking your income, expenses, and giving.
+      </p>
 
-        <div className="rounded-2xl border border-border/60 bg-card p-7 shadow-sm shadow-black/[0.02] sm:p-8">
-          <h1 className="text-2xl font-semibold tracking-tight">Create account</h1>
-          <p className="mt-1.5 text-sm text-muted-foreground">
-            Start tracking your income, expenses, and giving.
-          </p>
-
-          <form onSubmit={handleSignup} className="mt-7 space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
-                className="h-11"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@example.com"
-                className="h-11"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 8 characters"
-                className="h-11"
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm password</Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repeat password"
-                className="h-11"
-                required
-              />
-            </div>
-
-            <Button type="submit" className="w-full h-11" disabled={loading}>
-              {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
-              Create account
-            </Button>
-          </form>
-
-          <p className="mt-7 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/auth/login" className="font-medium text-primary hover:underline">
-              Sign in
-            </Link>
-          </p>
+      <form onSubmit={handleSignup} className="mt-8 space-y-3.5">
+        <div className="space-y-1.5">
+          <Label htmlFor="name">Name</Label>
+          <Input
+            id="name"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+            autoComplete="name"
+            required
+          />
         </div>
-      </div>
-    </main>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="name@example.com"
+            autoComplete="email"
+            required
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="password">Password</Label>
+          <Input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="At least 8 characters"
+            autoComplete="new-password"
+            required
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <Label htmlFor="confirmPassword">Confirm password</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Repeat password"
+            autoComplete="new-password"
+            required
+          />
+        </div>
+
+        <Button type="submit" size="lg" className="mt-1.5 w-full" disabled={loading}>
+          {loading && <Loader2 className="animate-spin" />}
+          Create account
+        </Button>
+      </form>
+
+      <p className="mt-7 text-[13.5px] text-muted-foreground">
+        Already have an account?{" "}
+        <Link href="/auth/login" className="font-medium text-brand hover:underline">
+          Sign in
+        </Link>
+      </p>
+    </>
   );
 }

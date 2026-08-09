@@ -28,6 +28,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { EventHistorySection } from "./investments/event-history-section";
+import { EmptyState, StatTile } from "@/components/dashboard/panel";
 import {
   InvestmentFormFields,
   INVESTMENT_TYPE_LABELS,
@@ -54,6 +55,14 @@ const EMPTY_FORM: InvestmentFormData = {
 };
 
 // ── Main Component ──────────────────────────────────────────────────────
+
+/**
+ * Shared by the column head and every row so the two cannot drift apart.
+ * Passed as a custom property rather than interpolated into the class name:
+ * Tailwind scans source for literal class strings, so a built-up
+ * `grid-cols-[...]` would never be compiled.
+ */
+const HOLDING_COLUMNS = "minmax(160px,1.4fr) 88px 110px 110px 110px 150px 88px";
 
 export function InvestmentsManagement() {
   const { toast } = useToast();
@@ -212,102 +221,16 @@ export function InvestmentsManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Invested</p>
-                <p className="text-2xl font-semibold text-foreground tabular-nums">
-                  {formatCurrency(totalCostBasis)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-muted p-3">
-                <Landmark className="size-6 text-muted-foreground" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Current Value</p>
-                <p
-                  className={`text-2xl font-semibold tabular-nums ${
-                    isPositiveReturn
-                      ? "text-foreground"
-                      : "text-expense"
-                  }`}
-                >
-                  {formatCurrency(totalCurrentValue)}
-                </p>
-              </div>
-              <div
-                className={`rounded-xl p-3 ${
-                  isPositiveReturn
-                    ? "bg-muted"
-                    : "bg-expense-surface"
-                }`}
-              >
-                {isPositiveReturn ? (
-                  <TrendingUp
-                    className={`size-6 ${
-                      isPositiveReturn
-                        ? "text-foreground"
-                        : "text-expense"
-                    }`}
-                  />
-                ) : (
-                  <TrendingDown className="size-6 text-expense" />
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Return</p>
-                <p
-                  className={`text-2xl font-semibold tabular-nums ${
-                    isPositiveReturn
-                      ? "text-foreground"
-                      : "text-expense"
-                  }`}
-                >
-                  {totalGainLoss >= 0 ? "+" : ""}
-                  {formatCurrency(totalGainLoss)}
-                </p>
-                <p
-                  className={`text-xs font-medium tabular-nums ${
-                    isPositiveReturn
-                      ? "text-foreground"
-                      : "text-expense"
-                  }`}
-                >
-                  {totalReturnPct >= 0 ? "+" : ""}
-                  {totalReturnPct.toFixed(2)}%
-                </p>
-              </div>
-              <div
-                className={`rounded-xl p-3 ${
-                  isPositiveReturn
-                    ? "bg-muted"
-                    : "bg-expense-surface"
-                }`}
-              >
-                {isPositiveReturn ? (
-                  <TrendingUp className="size-6 text-foreground" />
-                ) : (
-                  <TrendingDown className="size-6 text-expense" />
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatTile label="Total invested" value={formatCurrency(totalCostBasis)} />
+        <StatTile label="Current value" value={formatCurrency(totalCurrentValue)} />
+        {/* A gain is neutral ink; only a loss earns a money colour. */}
+        <StatTile
+          label="Total return"
+          value={`${isPositiveReturn ? "+" : "−"}${formatCurrency(Math.abs(totalGainLoss))}`}
+          tone={isPositiveReturn ? undefined : "text-expense"}
+          note={`${totalReturnPct >= 0 ? "+" : ""}${totalReturnPct.toFixed(2)}%`}
+        />
       </div>
 
       {/* Add button + dialogs */}
@@ -362,141 +285,140 @@ export function InvestmentsManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Investments list */}
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Six comparable columns. The spec floors the grid at 900px and scrolls
+          it horizontally rather than letting the numbers collapse — a cost
+          basis you cannot line up against a current value is not worth showing. */}
+      <div className="overflow-hidden rounded-[18px] border border-border/70 bg-card">
         {investments.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6 text-center text-muted-foreground">
-              <p className="font-medium text-foreground">No investments</p>
-              <p className="text-sm mt-1">Add stocks, crypto, or other investments to track them.</p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={Landmark}
+            title="No investments yet"
+            description="Add a holding to track its cost basis and current value."
+          />
         ) : (
-          investments.map((item) => {
-            const gainLoss = item.gain_loss;
-            const gainLossPct = item.gain_loss_pct;
-            const isPositive = gainLoss >= 0;
+          <div className="overflow-x-auto">
+            <div className="min-w-[900px]">
+              <div
+                className="grid grid-cols-[var(--cols)] gap-3 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground sm:px-6"
+                style={{ "--cols": HOLDING_COLUMNS } as React.CSSProperties}
+              >
+                <span>Holding</span>
+                <span>Type</span>
+                <span>Platform</span>
+                <span className="text-right">Cost basis</span>
+                <span className="text-right">Current value</span>
+                <span className="text-right">Gain / loss</span>
+                <span className="sr-only">Actions</span>
+              </div>
 
-            return (
-              <Card key={item.id} className={!item.is_active ? "opacity-60" : ""}>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="rounded-xl bg-muted p-2">
-                        <Landmark className="size-4 text-muted-foreground" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-base">{item.name}</CardTitle>
-                        <p className="text-xs text-muted-foreground">
-                          <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-xs font-medium">
-                            {INVESTMENT_TYPE_LABELS[item.investment_type]}
-                          </span>
-                          {item.platform && (
-                            <span className="ml-1.5">· {item.platform}</span>
+              <ul>
+                {investments.map((item) => {
+                  const isPositive = item.gain_loss >= 0;
+                  const expanded = expandedId === item.id;
+
+                  return (
+                    <li key={item.id} className="border-t border-border/60">
+                      <div
+                        className="grid grid-cols-[var(--cols)] items-center gap-3 px-5 py-3.5 sm:px-6"
+                        style={{ "--cols": HOLDING_COLUMNS } as React.CSSProperties}
+                      >
+                        <div className="min-w-0">
+                          <p className="truncate text-[13.5px] font-medium">{item.name}</p>
+                          <p className="truncate text-[11.5px] text-muted-foreground">
+                            Purchased{" "}
+                            {new Date(item.purchase_date).toLocaleDateString("en-GB")}
+                            {item.quantity != null && ` · qty ${item.quantity}`}
+                          </p>
+                        </div>
+
+                        <span className="justify-self-start rounded-md bg-secondary px-2 py-[3px] text-[11.5px] text-muted-foreground">
+                          {INVESTMENT_TYPE_LABELS[item.investment_type]}
+                        </span>
+
+                        <span className="truncate text-[13px] text-muted-foreground">
+                          {item.platform ?? "—"}
+                        </span>
+
+                        <span className="text-right text-[13px] tabular-nums">
+                          {formatCurrency(item.cost_basis)}
+                        </span>
+
+                        <span className="text-right text-sm font-semibold tabular-nums">
+                          {formatCurrency(item.current_value)}
+                        </span>
+
+                        {/* Neutral on the way up, Outflow Rose on the way down. */}
+                        <span
+                          className={`flex items-center justify-end gap-1.5 text-[13px] font-semibold tabular-nums ${
+                            isPositive ? "text-foreground" : "text-expense"
+                          }`}
+                        >
+                          {isPositive ? (
+                            <TrendingUp className="size-3.5" />
+                          ) : (
+                            <TrendingDown className="size-3.5" />
                           )}
-                        </p>
+                          {isPositive ? "+" : "−"}
+                          {formatCurrency(Math.abs(item.gain_loss))} (
+                          {item.gain_loss_pct >= 0 ? "+" : ""}
+                          {item.gain_loss_pct.toFixed(2)}%)
+                        </span>
+
+                        <span className="flex items-center justify-end gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-8"
+                            aria-label={`${expanded ? "Hide" : "Show"} event history for ${item.name}`}
+                            aria-expanded={expanded}
+                            onClick={() => setExpandedId(expanded ? null : item.id)}
+                          >
+                            {expanded ? (
+                              <ChevronUp className="size-3.5" />
+                            ) : (
+                              <History className="size-3.5" />
+                            )}
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-8"
+                            aria-label={`Edit ${item.name}`}
+                            onClick={() => openEditDialog(item)}
+                          >
+                            <Edit2 className="size-3.5" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-8 text-destructive hover:text-destructive"
+                            aria-label={`Delete ${item.name}`}
+                            onClick={() => handleDelete(item)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        </span>
                       </div>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        aria-label={`Edit ${item.name}`}
-                        onClick={() => openEditDialog(item)}
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        aria-label={`Delete ${item.name}`}
-                        onClick={() => handleDelete(item)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
 
-                <CardContent className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Cost Basis</span>
-                    <span className="font-medium tabular-nums">
-                      {formatCurrency(item.cost_basis)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Current Value</span>
-                    <span className="font-semibold tabular-nums">
-                      {formatCurrency(item.current_value)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Gain / Loss</span>
-                    <span
-                      className={`font-semibold tabular-nums flex items-center gap-1 ${
-                        isPositive
-                          ? "text-foreground"
-                          : "text-expense"
-                      }`}
-                    >
-                      {isPositive ? (
-                        <TrendingUp className="size-3.5" />
-                      ) : (
-                        <TrendingDown className="size-3.5" />
+                      {expanded && (
+                        <div className="border-t border-border/60 bg-sunken px-5 py-4 sm:px-6">
+                          {item.notes && (
+                            <p className="mb-3 text-[12.5px] text-muted-foreground">
+                              {item.notes}
+                            </p>
+                          )}
+                          <EventHistorySection
+                            investmentId={item.id}
+                            onChanged={refresh}
+                          />
+                        </div>
                       )}
-                      {gainLoss >= 0 ? "+" : ""}
-                      {formatCurrency(gainLoss)} ({gainLossPct >= 0 ? "+" : ""}
-                      {gainLossPct.toFixed(2)}%)
-                    </span>
-                  </div>
-
-                  {item.quantity != null && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Quantity</span>
-                      <span className="font-medium tabular-nums">{item.quantity}</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground flex items-center gap-1.5">
-                      <CalendarDays className="size-3.5" />
-                      Purchased
-                    </span>
-                    <span className="font-medium">
-                      {new Date(item.purchase_date).toLocaleDateString("en-GB")}
-                    </span>
-                  </div>
-
-                  {/* Expand/collapse event history */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full h-8 text-xs text-muted-foreground mt-2"
-                    onClick={() =>
-                      setExpandedId(expandedId === item.id ? null : item.id)
-                    }
-                  >
-                    <History className="size-3 mr-1" />
-                    {expandedId === item.id ? "Hide" : "Show"} Event History
-                    {expandedId === item.id ? (
-                      <ChevronUp className="size-3 ml-1" />
-                    ) : (
-                      <ChevronDown className="size-3 ml-1" />
-                    )}
-                  </Button>
-
-                  {expandedId === item.id && (
-                    <EventHistorySection investmentId={item.id} onChanged={refresh} />
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
         )}
       </div>
     </div>

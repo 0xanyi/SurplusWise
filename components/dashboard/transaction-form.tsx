@@ -193,18 +193,20 @@ export function TransactionForm({
           <div className="grid grid-cols-2 gap-2">
             <Button
               type="button"
+              size="lg"
               variant={mode === "manual" ? "default" : "outline"}
               onClick={() => setMode("manual")}
             >
-              <Pencil className="mr-2 size-4" />
+              <Pencil className="size-4" />
               Manual
             </Button>
             <Button
               type="button"
+              size="lg"
               variant={mode === "scan" ? "default" : "outline"}
               onClick={() => setMode("scan")}
             >
-              <Camera className="mr-2 size-4" />
+              <Camera className="size-4" />
               Scan Receipt
             </Button>
           </div>
@@ -317,7 +319,7 @@ export function TransactionForm({
                 Cancel
               </Button>
               <Button type="submit" className="h-11" disabled={loading}>
-                {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
+                {loading && <Loader2 className="size-4 animate-spin" />}
                 {transaction ? "Save changes" : "Add transaction"}
               </Button>
             </DialogFooter>

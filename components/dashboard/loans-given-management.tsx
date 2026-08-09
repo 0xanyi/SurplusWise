@@ -39,8 +39,8 @@ const STATUS_CONFIG: Record<LoanStatus, { label: string; color: string; bg: stri
   },
   partially_repaid: {
     label: "Partially Repaid",
-    color: "text-amber-700 dark:text-amber-400",
-    bg: "bg-amber-50 dark:bg-amber-950/30",
+    color: "text-obligation",
+    bg: "bg-obligation-surface",
   },
   fully_repaid: {
     label: "Fully Repaid",
@@ -49,8 +49,8 @@ const STATUS_CONFIG: Record<LoanStatus, { label: string; color: string; bg: stri
   },
   defaulted: {
     label: "Defaulted",
-    color: "text-rose-700 dark:text-rose-400",
-    bg: "bg-rose-50 dark:bg-rose-950/30",
+    color: "text-expense",
+    bg: "bg-expense-surface",
   },
 };
 
@@ -414,14 +414,13 @@ export function LoansGivenManagement() {
                   </div>
 
                   {/* Repayment progress bar */}
-                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-track">
+                    {/* Repayment progress is neutral ink once complete — money
+                        coming back is not giving. Amber while outstanding, since
+                        an unpaid loan is an obligation owed to you. */}
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
-                        repaidPercent >= 100
-                          ? "bg-emerald-500"
-                          : repaidPercent >= 50
-                          ? "bg-blue-500"
-                          : "bg-amber-500"
+                        repaidPercent >= 100 ? "bg-foreground/70" : "bg-obligation"
                       }`}
                       style={{ width: `${repaidPercent}%` }}
                     />
@@ -448,7 +447,7 @@ export function LoansGivenManagement() {
                       </span>
                       <span
                         className={`font-medium flex items-center gap-1 ${
-                          overdue ? "text-rose-700 dark:text-rose-400" : ""
+                          overdue ? "text-expense" : ""
                         }`}
                       >
                         {overdue && <AlertTriangle className="size-3" />}

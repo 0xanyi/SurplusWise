@@ -67,6 +67,25 @@ export function getNextDueDate(dayOfMonth: number, reference: Date): Date {
 }
 
 /**
+ * The due date a bill should be judged against, given whether it has been paid.
+ *
+ * `getNextDueDate` always looks forward, so composing it with `getDueUrgency`
+ * can never produce "overdue" — an unpaid bill whose day has passed rolls to
+ * next month and reports as weeks away. That is right for a paid bill, which
+ * has no outstanding obligation this cycle, and wrong for an unpaid one.
+ */
+export function getEffectiveDueDate(
+  dayOfMonth: number,
+  isPaid: boolean,
+  reference: Date = new Date(),
+): Date {
+  if (!isPaid && isDueDatePassed(dayOfMonth, reference)) {
+    return getDueDateForMonth(reference.getFullYear(), reference.getMonth(), dayOfMonth);
+  }
+  return getNextDueDate(dayOfMonth, reference);
+}
+
+/**
  * Calculate days until due date from today.
  * Returns negative if overdue.
  */
@@ -75,6 +94,36 @@ export function getDaysUntilDue(dueDate: Date, now: Date = new Date()): number {
   const startOfDue = new Date(dueDate.getFullYear(), dueDate.getMonth(), dueDate.getDate());
   const diffMs = startOfDue.getTime() - startOfToday.getTime();
   return Math.round(diffMs / (1000 * 60 * 60 * 24));
+}
+
+export interface DueState {
+  dueDate: Date;
+  daysUntilDue: number;
+  urgency: DueUrgency;
+  /** Already due — overdue or due today. The sidebar badge and the attention
+   *  panel both key off this, so they cannot disagree about what "needs you"
+   *  means, and "Coming up" is exactly its complement. */
+  isDueNow: boolean;
+}
+
+/**
+ * The whole due picture for one bill, in one call. Composing the three helpers
+ * by hand at each call site is how the "overdue" branch went unreachable.
+ */
+export function getDueState(
+  dayOfMonth: number,
+  isPaid: boolean,
+  reference: Date = new Date(),
+): DueState {
+  const dueDate = getEffectiveDueDate(dayOfMonth, isPaid, reference);
+  const daysUntilDue = getDaysUntilDue(dueDate, reference);
+  const urgency = getDueUrgency(daysUntilDue);
+  return {
+    dueDate,
+    daysUntilDue,
+    urgency,
+    isDueNow: urgency === "overdue" || urgency === "today",
+  };
 }
 
 /**

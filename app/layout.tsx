@@ -1,13 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Bricolage_Grotesque, Geist } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 
-const jakarta = Plus_Jakarta_Sans({
+// Geist carries every UI string; Bricolage Grotesque is the display face, used
+// only for figures and headings. Both are self-hosted by next/font — globals.css
+// maps them into --font-sans and --font-display. Change a family here and
+// nowhere else.
+const geist = Geist({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-jakarta",
+  weight: ["400", "500", "600"],
+  variable: "--font-geist",
+});
+
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-bricolage",
 });
 
 export const metadata: Metadata = {
@@ -89,7 +99,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   // No maximumScale: capping it blocks pinch zoom, which fails WCAG 1.4.4.
-  themeColor: "#2563eb",
+  themeColor: "#0B0B0D",
 };
 
 export default function RootLayout({
@@ -98,11 +108,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={jakarta.variable} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${geist.variable} ${bricolage.variable}`}
+      suppressHydrationWarning
+    >
       <body className="font-sans antialiased">
+        {/* Dark is the redesign's native theme — the palette was tuned on the
+            near-black canvas first and light mode derived from it. */}
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >

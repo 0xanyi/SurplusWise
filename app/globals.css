@@ -8,31 +8,68 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Self-hosted by next/font in app/layout.tsx; never fetch fonts remotely. */
-  --font-sans: var(--font-jakarta), system-ui, -apple-system, sans-serif;
+  /* Self-hosted by next/font in app/layout.tsx; never fetch fonts remotely.
+     Two families now, and only two: Geist carries every UI string, Bricolage
+     Grotesque is reserved for figures and headings. See DESIGN.md — the pairing
+     is the redesign's signature and the display face is never used for prose. */
+  --font-sans: var(--font-geist), system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-bricolage), var(--font-geist), system-ui, sans-serif;
 
-  /* ─── Light mode (default) ─── */
-  --color-background: hsl(0 0% 99%);
-  --color-foreground: hsl(240 6% 10%);
+  /* ─── Light mode ─── */
+  /* Warmed to match the dark canvas: paper is a shade of the same cream the
+     dark theme uses for ink, so the two themes read as one product. */
+  --color-background: hsl(45 15% 97%);
+  --color-foreground: hsl(240 6% 5%);
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(240 6% 10%);
+  --color-card-foreground: hsl(240 6% 5%);
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(240 6% 10%);
-  --color-primary: hsl(221 83% 53%);
-  --color-primary-foreground: hsl(0 0% 100%);
-  --color-secondary: hsl(240 5% 96%);
-  --color-secondary-foreground: hsl(240 6% 10%);
-  --color-muted: hsl(240 5% 96%);
-  /* 44%, not 46%: at 46% this fails WCAG AA (4.40:1) on the muted tint it is
-     most often drawn on. 44% clears 4.5:1 on every light surface in the system. */
-  --color-muted-foreground: hsl(240 4% 44%);
-  --color-accent: hsl(240 5% 96%);
-  --color-accent-foreground: hsl(240 6% 10%);
+  --color-popover-foreground: hsl(240 6% 5%);
+  /* Primary is ink-on-cream, not a hue. The redesign's primary action is a
+     high-contrast neutral slab; saturated colour stays reserved for money. */
+  --color-primary: hsl(240 6% 5%);
+  --color-primary-foreground: hsl(45 20% 96%);
+  --color-secondary: hsl(45 12% 93%);
+  --color-secondary-foreground: hsl(240 6% 5%);
+  --color-muted: hsl(45 12% 93%);
+  /* 42%, not 46%: at 46% this fails WCAG AA (4.40:1) on the muted tint it is
+     most often drawn on. 42% clears 4.5:1 on every light surface in the system. */
+  --color-muted-foreground: hsl(240 4% 42%);
+  --color-accent: hsl(45 12% 93%);
+  --color-accent-foreground: hsl(240 6% 5%);
   --color-destructive: hsl(0 84% 60%);
   --color-destructive-foreground: hsl(0 0% 100%);
-  --color-border: hsl(240 6% 90%);
-  --color-input: hsl(240 6% 90%);
-  --color-ring: hsl(221 83% 53%);
+  --color-border: hsl(45 8% 88%);
+  --color-input: hsl(45 8% 88%);
+  --color-ring: hsl(157 72% 26%);
+
+  /* Sunken surfaces sit *below* the card: inputs, table zebra bands, nested
+     wells. The dark theme needs this tier (cards rise, wells drop); light mode
+     gets a tint of the page so the same class works in both. */
+  --color-sunken: hsl(45 12% 95%);
+  /* Progress and meter rails. Never a money colour — the fill carries meaning,
+     the rail is chrome. */
+  --color-track: hsl(45 8% 89%);
+
+  /* ─── Brand ───
+     Sika Mint marks identity and non-money chrome only: the logo tile, the
+     selection highlight, the focus ring. It is NOT a money token and must never
+     colour a figure, a badge, or a chart series — see the Mint-Is-Chrome Rule in
+     DESIGN.md. Light mode drops to a forest step so it clears AA on paper. */
+  --color-brand: hsl(157 72% 26%);
+  --color-brand-foreground: hsl(45 20% 96%);
+
+  /* ─── Hero panels ───
+     The dashboard's net-position slab and the login/landing marketing panel.
+     A deep tinted ground with its own ink and muted step, so the hero is a
+     surface in its own right rather than a card with a background colour. */
+  --color-hero: hsl(157 45% 11%);
+  --color-hero-ink: hsl(150 55% 96%);
+  --color-hero-accent: hsl(150 63% 68%);
+  --color-hero-muted: hsl(146 22% 68%);
+  /* Obligation-toned hero, for the debts page total-owed slab. */
+  --color-hero-debt: hsl(33 46% 12%);
+  --color-hero-debt-ink: hsl(35 100% 85%);
+  --color-hero-debt-muted: hsl(33 32% 58%);
 
   /* ─── Semantic money types ───
      One token per kind of money movement, so a figure can never be coloured
@@ -76,56 +113,94 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+
+  ::selection {
+    background-color: var(--color-brand);
+    color: var(--color-brand-foreground);
+  }
+
+  /* Hero slabs are dark in BOTH themes, so money drawn on one keeps its
+     dark-mode value. Light mode's 700-step tokens sit at 2.3–2.9:1 against the
+     forest ground — under the 3:1 floor WCAG 1.4.11 sets for graphics. Because
+     these are custom properties, every `text-expense` / `bg-giving` inside a
+     hero picks the corrected value up by inheritance. */
+  .bg-hero,
+  .bg-hero-debt {
+    --color-income: oklch(76.9% 0.117 261.6);
+    --color-expense: oklch(76.5% 0.142 11.8);
+    --color-giving: oklch(83.4% 0.129 162.7);
+    --color-obligation: oklch(85.6% 0.126 76);
+  }
 }
 
 /* ─── Dark mode overrides ─── */
+/* Dark is the redesign's native theme; the values below are the design's
+   canvas verbatim. Light mode above is the derived counterpart. */
 .dark {
-  --color-background: hsl(240 10% 4%);
-  --color-foreground: hsl(0 0% 98%);
-  --color-card: hsl(240 10% 7%);
-  --color-card-foreground: hsl(0 0% 98%);
-  --color-popover: hsl(240 10% 7%);
-  --color-popover-foreground: hsl(0 0% 98%);
-  --color-primary: hsl(217 91% 60%);
-  /* Ink, not white. The dark primary is light enough that white text on it is
-     only 3.64:1; near-black clears 5.22:1, and keeping the fill bright means
-     text-primary still reads at 5.22:1 against the page. */
-  --color-primary-foreground: hsl(240 10% 7%);
-  --color-secondary: hsl(240 6% 14%);
-  --color-secondary-foreground: hsl(0 0% 98%);
-  --color-muted: hsl(240 6% 14%);
-  --color-muted-foreground: hsl(240 5% 58%);
-  --color-accent: hsl(240 6% 14%);
-  --color-accent-foreground: hsl(0 0% 98%);
+  --color-background: hsl(240 8% 5%); /* #0B0B0D */
+  --color-foreground: hsl(48 19% 95%); /* #F4F3EF */
+  --color-card: hsl(240 5% 8%); /* #141416 */
+  --color-card-foreground: hsl(48 19% 95%);
+  --color-popover: hsl(240 5% 8%);
+  --color-popover-foreground: hsl(48 19% 95%);
+  /* The redesign's primary action is a cream slab on near-black — the highest
+     contrast pairing in the system (17.7:1), and neutral, so pressing a button
+     never looks like a money figure. */
+  --color-primary: hsl(48 19% 95%);
+  --color-primary-foreground: hsl(240 8% 5%);
+  --color-secondary: hsl(240 7% 12%); /* #1C1C20 */
+  --color-secondary-foreground: hsl(48 19% 95%);
+  --color-muted: hsl(240 7% 12%);
+  /* #96959D — 6.63:1 on the canvas, 6.21:1 on a card. */
+  --color-muted-foreground: hsl(248 4% 60%);
+  --color-accent: hsl(240 7% 12%);
+  --color-accent-foreground: hsl(48 19% 95%);
   --color-destructive: hsl(0 72% 55%);
   --color-destructive-foreground: hsl(0 0% 100%);
   --color-border: hsl(240 6% 16%);
   --color-input: hsl(240 6% 16%);
-  --color-ring: hsl(217 91% 60%);
+  --color-ring: hsl(146 61% 69%);
 
-  /* Semantic money types, dark. The 400 step, which clears 6.6:1 or better on
-     both the page and the card. Surfaces stay translucent so they read as a
-     tint of the surface beneath rather than a second opaque layer. */
-  --color-income: oklch(70.7% 0.165 254.624);
-  --color-income-surface: oklch(28.2% 0.091 267.935 / 0.3);
-  --color-expense: oklch(71.2% 0.194 13.428);
-  --color-expense-surface: oklch(27.1% 0.105 12.094 / 0.3);
-  --color-expense-chart-1: oklch(89.2% 0.058 10.001);
-  --color-expense-chart-2: oklch(81% 0.117 11.638);
-  --color-expense-chart-3: oklch(71.2% 0.194 13.428);
-  --color-expense-chart-4: oklch(64.5% 0.246 16.439);
-  --color-expense-chart-5: oklch(58.6% 0.253 17.585);
-  --color-expense-chart-6: oklch(51.4% 0.222 16.935);
-  --color-giving: oklch(76.5% 0.177 163.223);
-  --color-giving-surface: oklch(26.2% 0.051 172.552 / 0.3);
-  --color-obligation: oklch(82.8% 0.189 84.429);
-  --color-obligation-surface: oklch(27.9% 0.077 45.635 / 0.3);
+  --color-sunken: hsl(240 6% 6%); /* #0F0F11 */
+  --color-track: hsl(240 11% 15%); /* #22222A */
+
+  /* Sika Mint. 12.28:1 on the canvas. Chrome and identity only. */
+  --color-brand: hsl(146 61% 69%); /* #7EE0A8 */
+  --color-brand-foreground: hsl(240 8% 5%);
+
+  --color-hero: hsl(151 44% 11%); /* #10291D */
+  --color-hero-ink: hsl(144 56% 96%); /* #F1FBF5 */
+  --color-hero-accent: hsl(146 61% 69%);
+  --color-hero-muted: hsl(146 23% 68%); /* #9BC0AB */
+  --color-hero-debt: hsl(35 45% 11%); /* #2A1F10 */
+  --color-hero-debt-ink: hsl(36 100% 85%); /* #FFE0B0 */
+  --color-hero-debt-muted: hsl(35 33% 58%); /* #B79A70 */
+
+  /* Semantic money types, dark — retuned for the near-black canvas. Softer and
+     less saturated than the old 400 step, which glared against #0B0B0D. Every
+     value clears 7.5:1 on the page and on a card; see DESIGN.md for the table.
+     Giving Green stays bound to giving: gains, repayments and under-budget
+     states are neutral ink, never green. */
+  --color-income: oklch(76.9% 0.117 261.6); /* #8AB4FF */
+  --color-income-surface: oklch(76.9% 0.117 261.6 / 0.12);
+  --color-expense: oklch(76.5% 0.142 11.8); /* #FF8A9B */
+  --color-expense-surface: oklch(76.5% 0.142 11.8 / 0.12);
+  --color-expense-chart-1: oklch(76.5% 0.142 11.8);
+  --color-expense-chart-2: oklch(80% 0.118 10.2);
+  --color-expense-chart-3: oklch(83.6% 0.093 9.3);
+  --color-expense-chart-4: oklch(87.1% 0.071 8.8);
+  --color-expense-chart-5: oklch(90.6% 0.05 8.9);
+  --color-expense-chart-6: oklch(70.7% 0.124 10.5);
+  --color-giving: oklch(83.4% 0.129 162.7); /* #6FE3B0 */
+  --color-giving-surface: oklch(83.4% 0.129 162.7 / 0.12);
+  --color-obligation: oklch(85.6% 0.126 76); /* #FFC46B */
+  --color-obligation-surface: oklch(85.6% 0.126 76 / 0.12);
   /* The dark fills are light, so their ink inverts. White on dark-mode amber is
      1.72:1; near-black clears it comfortably. */
-  --color-income-foreground: hsl(240 10% 7%);
-  --color-expense-foreground: hsl(240 10% 7%);
-  --color-giving-foreground: hsl(240 10% 7%);
-  --color-obligation-foreground: hsl(240 10% 7%);
+  --color-income-foreground: hsl(240 8% 5%);
+  --color-expense-foreground: hsl(240 8% 5%);
+  --color-giving-foreground: hsl(240 8% 5%);
+  --color-obligation-foreground: hsl(240 8% 5%);
 }
 
 /* ─── Reduced motion ─── */

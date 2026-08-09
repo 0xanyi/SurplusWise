@@ -1,9 +1,8 @@
 "use client";
 
-import { Landmark, Scale, Wallet } from "lucide-react";
 import { useApiQuery } from "@/hooks/use-api";
-import { formatCurrency } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn, formatCurrency } from "@/lib/utils";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface NetWorthResponse {
   assets: number;
@@ -17,69 +16,114 @@ interface NetWorthResponse {
   debtCount: number;
 }
 
+/**
+ * The balance sheet in one figure and one bar.
+ *
+ * Net-worth components are stocks, not flows, so the four money tokens mostly
+ * do not apply — only "debts owed" is a money type (an obligation). The asset
+ * segments are graduated neutral instead, which keeps them distinguishable
+ * without claiming a meaning they do not have. The prototype coloured loans
+ * out with the giving token; that would say a loan receivable is a tithe.
+ */
 export function NetWorthOverview() {
   const { data, loading, error } = useApiQuery<NetWorthResponse>("/api/net-worth");
 
   if (loading || !data) {
     return (
       <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>Net Worth</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          {error ?? "Loading net worth..."}
+        <CardContent className="py-8 text-sm text-muted-foreground">
+          {error ?? "Loading net worth…"}
         </CardContent>
       </Card>
     );
   }
 
   const positive = data.netWorth >= 0;
+  const cashAndOther = Math.max(
+    data.assets - data.investmentsValue - data.loansReceivable,
+    0
+  );
+
+  // The bar apportions everything on the balance sheet, both sides, so the
+  // liability reads as a share of the whole rather than as a negative width.
+  const total =
+    data.investmentsValue + cashAndOther + data.loansReceivable + data.debtsOwed;
+  const share = (n: number) => (total > 0 ? (n / total) * 100 : 0);
+
+  const segments = [
+    { value: data.investmentsValue, className: "bg-foreground/70" },
+    { value: cashAndOther, className: "bg-foreground/40" },
+    { value: data.loansReceivable, className: "bg-foreground/25" },
+    { value: data.debtsOwed, className: "bg-obligation" },
+  ];
+
+  const columns = [
+    { label: "Investments", value: data.investmentsValue, tone: "" },
+    { label: "Cash & other", value: cashAndOther, tone: "" },
+    { label: "Loans out", value: data.loansReceivable, tone: "" },
+    {
+      label: "Debts owed",
+      value: -data.debtsOwed,
+      tone: data.debtsOwed > 0 ? "text-obligation" : "",
+    },
+  ];
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle>Net Worth</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className={`rounded-xl p-4 ${positive ? "bg-muted" : "bg-expense-surface"}`}>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm text-muted-foreground">Current net worth</p>
-              <p className={`text-2xl font-semibold tabular-nums ${positive ? "text-foreground" : "text-expense"}`}>
-                {formatCurrency(data.netWorth)}
-              </p>
-            </div>
-            <Wallet className={`size-6 ${positive ? "text-foreground" : "text-expense"}`} />
-          </div>
+      <CardContent className="flex flex-wrap items-start justify-between gap-8 pt-5 sm:pt-6">
+        <div>
+          <p className="text-xs text-muted-foreground">Net worth</p>
+          <p
+            className={cn(
+              "mt-1.5 font-display text-[30px] font-semibold leading-none tracking-[-0.03em] tabular-nums sm:text-4xl",
+              positive ? "text-foreground" : "text-expense"
+            )}
+          >
+            {formatCurrency(data.netWorth)}
+          </p>
+          <p className="mt-2 text-[12.5px] text-muted-foreground tabular-nums">
+            {formatCurrency(data.assets)} in assets against{" "}
+            {formatCurrency(data.liabilities)} owed
+          </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl bg-muted p-3">
-            <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-              <Landmark className="size-3.5" /> Assets
-            </div>
-            <p className="font-semibold tabular-nums text-foreground">{formatCurrency(data.assets)}</p>
+        <div className="min-w-full flex-1 sm:min-w-[340px]">
+          <div
+            className="mb-3.5 flex h-2.5 gap-[3px]"
+            role="img"
+            aria-label={`Balance sheet: investments ${Math.round(
+              share(data.investmentsValue)
+            )}%, cash and other ${Math.round(share(cashAndOther))}%, loans out ${Math.round(
+              share(data.loansReceivable)
+            )}%, debts owed ${Math.round(share(data.debtsOwed))}%`}
+          >
+            {segments.map((seg, i) =>
+              seg.value > 0 ? (
+                <div
+                  key={i}
+                  className={cn("rounded-full", seg.className)}
+                  style={{ width: `${share(seg.value)}%` }}
+                />
+              ) : null
+            )}
+            {total === 0 && <div className="w-full rounded-full bg-track" />}
           </div>
-          <div className="rounded-xl bg-obligation-surface p-3">
-            <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-              <Scale className="size-3.5" /> Liabilities
-            </div>
-            <p className="font-semibold tabular-nums text-obligation">{formatCurrency(data.liabilities)}</p>
-          </div>
-        </div>
 
-        <div className="space-y-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Investments</span>
-            <span className="font-medium tabular-nums">{formatCurrency(data.investmentsValue)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Loans receivable</span>
-            <span className="font-medium tabular-nums">{formatCurrency(data.loansReceivable)}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Debts owed</span>
-            <span className="font-medium tabular-nums">{formatCurrency(data.debtsOwed)}</span>
+          <div className="grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-4">
+            {columns.map((col) => (
+              <div key={col.label}>
+                <p className="text-[11.5px] text-muted-foreground">{col.label}</p>
+                <p
+                  className={cn(
+                    "mt-1 text-[15px] font-semibold tabular-nums",
+                    col.tone
+                  )}
+                >
+                  {col.value < 0 ? "−" : ""}
+                  {formatCurrency(Math.abs(col.value))}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
       </CardContent>

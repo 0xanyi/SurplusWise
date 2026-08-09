@@ -139,7 +139,7 @@ export function ReceiptScanner({ onScanComplete, onCancel }: ReceiptScannerProps
           <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
             <Button asChild>
               <label className="cursor-pointer">
-                <Upload className="mr-2 size-4" />
+                <Upload className="size-4" />
                 Choose image
                 <input type="file" accept="image/*" className="hidden" onChange={handleFileSelect} />
               </label>

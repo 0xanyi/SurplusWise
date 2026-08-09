@@ -44,7 +44,7 @@ export function GoalsOverview() {
           <p className="mt-1 text-sm text-muted-foreground">Set a savings goal to track progress.</p>
           <Link href="/dashboard/settings" className="mt-4 inline-flex">
             <Button size="sm">
-              <Target className="mr-2 h-4 w-4" />
+              <Target className="h-4 w-4" />
               Create Goal
             </Button>
           </Link>

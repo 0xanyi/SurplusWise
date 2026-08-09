@@ -4,8 +4,8 @@
   "description": "Track expenditures, manage church givings, and gain financial insights with AI-powered receipt scanning.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#fcfcfc",
-  "theme_color": "#2563eb",
+  "background_color": "#0B0B0D",
+  "theme_color": "#0B0B0D",
   "orientation": "portrait",
   "icons": [
     {
