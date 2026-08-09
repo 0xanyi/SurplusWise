@@ -2,43 +2,18 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
 import { SikaLogo } from "@/components/sika-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { mobileTabItems } from "@/components/dashboard/nav-items";
+import { useDueOutgoingsCount } from "@/hooks/use-due-outgoings";
 import { useWorkspace } from "@/contexts/workspace-context";
-import { authClient } from "@/lib/auth-client";
-import { useToast } from "@/hooks/use-toast";
+import { AccountMenu, type AccountUser } from "@/components/dashboard/account-menu";
 import { cn } from "@/lib/utils";
-import { useRouter } from "next/navigation";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-interface MobileNavUser {
-  id: string;
-  email: string;
-  name: string;
-}
 
 /** Logo, workspace, theme and account — the chrome the sidebar carries on desktop. */
-export function DashboardMobileHeader({ user }: { user: MobileNavUser }) {
+export function DashboardMobileHeader({ user }: { user: AccountUser }) {
   const { activeWorkspace } = useWorkspace();
-  const router = useRouter();
-  const { toast } = useToast();
   const initial = (user.name || user.email).charAt(0).toUpperCase();
-
-  const handleLogout = async () => {
-    await authClient.signOut();
-    toast({ title: "Logged out", description: "You have been logged out." });
-    router.push("/auth/login");
-    router.refresh();
-  };
 
   return (
     <div className="flex items-center justify-between gap-3 lg:hidden">
@@ -55,34 +30,14 @@ export function DashboardMobileHeader({ user }: { user: MobileNavUser }) {
 
       <div className="flex flex-none items-center gap-2">
         <ThemeToggle />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              aria-label="Account menu"
-              className="flex size-9 items-center justify-center rounded-full bg-track text-xs font-semibold"
-            >
-              {initial}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuLabel className="font-normal">
-              <p className="text-sm font-medium">{user.name}</p>
-              <p className="text-xs text-muted-foreground">{user.email}</p>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              <Link href="/dashboard/settings">Settings</Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={handleLogout}
-              className="text-destructive focus:text-destructive"
-            >
-              <LogOut className="mr-2 size-4" />
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <AccountMenu user={user} align="end">
+          <button
+            aria-label="Account menu"
+            className="flex size-9 items-center justify-center rounded-full bg-track text-xs font-semibold"
+          >
+            {initial}
+          </button>
+        </AccountMenu>
       </div>
     </div>
   );
@@ -91,6 +46,7 @@ export function DashboardMobileHeader({ user }: { user: MobileNavUser }) {
 /** Floating five-slot tab bar. Replaces the sidebar below lg. */
 export function DashboardTabBar() {
   const pathname = usePathname();
+  const dueCount = useDueOutgoingsCount();
 
   return (
     <nav
@@ -106,7 +62,7 @@ export function DashboardTabBar() {
             href={item.href}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex h-[50px] flex-col items-center justify-center gap-1 rounded-[13px] text-[10.5px] font-medium transition-colors",
+              "relative flex h-[50px] flex-col items-center justify-center gap-1 rounded-[13px] text-[10.5px] font-medium transition-colors",
               active
                 ? "bg-secondary text-foreground"
                 : "text-muted-foreground hover:text-foreground"
@@ -114,6 +70,12 @@ export function DashboardTabBar() {
           >
             <Icon className="size-[19px]" />
             {item.shortLabel ?? item.label}
+            {item.showsDueBadge && dueCount > 0 && (
+              <span className="absolute right-[calc(50%-20px)] top-1.5 flex size-[15px] items-center justify-center rounded-full bg-obligation text-[9.5px] font-bold text-obligation-foreground tabular-nums">
+                {dueCount}
+                <span className="sr-only"> due or overdue</span>
+              </span>
+            )}
           </Link>
         );
       })}

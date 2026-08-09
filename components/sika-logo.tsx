@@ -27,7 +27,7 @@ export function SikaLogo({ size = "md", markOnly = false, className }: SikaLogoP
           s.tile
         )}
       >
-        <span className={cn("font-display font-bold leading-none", s.glyph)}>S</span>
+        <span className={cn("font-display font-semibold leading-none", s.glyph)}>S</span>
       </span>
       {!markOnly && (
         <span

@@ -1,6 +1,8 @@
 "use client";
 
 import { cn, formatCurrency } from "@/lib/utils";
+import { moneyTypeTone } from "@/lib/money-type";
+import type { TransactionType } from "@/types";
 
 interface NetPositionHeroProps {
   totalIncome: number;
@@ -15,8 +17,9 @@ interface NetPositionHeroProps {
 interface Tile {
   label: string;
   value: number;
-  /** Money-type token. Every figure here is classified, never merely coloured. */
-  tone: string;
+  /** The money type itself — the token is derived, never hand-written, so a
+   *  tile can't be coloured without also being classified. */
+  type: TransactionType;
   note: string;
 }
 
@@ -46,19 +49,19 @@ export function NetPositionHero({
     {
       label: "Income",
       value: totalIncome,
-      tone: "text-income",
+      type: "income",
       note: periodLabel,
     },
     {
       label: "Expenses",
       value: totalExpenses,
-      tone: "text-expense",
+      type: "expense",
       note: base > 0 ? `${Math.round(spentPct)}% of income` : "—",
     },
     {
       label: "Giving",
       value: totalGivings,
-      tone: "text-giving",
+      type: "giving",
       note: base > 0 ? `${Math.round(givenPct)}% of income` : "—",
     },
   ];
@@ -132,7 +135,7 @@ export function NetPositionHero({
               <p
                 className={cn(
                   "mt-1 font-display text-[23px] font-semibold tracking-[-0.02em] tabular-nums",
-                  tile.tone
+                  moneyTypeTone(tile.type).text
                 )}
               >
                 {formatCurrency(tile.value)}

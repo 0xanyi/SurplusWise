@@ -8,12 +8,7 @@ import type { ApiRecurringOutgoing } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
-import {
-  formatDaysUntilDue,
-  getDaysUntilDue,
-  getDueUrgency,
-  getEffectiveDueDate,
-} from "@/lib/outgoings-date";
+import { formatDaysUntilDue, getDueState } from "@/lib/outgoings-date";
 
 interface OutgoingsResponse {
   outgoings: ApiRecurringOutgoing[];
@@ -48,21 +43,15 @@ export function UpcomingBills() {
     const unpaid = active.filter((o) => !o.payment_status?.paid);
     const now = new Date();
 
-    const dated = unpaid.map((outgoing) => {
-      const dueDate = getEffectiveDueDate(outgoing.day_of_month, false, now);
-      const daysUntilDue = getDaysUntilDue(dueDate, now);
-      return {
-        outgoing,
-        dueDate,
-        daysUntilDue,
-        urgency: getDueUrgency(daysUntilDue),
-      };
-    });
+    const dated = unpaid.map((outgoing) => ({
+      outgoing,
+      ...getDueState(outgoing.day_of_month, false, now),
+    }));
 
     return {
-      // Anything still due today or earlier belongs to the attention panel.
+      // The exact complement of NeedsAttention: it owns everything already due.
       upcoming: dated
-        .filter((b) => b.daysUntilDue > 0)
+        .filter((b) => !b.isDueNow)
         .sort((a, b) => a.daysUntilDue - b.daysUntilDue)
         .slice(0, 5),
       unpaidTotal: dated.reduce((sum, b) => sum + b.outgoing.amount, 0),

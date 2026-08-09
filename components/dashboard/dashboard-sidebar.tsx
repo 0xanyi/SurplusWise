@@ -1,11 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
-import { useApiQuery } from "@/hooks/use-api";
-import type { ApiRecurringOutgoing } from "@/types";
+import { usePathname } from "next/navigation";
 import {
   getDaysUntilDue,
   getDueUrgency,
@@ -15,24 +11,9 @@ import { SikaLogo } from "@/components/sika-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
 import { navGroups, settingsItem } from "@/components/dashboard/nav-items";
-import { authClient } from "@/lib/auth-client";
-import { useToast } from "@/hooks/use-toast";
+import { AccountMenu, type AccountUser } from "@/components/dashboard/account-menu";
+import { useDueOutgoingsCount } from "@/hooks/use-due-outgoings";
 import { cn } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-interface SidebarUser {
-  id: string;
-  email: string;
-  name: string;
-  image?: string;
-}
 
 const itemClasses =
   "flex h-[38px] items-center gap-[11px] rounded-[10px] px-2.5 text-[13.5px] font-medium transition-colors";
@@ -74,36 +55,8 @@ export function NavLink({
   );
 }
 
-/** Count of outgoings that are unpaid and already due — the sidebar badge. */
-function useDueOutgoingsCount() {
-  const { data } = useApiQuery<{ outgoings: ApiRecurringOutgoing[] }>(
-    "/api/recurring-outgoings"
-  );
-
-  return useMemo(() => {
-    if (!data?.outgoings) return 0;
-    const now = new Date();
-    return data.outgoings.filter((outgoing) => {
-      if (!outgoing.is_active || outgoing.payment_status?.paid) return false;
-      const urgency = getDueUrgency(
-        getDaysUntilDue(getEffectiveDueDate(outgoing.day_of_month, false, now), now)
-      );
-      return urgency === "overdue" || urgency === "today";
-    }).length;
-  }, [data]);
-}
-
-export function DashboardSidebar({ user }: { user: SidebarUser }) {
-  const router = useRouter();
-  const { toast } = useToast();
+export function DashboardSidebar({ user }: { user: AccountUser }) {
   const dueCount = useDueOutgoingsCount();
-
-  const handleLogout = async () => {
-    await authClient.signOut();
-    toast({ title: "Logged out", description: "You have been logged out." });
-    router.push("/auth/login");
-    router.refresh();
-  };
 
   const initial = (user.name || user.email).charAt(0).toUpperCase();
 
@@ -136,7 +89,7 @@ export function DashboardSidebar({ user }: { user: SidebarUser }) {
                 href={item.href}
                 label={item.label}
                 icon={item.icon}
-                badge={item.href === "/dashboard/outgoings" ? dueCount : undefined}
+                badge={item.showsDueBadge ? dueCount : undefined}
               />
             ))}
           </div>
@@ -151,41 +104,21 @@ export function DashboardSidebar({ user }: { user: SidebarUser }) {
         />
 
         <div className="flex items-center gap-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 text-left transition-colors hover:bg-secondary/60">
-                <span className="flex size-[26px] flex-none items-center justify-center rounded-full bg-track text-[11px] font-semibold text-foreground">
-                  {initial}
+          <AccountMenu user={user} align="start" side="top">
+            <button className="flex h-11 min-w-0 flex-1 items-center gap-2.5 rounded-[10px] px-2.5 text-left transition-colors hover:bg-secondary/60">
+              <span className="flex size-[26px] flex-none items-center justify-center rounded-full bg-track text-[11px] font-semibold text-foreground">
+                {initial}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-medium">
+                  {user.name || "User"}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[13px] font-medium">
-                    {user.name || "User"}
-                  </span>
-                  <span className="block truncate text-[11px] text-muted-foreground">
-                    {user.email}
-                  </span>
+                <span className="block truncate text-[11px] text-muted-foreground">
+                  {user.email}
                 </span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" side="top" className="w-56">
-              <DropdownMenuLabel className="font-normal">
-                <p className="text-sm font-medium">{user.name}</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings">Settings</Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleLogout}
-                className="text-destructive focus:text-destructive"
-              >
-                <LogOut className="mr-2 size-4" />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </span>
+            </button>
+          </AccountMenu>
           <ThemeToggle />
         </div>
       </div>

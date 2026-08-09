@@ -96,6 +96,36 @@ export function getDaysUntilDue(dueDate: Date, now: Date = new Date()): number {
   return Math.round(diffMs / (1000 * 60 * 60 * 24));
 }
 
+export interface DueState {
+  dueDate: Date;
+  daysUntilDue: number;
+  urgency: DueUrgency;
+  /** Already due — overdue or due today. The sidebar badge and the attention
+   *  panel both key off this, so they cannot disagree about what "needs you"
+   *  means, and "Coming up" is exactly its complement. */
+  isDueNow: boolean;
+}
+
+/**
+ * The whole due picture for one bill, in one call. Composing the three helpers
+ * by hand at each call site is how the "overdue" branch went unreachable.
+ */
+export function getDueState(
+  dayOfMonth: number,
+  isPaid: boolean,
+  reference: Date = new Date(),
+): DueState {
+  const dueDate = getEffectiveDueDate(dayOfMonth, isPaid, reference);
+  const daysUntilDue = getDaysUntilDue(dueDate, reference);
+  const urgency = getDueUrgency(daysUntilDue);
+  return {
+    dueDate,
+    daysUntilDue,
+    urgency,
+    isDueNow: urgency === "overdue" || urgency === "today",
+  };
+}
+
 /**
  * Get urgency level for a due date.
  */

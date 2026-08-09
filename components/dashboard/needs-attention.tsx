@@ -15,11 +15,7 @@ import { useApiQuery } from "@/hooks/use-api";
 import type { ApiBudget, ApiRecurringOutgoing } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn, formatCurrency } from "@/lib/utils";
-import {
-  getDaysUntilDue,
-  getDueUrgency,
-  getEffectiveDueDate,
-} from "@/lib/outgoings-date";
+import { getDueState } from "@/lib/outgoings-date";
 
 interface OutgoingsResponse {
   outgoings: ApiRecurringOutgoing[];
@@ -31,12 +27,19 @@ interface AttentionItem {
   detail: string;
   amount: number;
   icon: LucideIcon;
-  /** expense = needs action now, obligation = needs action soon. */
+  /**
+   * The money type, not the urgency. A bill falling due is an obligation
+   * however late it is; an overrun is money that already left. Urgency is
+   * carried by the icon, the wording and the sort order — see the
+   * Token-Or-Nothing and Earned Ink rules in DESIGN.md.
+   */
   tone: "expense" | "obligation";
   /** Lower sorts first. */
   rank: number;
   href: string;
 }
+
+const MAX_VISIBLE = 6;
 
 const TONE = {
   expense: { text: "text-expense", surface: "bg-expense-surface" },
@@ -62,10 +65,12 @@ export function NeedsAttention() {
     for (const outgoing of outgoingsData?.outgoings ?? []) {
       if (!outgoing.is_active || outgoing.payment_status?.paid) continue;
 
-      const dueDate = getEffectiveDueDate(outgoing.day_of_month, false, now);
-      const daysUntilDue = getDaysUntilDue(dueDate, now);
-      const urgency = getDueUrgency(daysUntilDue);
-      if (urgency !== "overdue" && urgency !== "today") continue;
+      const { dueDate, daysUntilDue, urgency, isDueNow } = getDueState(
+        outgoing.day_of_month,
+        false,
+        now
+      );
+      if (!isDueNow) continue;
 
       const overdue = urgency === "overdue";
       const days = Math.abs(daysUntilDue);
@@ -80,7 +85,7 @@ export function NeedsAttention() {
         })} · ${outgoing.frequency}`,
         amount: outgoing.amount,
         icon: overdue ? AlertCircle : Clock,
-        tone: overdue ? "expense" : "obligation",
+        tone: "obligation",
         rank: overdue ? 0 : 1,
         href: "/dashboard/outgoings",
       });
@@ -101,14 +106,19 @@ export function NeedsAttention() {
           : `${Math.round(budget.percentage)}% used`,
         amount: Math.abs(budget.remaining),
         icon: exceeded ? TrendingDown : AlertTriangle,
+        // Over budget is money that already left; nearing a limit is a caution.
         tone: exceeded ? "expense" : "obligation",
         rank: exceeded ? 0 : 1,
         href: "/dashboard/settings",
       });
     }
 
-    return result.sort((a, b) => a.rank - b.rank || b.amount - a.amount).slice(0, 6);
+    return result.sort((a, b) => a.rank - b.rank || b.amount - a.amount);
   }, [outgoingsData, budgetsData]);
+
+  // The list is capped, the count is not — a badge reading "6 items" when nine
+  // need you is worse than no badge.
+  const visibleItems = items.slice(0, MAX_VISIBLE);
 
   const loading = outgoingsLoading || budgetsLoading;
 
@@ -139,7 +149,7 @@ export function NeedsAttention() {
           </div>
         ) : (
           <ul>
-            {items.map((item) => {
+            {visibleItems.map((item) => {
               const Icon = item.icon;
               const tone = TONE[item.tone];
               return (
@@ -176,6 +186,16 @@ export function NeedsAttention() {
                 </li>
               );
             })}
+            {items.length > visibleItems.length && (
+              <li className="border-t border-border/60">
+                <Link
+                  href="/dashboard/outgoings"
+                  className="block px-5 py-3 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-6"
+                >
+                  {items.length - visibleItems.length} more need you
+                </Link>
+              </li>
+            )}
           </ul>
         )}
       </CardContent>

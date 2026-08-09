@@ -5,7 +5,8 @@ import Link from "next/link";
 import { AlertCircle, FileText, Loader2, RefreshCw } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { apiFetch } from "@/hooks/use-api";
-import { formatCurrency, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatSignedAmount, moneyTypeTone } from "@/lib/money-type";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -256,11 +257,7 @@ export default function DashboardPage() {
                     <span
                       className={cn(
                         "size-[7px] flex-none rounded-full",
-                        tx.type === "income"
-                          ? "bg-income"
-                          : tx.type === "giving"
-                          ? "bg-giving"
-                          : "bg-expense"
+                        moneyTypeTone(tx.type).bg
                       )}
                     />
                     <span className="min-w-0 flex-1">
@@ -274,15 +271,10 @@ export default function DashboardPage() {
                     <span
                       className={cn(
                         "flex-none text-sm font-semibold tabular-nums",
-                        tx.type === "income"
-                          ? "text-income"
-                          : tx.type === "giving"
-                          ? "text-giving"
-                          : "text-foreground"
+                        moneyTypeTone(tx.type).text
                       )}
                     >
-                      {tx.type === "expense" ? "−" : "+"}
-                      {formatCurrency(tx.amount)}
+                      {formatSignedAmount(tx.type, tx.amount)}
                     </span>
                   </li>
                 ))}

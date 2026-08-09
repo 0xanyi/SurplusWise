@@ -59,10 +59,10 @@ typography:
     letterSpacing: "-0.025em"
   title:
     fontFamily: "Bricolage Grotesque, Geist, system-ui, sans-serif"
-    fontSize: "1.125rem"
+    fontSize: "1rem"
     fontWeight: 600
     lineHeight: 1
-    letterSpacing: "-0.025em"
+    letterSpacing: "-0.015em"
   body:
     fontFamily: "Geist, system-ui, -apple-system, sans-serif"
     fontSize: "0.875rem"
@@ -85,9 +85,12 @@ typography:
     lineHeight: 1.2
     fontFeature: "tnum"
 rounded:
-  control: "0.5rem"
-  tile: "0.75rem"
-  surface: "1rem"
+  control: "0.6875rem"
+  control-compact: "0.625rem"
+  tile: "1rem"
+  surface: "1.125rem"
+  hero: "1.25rem"
+  marketing: "0.8125rem"
   placeholder: "0.375rem"
   pill: "9999px"
 spacing:
@@ -102,39 +105,40 @@ components:
     textColor: "{colors.primary-foreground}"
     typography: "{typography.control}"
     rounded: "{rounded.control}"
-    height: "2.5rem"
-    padding: "0 1rem"
+    height: "2.375rem"
+    padding: "0 0.9375rem"
   button-primary-hover:
-    backgroundColor: "hsl(221 83% 53% / 0.9)"
+    backgroundColor: "{colors.primary}"
+    opacity: 0.9
     textColor: "{colors.primary-foreground}"
   button-outline:
-    backgroundColor: "{colors.background}"
+    backgroundColor: "{colors.card}"
     textColor: "{colors.foreground}"
     typography: "{typography.control}"
     rounded: "{rounded.control}"
-    height: "2.5rem"
-    padding: "0 1rem"
+    height: "2.375rem"
+    padding: "0 0.9375rem"
   button-ghost:
     backgroundColor: "transparent"
     textColor: "{colors.foreground}"
     typography: "{typography.control}"
     rounded: "{rounded.control}"
-    height: "2.5rem"
-    padding: "0 1rem"
+    height: "2.375rem"
+    padding: "0 0.9375rem"
   input-field:
-    backgroundColor: "{colors.background}"
-    textColor: "{colors.foreground}"
-    typography: "{typography.body}"
-    rounded: "{rounded.control}"
-    height: "2.5rem"
-    padding: "0.5rem 0.75rem"
-  input-field-entry:
-    backgroundColor: "{colors.background}"
+    backgroundColor: "{colors.sunken}"
     textColor: "{colors.foreground}"
     typography: "{typography.body}"
     rounded: "{rounded.control}"
     height: "2.75rem"
-    padding: "0.5rem 0.75rem"
+    padding: "0.5rem 0.875rem"
+  input-field-entry:
+    backgroundColor: "{colors.sunken}"
+    textColor: "{colors.foreground}"
+    typography: "{typography.body}"
+    rounded: "{rounded.control}"
+    height: "2.75rem"
+    padding: "0.5rem 0.875rem"
   card-surface:
     backgroundColor: "{colors.card}"
     textColor: "{colors.foreground}"
@@ -169,9 +173,9 @@ components:
 
 **Creative North Star: "The Quiet Ledger"**
 
-Sika looks like a well-kept book of accounts, not a trading terminal. The page is
-near-white paper. Structure comes from hairline borders, not from shadows or filled
-panels. Chrome recedes — the navigation is a translucent blur, cards are almost
+Sika looks like a well-kept book of accounts, not a trading terminal. The page is a
+near-black canvas by default, with a warm paper counterpart in light mode. Structure
+comes from hairline borders, not from shadows or filled panels. Chrome recedes — the navigation is a translucent blur, cards are almost
 borderless, buttons are modest — so that the only things with real presence on screen
 are the numbers and the four colors that tell you what kind of money you are looking at.
 
@@ -190,11 +194,11 @@ crypto-terminal look and the gamified budgeting app with streaks, confetti, masc
 emoji-as-interface.
 
 **Key Characteristics:**
-- Paper-white ground (`hsl(0 0% 99%)`), never pure white, with pure-white cards floating a shade above it
+- Near-black ground (`{colors.dark-background}`) with cards a shade lighter above it, and wells a shade darker below; light mode is the warm-paper counterpart
 - Hairline borders at fractional opacity doing all the separation work
 - Four semantic finance hues, used exclusively for financial meaning
 - Tabular figures on every comparable number
-- Radius that scales with surface size: 8px controls → 12px tiles → 16px surfaces
+- Radius that scales with surface size: 11px controls → 16px tiles → 18px surfaces → 20px heroes
 - Shadows reserved for things that genuinely float; flat everywhere else
 - Full light/dark parity via a single class-scoped token override
 
@@ -274,8 +278,9 @@ Two tinted grounds carry the app's two biggest figures, and nothing else:
 
 A hero is a surface in its own right, not a card with a background colour: it brings its
 own ink and muted step because neutral Ink would not clear contrast on the tint. Do not
-put body copy, tables, or controls on one — a hero holds one figure, one sentence, and at
-most one small control.
+put body copy, tables, or form controls on one. A hero holds one anchor figure, one
+sentence, at most one small control, and — set apart to the side — a cluster of no more
+than two supporting stats. The moment it needs a third, it wants to be a card.
 
 Dark mode is where this palette was designed; light is the derived counterpart. Ground
 drops to `{colors.dark-background}`, cards rise to `{colors.dark-card}` (lighter than the
@@ -376,11 +381,16 @@ prose, 500 for controls, 600 for headings and figures.
   Appears once per page, on marketing surfaces only.
 - **Headline** (600, fluid to 1.875rem, -0.025em): the page `h1` inside the dashboard.
   One per screen, top-left, no exceptions.
-- **Title** (600, 1.125rem, leading-none, -0.025em): card titles and section headings.
+- **Title** (display face, 600, 1rem, leading-none, -0.015em): card titles and section
+  headings. Dropped from 1.125rem when the display face arrived — Bricolage carries more
+  presence per pixel than the old single family did.
   Drops to 1rem on compact cards.
 - **Body** (400, 0.875rem, 1.5): the default text size across the entire application.
   The app is built at 14px, not 16px; marketing surfaces step up to 1rem/1.125rem.
-- **Control** (500, 0.875rem): buttons, navigation items, input values, table cells.
+- **Control** (500, 0.8125rem): navigation items, input values, table cells, and the
+  outline/ghost/secondary buttons. Filled primary and destructive buttons step to 600 —
+  the only weight bump in the system, and it is what makes a filled action read as the
+  one thing on the row you are meant to press.
 - **Label** (500, 0.75rem, Graphite): field labels, stat-card captions, metadata.
 - **Amount** (600, fluid 1.125rem → 1.5rem, tabular): every currency figure.
 
@@ -397,8 +407,9 @@ for 300 or 700 means the size scale is being under-used.
 
 ## Layout
 
-A centered-container system with a hard ceiling: `max-w-7xl` (80rem) for the application,
-`max-w-5xl` (64rem) for marketing, gutters at 1rem rising to 1.5rem at `sm`. Nothing goes
+A sidebar-plus-column system, not a centered container: the rail is a fixed 15.5rem and
+the content column caps at 77.5rem beside it, so the measure never outruns the rail.
+Marketing caps at 67.5rem. Gutters run 1rem rising to 2rem at `lg`. Nothing goes
 edge-to-edge.
 
 Vertical rhythm runs on a 4px base with a strong preference for three steps: 0.5rem
@@ -406,16 +417,14 @@ between related controls, 1rem between grouped blocks, 1.5rem between sections. 
 interiors are a uniform 1.5rem, compressing to 1rem on the compact stat row at mobile
 widths.
 
-The dashboard is a stacked sequence of full-width bands rather than a true grid: a
-2-column stat row that becomes 4 columns at `lg`, then a run of `md:grid-cols-2` panel
-pairs, then a full-width recent-activity card. Breakpoints are Tailwind defaults
+The dashboard is a stacked sequence of bands rather than a true grid: the net-position
+hero and its three stat tiles, a two-up row pairing what is late with what is next, then
+full-width activity, budgets, net worth and goals. Breakpoints are Tailwind defaults
 (640 / 768 / 1024 / 1280 / 1536); the meaningful shifts are `sm` (padding and type step
-up), `md` (navigation goes from hamburger to inline, panels go two-up), and `lg` (stats
-go four-up).
+up) and `lg` (the tab bar becomes the sidebar and the two-up rows split).
 
-Control heights encode intent: 2.25rem compact, 2.5rem default, **2.75rem on transaction
-entry**, 3rem for marketing calls to action. The navigation bar is a fixed 4rem and
-sticks with `backdrop-blur-xl` over an 80%-opaque ground.
+Control heights encode intent: 2.25rem compact, 2.375rem default, **2.75rem on
+transaction entry**, 3rem for marketing calls to action.
 
 ### Named Rules
 
@@ -445,6 +454,9 @@ arrives together with a scrim or a blur, never alone.
   toasts and dropdown menus.
 - **Modal** (`box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.1)`): dialogs, paired with a
   60%-black overlay and a 4px backdrop blur.
+- **Floating bar** (`box-shadow: 0 14px 34px rgb(0 0 0 / 0.2)`, deepening to `0.55` in
+  dark): the mobile tab bar, which genuinely floats over scrolling content. The only
+  tier that changes value between themes — it has to read against both grounds.
 
 ### Named Rules
 
@@ -461,7 +473,8 @@ Rectangles with softened corners, and the softening scales with the surface. Sma
 interactive things are crisp; large containers are generous. Nothing is a perfect circle
 except avatars and progress tracks.
 
-- **Controls** (`0.625rem`–`0.6875rem` — buttons, inputs, select triggers, menu items;
+- **Controls** (`0.625rem`–`0.6875rem`, rising to `0.8125rem` at the 3rem marketing size
+  — buttons, inputs, select triggers, menu items;
   nav items sit at `0.625rem`)
 - **Tiles** (`0.5625rem`–`1rem` — the app mark, semantic type tiles, toasts, icon
   containers, stat tiles inside a card)
@@ -594,12 +607,17 @@ only registered in a JS config Tailwind v4 never loaded, so every one of these c
 emitted nothing and overlays popped instantly. Verified working since the swap.) The
 global `prefers-reduced-motion` block flattens all of it to 0.01ms.
 
-### Stat Card *(signature)*
+### Net Position Hero *(signature)*
 
-A four-across (two-across on mobile) row of compact cards, each a Graphite 0.75rem label
-on the left, a semantic icon on the right, and a weight-600 tabular figure beneath. The
-figure takes the semantic color of what it measures. This row is the first thing on the
-dashboard and sets the color language for everything below it.
+The dashboard opens on one figure, not a row of four. A `{rounded.hero}` slab in Forest
+carries the net position at up to 3.75rem in the display face, a single sentence naming
+the surplus or deficit, and an in/out/kept bar splitting income three ways. Three stat
+tiles sit beside it — Income, Expenses, Giving — each a Graphite 0.75rem label over a
+weight-600 tabular figure in the token of what it measures.
+
+The hero is what replaced the old four-across stat row: ten equal-weight cards gave
+nothing priority, and one large figure with three supporting tiles sets the colour
+language for everything below while answering "how did I do" before anything is read.
 
 ### Budget Progress Bar *(signature)*
 

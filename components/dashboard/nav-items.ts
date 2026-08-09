@@ -16,6 +16,10 @@ export interface NavItem {
   label: string;
   /** Shorter label for the mobile tab bar, where five items share the width. */
   shortLabel?: string;
+  /** Earns a slot in the mobile tab bar. Five is the most a thumb row holds. */
+  mobileTab?: boolean;
+  /** Carries the count of outgoings that are due or overdue. */
+  showsDueBadge?: boolean;
 }
 
 export interface NavGroup {
@@ -34,7 +38,7 @@ export const navGroups: NavGroup[] = [
   {
     heading: null,
     items: [
-      { href: "/dashboard", icon: LayoutDashboard, label: "Overview" },
+      { href: "/dashboard", icon: LayoutDashboard, label: "Overview", mobileTab: true },
     ],
   },
   {
@@ -45,9 +49,16 @@ export const navGroups: NavGroup[] = [
         icon: ArrowLeftRight,
         label: "Transactions",
         shortLabel: "Activity",
+        mobileTab: true,
       },
-      { href: "/dashboard/outgoings", icon: Repeat, label: "Outgoings" },
-      { href: "/dashboard/reports", icon: BarChart3, label: "Reports" },
+      {
+        href: "/dashboard/outgoings",
+        icon: Repeat,
+        label: "Outgoings",
+        mobileTab: true,
+        showsDueBadge: true,
+      },
+      { href: "/dashboard/reports", icon: BarChart3, label: "Reports", mobileTab: true },
     ],
   },
   {
@@ -64,22 +75,13 @@ export const settingsItem: NavItem = {
   href: "/dashboard/settings",
   icon: Settings,
   label: "Settings",
+  mobileTab: true,
 };
-
-/** The five that earn a slot in the mobile tab bar. */
-export const mobileTabHrefs = [
-  "/dashboard",
-  "/dashboard/transactions",
-  "/dashboard/outgoings",
-  "/dashboard/reports",
-  "/dashboard/settings",
-];
 
 export const allNavItems: NavItem[] = [
   ...navGroups.flatMap((group) => group.items),
   settingsItem,
 ];
 
-export const mobileTabItems: NavItem[] = mobileTabHrefs.map(
-  (href) => allNavItems.find((item) => item.href === href)!
-);
+/** The five that earn a slot in the mobile tab bar, in nav order. */
+export const mobileTabItems: NavItem[] = allNavItems.filter((item) => item.mobileTab);

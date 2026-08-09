@@ -193,6 +193,7 @@ export function TransactionForm({
           <div className="grid grid-cols-2 gap-2">
             <Button
               type="button"
+              size="lg"
               variant={mode === "manual" ? "default" : "outline"}
               onClick={() => setMode("manual")}
             >
@@ -201,6 +202,7 @@ export function TransactionForm({
             </Button>
             <Button
               type="button"
+              size="lg"
               variant={mode === "scan" ? "default" : "outline"}
               onClick={() => setMode("scan")}
             >
