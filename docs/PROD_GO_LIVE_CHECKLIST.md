@@ -34,6 +34,7 @@ Required:
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@<db-host>:5432/sika
 BETTER_AUTH_SECRET=<openssl rand -base64 32>
+SIKA_SETUP_TOKEN=<openssl rand -hex 32>
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
 ```
 
@@ -86,6 +87,10 @@ In Dokploy logs, confirm these lines appear in order:
 
 If migration/check fails, fix DB/env and redeploy.
 
+If the one-account migration reports multiple existing users, do not delete rows
+blindly. Back up the database, reconcile the accounts and their financial data, then
+retry the deployment.
+
 ---
 
 ## 5) Smoke test
@@ -99,7 +104,8 @@ curl -I "$APP_URL/api/analytics?period=month"
 ```
 
 Manual checks:
-- Sign up / sign in
+- On a new instance, create the only account with `SIKA_SETUP_TOKEN`
+- Confirm a second signup is rejected and sign in still works
 - Quick add transaction
 - Create budget/category
 - Reports page loads

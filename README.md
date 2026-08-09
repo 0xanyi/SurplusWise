@@ -22,26 +22,29 @@ git clone https://github.com/tickideasintl/sika.git
 cd sika
 cp .env.example .env
 
-# Required: generate an auth secret and set a database password
+# Required: generate independent auth and one-time setup secrets, then set a database password
 sed -i "s|^BETTER_AUTH_SECRET=.*|BETTER_AUTH_SECRET=$(openssl rand -base64 32)|" .env
+sed -i "s|^SIKA_SETUP_TOKEN=.*|SIKA_SETUP_TOKEN=$(openssl rand -hex 32)|" .env
 echo "POSTGRES_PASSWORD=$(openssl rand -base64 24)" >> .env
 
 docker compose up -d
 ```
 
 Sika is now on [http://localhost:3000](http://localhost:3000). Migrations run
-automatically on startup, so there is no separate setup step. Create an account
-from the signup page; the first account is an ordinary user, and there is no
-admin tier.
+automatically on startup, so there is no separate database setup step. Open the
+setup page and enter `SIKA_SETUP_TOKEN` to create the instance's only account.
+The account is an ordinary user; there is no admin tier. Registration closes
+after that account is created.
 
 ### Minimum configuration
 
-Only three variables are required:
+Four variables are required:
 
 | Variable | Purpose |
 | --- | --- |
 | `DATABASE_URL` | Postgres connection string |
 | `BETTER_AUTH_SECRET` | Session signing secret, `openssl rand -base64 32` |
+| `SIKA_SETUP_TOKEN` | First-account setup secret, `openssl rand -hex 32` |
 | `NEXT_PUBLIC_SITE_URL` | Public origin, e.g. `https://sika.example.com` |
 
 Everything else is optional. **Receipt scanning and file storage are off unless
@@ -57,7 +60,7 @@ See `.env.example` for the complete list.
 The bundled `docker-compose.yml` is tuned for local use. For a public deployment:
 
 - Remove the `ports:` mapping on the `db` service so Postgres is not reachable
-- Set `POSTGRES_PASSWORD` and `BETTER_AUTH_SECRET` to strong generated values
+- Set `POSTGRES_PASSWORD`, `BETTER_AUTH_SECRET`, and `SIKA_SETUP_TOKEN` to independently generated values
 - Put Sika behind a reverse proxy with TLS and set `NEXT_PUBLIC_SITE_URL` to the
   HTTPS origin
 - Set up database backups; Sika does not back itself up
@@ -65,13 +68,18 @@ The bundled `docker-compose.yml` is tuned for local use. For a public deployment
 See [SECURITY.md](SECURITY.md) for the full checklist, and
 [DOKPLOY.md](DOKPLOY.md) if you deploy with Dokploy.
 
+> **Upgrading an existing installation:** the one-account migration deliberately
+> stops if the database already contains multiple users. Back up the database and
+> reconcile those accounts before retrying; Sika never chooses an account or deletes
+> financial data automatically.
+
 ## Features
 
 ### Current Features
 
 **Authentication & Security**
-- ✅ User authentication (signup, login, logout) with Better Auth
-- ✅ Secure session management
+- ✅ One-time, setup-token-protected account creation with Better Auth
+- ✅ Login and logout with secure session management
 - ✅ Email/password authentication
 
 **Transaction Management**

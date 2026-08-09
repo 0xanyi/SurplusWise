@@ -1,121 +1,58 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { authClient } from "@/lib/auth-client";
-import { useToast } from "@/hooks/use-toast";
+import { getRegistrationState } from "@/lib/registration";
+import { SignupForm } from "./signup-form";
 
 export const dynamic = "force-dynamic";
 
-export default function SignupPage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const router = useRouter();
-  const { toast } = useToast();
+export default async function SignupPage() {
+  const registrationState = await getRegistrationState();
 
-  const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
+  if (registrationState === "closed") {
+    return (
+      <>
+        <h1 className="font-display text-[32px] font-semibold leading-[1.1] tracking-[-0.03em]">
+          Setup complete
+        </h1>
+        <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">
+          This Sika instance already has an account. Registration is closed.
+        </p>
+        <p className="mt-7 text-[13.5px] text-muted-foreground">
+          <Link href="/auth/login" className="font-medium text-brand hover:underline">
+            Sign in to Sika
+          </Link>
+        </p>
+      </>
+    );
+  }
 
-    if (password !== confirmPassword) {
-      toast({ title: "Error", description: "Passwords do not match", variant: "destructive" });
-      return;
-    }
-
-    if (password.length < 8) {
-      toast({ title: "Error", description: "Password must be at least 8 characters", variant: "destructive" });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { error } = await authClient.signUp.email({ email, password, name });
-      if (error) throw new Error(error.message);
-
-      toast({ title: "Success", description: "Account created. Please sign in." });
-      router.push("/auth/login");
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Failed to create account";
-      toast({ title: "Error", description: message, variant: "destructive" });
-    } finally {
-      setLoading(false);
-    }
-  };
+  if (registrationState === "misconfigured") {
+    return (
+      <>
+        <h1 className="font-display text-[32px] font-semibold leading-[1.1] tracking-[-0.03em]">
+          Setup unavailable
+        </h1>
+        <p className="mt-2.5 text-sm leading-relaxed text-muted-foreground">
+          Ask the server operator to configure <code>SIKA_SETUP_TOKEN</code>, then reload this page.
+        </p>
+        <p className="mt-7 text-[13.5px] text-muted-foreground">
+          Already set up?{" "}
+          <Link href="/auth/login" className="font-medium text-brand hover:underline">
+            Sign in
+          </Link>
+        </p>
+      </>
+    );
+  }
 
   return (
     <>
       <h1 className="font-display text-[32px] font-semibold leading-[1.1] tracking-[-0.03em]">
-        Create account
+        Set up Sika
       </h1>
       <p className="mt-2.5 text-sm text-muted-foreground">
-        Start tracking your income, expenses, and giving.
+        Create the only account for this Sika instance.
       </p>
-
-      <form onSubmit={handleSignup} className="mt-8 space-y-3.5">
-        <div className="space-y-1.5">
-          <Label htmlFor="name">Name</Label>
-          <Input
-            id="name"
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Your name"
-            autoComplete="name"
-            required
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="name@example.com"
-            autoComplete="email"
-            required
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="At least 8 characters"
-            autoComplete="new-password"
-            required
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="confirmPassword">Confirm password</Label>
-          <Input
-            id="confirmPassword"
-            type="password"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Repeat password"
-            autoComplete="new-password"
-            required
-          />
-        </div>
-
-        <Button type="submit" size="lg" className="mt-1.5 w-full" disabled={loading}>
-          {loading && <Loader2 className="animate-spin" />}
-          Create account
-        </Button>
-      </form>
+      <SignupForm />
 
       <p className="mt-7 text-[13.5px] text-muted-foreground">
         Already have an account?{" "}

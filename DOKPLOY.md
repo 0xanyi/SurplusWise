@@ -24,6 +24,7 @@
 ```
 DATABASE_URL=postgresql://postgres:pw@sika-db:5432/sika
 BETTER_AUTH_SECRET=<openssl rand -base64 32>
+SIKA_SETUP_TOKEN=<openssl rand -hex 32>
 NEXT_PUBLIC_SITE_URL=https://your-app-domain.com
 OPENAI_API_KEY=your_openai_api_key
 
@@ -34,6 +35,10 @@ S3_REGION=us-east-1
 S3_ACCESS_KEY_ID=minioadmin
 S3_SECRET_ACCESS_KEY=minioadmin
 ```
+
+Keep `SIKA_SETUP_TOKEN` server-only. Configure proxies and observability tools to
+redact the `x-sika-setup-token` request header; never put the token in a URL or a
+`NEXT_PUBLIC_*` variable.
 
 **Build args** (Application → Build):
 
@@ -59,6 +64,10 @@ This means you do **not** need to run migrations locally first for normal deploy
 If your DB is inaccessible at startup, the container will fail fast and restart
 until connectivity is restored.
 
+The one-account registration migration deliberately stops if `users` already has
+multiple rows. Back up the database and reconcile those accounts before redeploying;
+the migration never deletes or chooses an account automatically.
+
 ### Step 4: Configure Domain & SSL
 
 1. Go to **Domains** tab.
@@ -81,6 +90,7 @@ Use the exact command/order runbook here:
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
 | `BETTER_AUTH_SECRET` | Yes | Auth secret (`openssl rand -base64 32`) |
+| `SIKA_SETUP_TOKEN` | Yes | First-account setup secret (`openssl rand -hex 32`) |
 | `NEXT_PUBLIC_SITE_URL` | Yes | Public app URL (for auth callbacks & metadata) |
 | `OPENAI_API_KEY` | No | For AI-powered receipt scanning |
 | `S3_ENDPOINT` | No | S3/MinIO endpoint URL |
@@ -108,6 +118,7 @@ Use the exact command/order runbook here:
 ### Authentication issues
 - Verify `NEXT_PUBLIC_SITE_URL` matches your actual domain.
 - Ensure `BETTER_AUTH_SECRET` is set.
+- If setup is unavailable on an empty database, ensure `SIKA_SETUP_TOKEN` is set.
 
 ### Health check failing
 The app may take 30-60 seconds to start. Increase the health check `start_period` if needed.

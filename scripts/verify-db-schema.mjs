@@ -41,6 +41,8 @@ const REQUIRED_COLUMNS = [
   { table: "investments", column: "workspace_id" },
 ];
 
+const REQUIRED_INDEXES = ["users_singleton"];
+
 const RETRIES = Number(process.env.DB_SCHEMA_CHECK_RETRIES ?? "20");
 const RETRY_DELAY_MS = Number(process.env.DB_SCHEMA_CHECK_RETRY_DELAY_MS ?? "2000");
 
@@ -123,6 +125,30 @@ async function verifySchema(client) {
     }
   }
 
+  const missingIndexes = [];
+
+  for (const index of REQUIRED_INDEXES) {
+    const result = await client.query(
+      `
+      SELECT COALESCE(
+        i.indisunique
+          AND table_rel.relname = 'users'
+          AND pg_get_expr(i.indexprs, i.indrelid) = 'true',
+        false
+      ) AS valid
+      FROM pg_class index_rel
+      JOIN pg_index i ON i.indexrelid = index_rel.oid
+      JOIN pg_class table_rel ON table_rel.oid = i.indrelid
+      WHERE index_rel.oid = to_regclass($1)
+    `,
+      [`public.${index}`]
+    );
+
+    if (!result.rows[0]?.valid) {
+      missingIndexes.push(index);
+    }
+  }
+
   const migrationsTableResult = await client.query(
     `
       SELECT COALESCE(
@@ -138,13 +164,16 @@ async function verifySchema(client) {
     );
   }
 
-  if (missingTables.length || missingColumns.length) {
+  if (missingTables.length || missingColumns.length || missingIndexes.length) {
     const details = [
       missingTables.length
         ? `Missing tables: ${missingTables.join(", ")}`
         : null,
       missingColumns.length
         ? `Missing columns: ${missingColumns.join(", ")}`
+        : null,
+      missingIndexes.length
+        ? `Missing indexes: ${missingIndexes.join(", ")}`
         : null,
     ]
       .filter(Boolean)
