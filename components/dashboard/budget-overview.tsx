@@ -130,15 +130,17 @@ export function BudgetOverview() {
               aria-valuemin={0}
               aria-valuemax={100}
               aria-label={`${budget.category} budget used`}
-              className="h-2.5 overflow-hidden rounded-full bg-muted"
+              className="h-1.5 overflow-hidden rounded-full bg-track"
             >
+              {/* Healthy is neutral ink, not green: staying under budget is not
+                  giving, and Giving Green means giving. */}
               <div
                 className={`h-full rounded-full transition-all duration-500 ${
                   budget.status === "exceeded"
-                    ? "bg-rose-500"
+                    ? "bg-expense"
                     : budget.status === "warning"
-                    ? "bg-amber-500"
-                    : "bg-emerald-500"
+                    ? "bg-obligation"
+                    : "bg-foreground/70"
                 }`}
                 style={{ width: `${Math.min(budget.percentage, 100)}%` }}
               />

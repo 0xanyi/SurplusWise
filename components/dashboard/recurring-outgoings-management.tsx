@@ -499,9 +499,9 @@ export function RecurringOutgoingsManagement() {
                 key={item.id}
                 className={`${!item.is_active ? "opacity-60" : ""} ${
                   isPaid
-                    ? "border-emerald-200 dark:border-emerald-800/50"
+                    ? "border-border"
                     : isOverdue
-                    ? "border-amber-200 dark:border-amber-800/50"
+                    ? "border-obligation/30"
                     : ""
                 }`}
               >
@@ -537,7 +537,7 @@ export function RecurringOutgoingsManagement() {
                             </span>
                           )}
                           {isOverdue && (
-                            <span className="text-[10px] bg-amber-100 dark:bg-amber-950/40 text-obligation px-1.5 py-0.5 rounded-full font-medium">
+                            <span className="text-[10px] bg-obligation-surface text-obligation px-1.5 py-0.5 rounded-full font-medium">
                               Overdue
                             </span>
                           )}

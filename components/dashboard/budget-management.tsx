@@ -396,15 +396,17 @@ export function BudgetManagement() {
                     aria-valuemin={0}
                     aria-valuemax={100}
                     aria-label={`${budget.category} budget used`}
-                    className="h-2.5 w-full overflow-hidden rounded-full bg-muted"
+                    className="h-1.5 w-full overflow-hidden rounded-full bg-track"
                   >
+                    {/* Healthy is neutral ink — see the Giving-Is-Not-Green-Money
+                        rule in DESIGN.md. */}
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${
                         status === "exceeded"
-                          ? "bg-rose-500"
+                          ? "bg-expense"
                           : status === "warning"
-                          ? "bg-amber-500"
-                          : "bg-emerald-500"
+                          ? "bg-obligation"
+                          : "bg-foreground/70"
                       }`}
                       style={{ width: `${Math.min(budget.percentage, 100)}%` }}
                     />

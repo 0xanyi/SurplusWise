@@ -28,7 +28,7 @@ const URGENCY_CONFIG: Record<DueUrgency, { label: string; color: string; bgColor
   overdue: { label: "Overdue", color: "text-expense", bgColor: "bg-expense-surface", icon: AlertCircle },
   today: { label: "Due today", color: "text-obligation", bgColor: "bg-obligation-surface", icon: Clock },
   soon: { label: "Due soon", color: "text-obligation", bgColor: "bg-obligation-surface", icon: Clock },
-  upcoming: { label: "Upcoming", color: "text-blue-700 dark:text-blue-400", bgColor: "bg-blue-50 dark:bg-blue-950/30", icon: Calendar },
+  upcoming: { label: "Upcoming", color: "text-muted-foreground", bgColor: "bg-muted", icon: Calendar },
   future: { label: "Later", color: "text-muted-foreground", bgColor: "bg-muted", icon: Calendar },
 };
 
@@ -117,7 +117,7 @@ export function BillReminders() {
           <Bell className="size-5" />
           Upcoming Bills
           {urgentCount > 0 && (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1.5 text-[10px] font-semibold text-white">
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-expense px-1.5 text-[10px] font-semibold text-expense-foreground">
               {urgentCount}
             </span>
           )}
@@ -179,10 +179,10 @@ export function BillReminders() {
                     key={outgoing.id}
                     className={cn(
                       "flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm transition-colors",
-                      urgency === "overdue" && "border-rose-200/50 dark:border-rose-800/30 bg-rose-50/30 dark:bg-rose-950/10",
-                      urgency === "today" && "border-amber-200/50 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10",
-                      urgency === "soon" && "border-amber-200/50 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10",
-                      urgency === "upcoming" && "border-blue-200/50 dark:border-blue-800/30 bg-blue-50/30 dark:bg-blue-950/10",
+                      urgency === "overdue" && "border-expense/25 bg-expense-surface/50",
+                      urgency === "today" && "border-obligation/25 bg-obligation-surface/50",
+                      urgency === "soon" && "border-obligation/25 bg-obligation-surface/50",
+                      urgency === "upcoming" && "border-border bg-muted/40",
                       urgency === "future" && "border-border/50"
                     )}
                   >
@@ -212,7 +212,7 @@ export function BillReminders() {
 
             {/* Quick actions */}
             {urgentCount > 0 && (
-              <div className="rounded-xl border border-amber-200/50 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10 p-3">
+              <div className="rounded-xl border border-obligation/25 bg-obligation-surface/50 p-3">
                 <p className="text-sm font-medium text-obligation">
                   {urgentCount} bill{urgentCount === 1 ? "" : "s"} need{urgentCount === 1 ? "s" : ""} attention
                 </p>

@@ -144,9 +144,9 @@ export function OutgoingsOverview() {
                     key={item.id}
                     className={`flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm ${
                       isPaid
-                        ? "border-emerald-200/50 dark:border-emerald-800/30 bg-emerald-50/30 dark:bg-emerald-950/10"
+                        ? "border-border bg-muted/40"
                         : isOverdue
-                        ? "border-amber-200/50 dark:border-amber-800/30 bg-amber-50/30 dark:bg-amber-950/10"
+                        ? "border-obligation/25 bg-obligation-surface/50"
                         : "border-border/50"
                     }`}
                   >
@@ -167,12 +167,12 @@ export function OutgoingsOverview() {
                         </span>
                       )}
                       {isOverdue && (
-                        <span className="text-[10px] bg-amber-100 dark:bg-amber-950/40 text-obligation px-1.5 py-0.5 rounded-full font-medium">
+                        <span className="text-[10px] bg-obligation-surface text-obligation px-1.5 py-0.5 rounded-full font-medium">
                           Overdue
                         </span>
                       )}
                       {!isPaid && !isOverdue && isToday && (
-                        <span className="text-[10px] bg-amber-100 dark:bg-amber-950/40 text-obligation px-1.5 py-0.5 rounded-full font-medium">
+                        <span className="text-[10px] bg-obligation-surface text-obligation px-1.5 py-0.5 rounded-full font-medium">
                           Today
                         </span>
                       )}

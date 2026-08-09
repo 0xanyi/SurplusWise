@@ -440,7 +440,7 @@ export function AnalyticsCharts() {
                 analytics.spendingPrediction.daysOfRunway === null
                   ? "text-foreground"
                   : analytics.spendingPrediction.daysOfRunway > 30
-                    ? "text-amber-700 dark:text-amber-400"
+                    ? "text-obligation"
                     : "text-expense"
               }`}>
                 {analytics.spendingPrediction.daysOfRunway === null

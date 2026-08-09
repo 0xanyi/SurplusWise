@@ -100,11 +100,12 @@ export function InvestmentsOverview() {
                   {formatCurrency(total_cost_basis)}
                 </p>
               </div>
+              {/* A gain gets no tint: "up" is not a money type, and the green
+                  that would read as positive is reserved for giving. A loss is
+                  Outflow Rose, which is a money type. */}
               <div
                 className={`rounded-xl p-3 ${
-                  isGain
-                    ? "bg-emerald-50/50 dark:bg-emerald-950/20"
-                    : "bg-rose-50/50 dark:bg-rose-950/20"
+                  isGain ? "bg-muted" : "bg-expense-surface"
                 }`}
               >
                 <p className="text-xs text-muted-foreground">Current Value</p>

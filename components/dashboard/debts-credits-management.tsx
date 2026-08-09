@@ -414,14 +414,16 @@ export function DebtsCreditsManagement() {
                         {formatCurrency(item.credit_limit)}
                       </span>
                     </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div className="h-1.5 overflow-hidden rounded-full bg-track">
+                      {/* Low utilisation is neutral, not green: a small balance
+                          is still a debt, and green means giving. */}
                       <div
                         className={`h-full rounded-full transition-all duration-500 ${
                           (item.current_balance / item.credit_limit) * 100 >= 90
-                            ? "bg-rose-500"
+                            ? "bg-expense"
                             : (item.current_balance / item.credit_limit) * 100 >= 70
-                            ? "bg-amber-500"
-                            : "bg-emerald-500"
+                            ? "bg-obligation"
+                            : "bg-foreground/70"
                         }`}
                         style={{
                           width: `${Math.min(

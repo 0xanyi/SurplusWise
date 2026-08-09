@@ -17,9 +17,9 @@ const STATUS_LABELS: Record<string, string> = {
 
 const STATUS_COLORS: Record<string, string> = {
   active: "bg-muted text-foreground",
-  partially_repaid: "bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400",
+  partially_repaid: "bg-obligation-surface text-obligation",
   fully_repaid: "bg-muted text-foreground",
-  defaulted: "bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400",
+  defaulted: "bg-expense-surface text-expense",
 };
 
 interface LoansResponse {

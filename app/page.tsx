@@ -1,8 +1,42 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Wallet, CheckCircle2, ArrowRight, TrendingUp, Receipt, ScanLine } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SikaLogo } from "@/components/sika-logo";
 import { isAuthenticated } from "@/lib/auth-server";
+
+const pillars = [
+  {
+    title: "Entry in three seconds",
+    description:
+      "Type, amount, category. One row, always at the top of the page.",
+  },
+  {
+    title: "Giving is its own kind of money",
+    description:
+      "Tithes and partnership are tracked as a peer of income and expense, never buried in a category.",
+  },
+  {
+    title: "Optional receipt scanning",
+    description:
+      "Bring your own key, or a local Ollama. Off until you turn it on.",
+  },
+];
+
+const features = [
+  {
+    title: "Personal and business, separated",
+    description: "Workspaces keep the two sets of books fully isolated.",
+  },
+  {
+    title: "Budgets, debts, loans, investments",
+    description: "One net-worth figure that accounts for all of it.",
+  },
+  {
+    title: "Your server, your data",
+    description: "Docker compose up. No third-party calls by default.",
+  },
+];
 
 export default async function Home() {
   const authenticated = await isAuthenticated();
@@ -13,100 +47,93 @@ export default async function Home() {
 
   return (
     <main className="min-h-screen bg-background">
-      <header className="border-b border-border/40">
-        <div className="container mx-auto flex h-16 max-w-5xl items-center justify-between px-4">
-          <div className="flex items-center gap-2.5">
-            <div className="rounded-xl bg-primary p-2">
-              <Wallet className="size-5 text-primary-foreground" />
-            </div>
-            <span className="font-semibold text-lg">Sika</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link href="/auth/login">
-              <Button variant="ghost">Sign in</Button>
-            </Link>
-            <Link href="/auth/signup">
-              <Button>Get started</Button>
-            </Link>
-          </div>
+      <header className="mx-auto flex h-[78px] max-w-[1080px] items-center justify-between px-5 sm:px-8">
+        <SikaLogo />
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/auth/login"
+            className="text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Sign in
+          </Link>
+          <Button asChild>
+            <Link href="/auth/signup">Get started</Link>
+          </Button>
         </div>
       </header>
 
-      <section className="container mx-auto max-w-5xl px-4 py-20 sm:py-28">
-        <div className="mx-auto max-w-3xl text-center">
-          <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
-            Simple money tracking for everyday life
-          </h1>
-          <p className="mt-5 text-base text-muted-foreground sm:text-lg max-w-2xl mx-auto">
-            Track your income, expenses, and giving in one place. No clutter, no noise —
-            just the numbers you need to stay consistent.
-          </p>
+      <section className="mx-auto max-w-[1080px] px-5 pb-8 pt-9 sm:px-8 sm:pb-10 sm:pt-[70px]">
+        <p className="text-[12.5px] font-medium uppercase tracking-[0.08em] text-brand">
+          Self-hosted · MIT licensed
+        </p>
+        <h1 className="mt-5 max-w-[16ch] font-display text-[40px] font-semibold leading-[0.98] tracking-[-0.04em] sm:text-6xl lg:text-[76px]">
+          A quiet ledger for your money.
+        </h1>
+        <p className="mt-6 max-w-[52ch] text-base leading-relaxed text-muted-foreground sm:text-[17px]">
+          Income, expenses and giving in one place. Runs on your own server.
+          Nothing leaves it unless you say so.
+        </p>
 
-          <div className="mt-10 flex flex-col justify-center gap-3 sm:flex-row">
+        <div className="mt-8 flex flex-col gap-2.5 sm:flex-row">
+          <Button asChild size="xl">
             <Link href="/auth/signup">
-              <Button size="lg" className="w-full sm:w-auto h-12 px-8 text-base">
-                Create free account
-                <ArrowRight className="ml-2 size-4" />
-              </Button>
+              Create free account
+              <ArrowRight />
             </Link>
-            <Link href="/auth/login">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto h-12 px-8 text-base">
-                I already have an account
-              </Button>
-            </Link>
-          </div>
+          </Button>
+          <Button asChild variant="outline" size="xl">
+            <Link href="/auth/login">I already have an account</Link>
+          </Button>
         </div>
+      </section>
 
-        <div className="mt-16 grid gap-4 sm:grid-cols-3">
-          {[
-            {
-              icon: TrendingUp,
-              title: "Quick entry",
-              description: "Add income, expenses, or giving in seconds.",
-            },
-            {
-              icon: Receipt,
-              title: "Clear overview",
-              description: "See this month's totals and your current balance at a glance.",
-            },
-            {
-              icon: ScanLine,
-              title: "Optional receipt scan",
-              description: "Use AI receipt scanning when you need it.",
-            },
-          ].map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <div key={feature.title} className="rounded-2xl border border-border/50 p-6 transition-colors hover:bg-accent/30">
-                <div className="mb-3 flex size-10 items-center justify-center rounded-xl bg-primary/10">
-                  <Icon className="size-5 text-primary" />
-                </div>
-                <h2 className="font-medium">{feature.title}</h2>
-                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                  {feature.description}
+      <section className="mx-auto max-w-[1080px] px-5 pb-8 sm:px-8">
+        <div className="grid items-center gap-6 rounded-[22px] border border-border/70 bg-card p-6 sm:p-7 lg:grid-cols-2">
+          {/* An illustration of the product, not live data. */}
+          <div className="rounded-2xl bg-hero p-6 sm:p-7">
+            <p className="text-xs text-hero-accent">Net position · last 30 days</p>
+            <p className="mt-2.5 font-display text-[42px] font-semibold leading-none tracking-[-0.035em] tabular-nums text-hero-ink sm:text-[52px]">
+              £977.50
+            </p>
+            <div className="mt-5 flex h-2 gap-0.5" aria-hidden="true">
+              <div className="w-[67%] rounded-full bg-expense" />
+              <div className="w-[10%] rounded-full bg-giving" />
+              <div className="w-[23%] rounded-full bg-hero-ink/25" />
+            </div>
+            <p className="mt-3 text-[12.5px] text-hero-muted">
+              Spent 67% · Given 10% · Kept 23%
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-5">
+            {pillars.map((pillar) => (
+              <div key={pillar.title}>
+                <h2 className="font-display text-base font-semibold">
+                  {pillar.title}
+                </h2>
+                <p className="mt-1.5 text-[13.5px] leading-relaxed text-muted-foreground">
+                  {pillar.description}
                 </p>
               </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-10 rounded-2xl border border-border/40 bg-muted/30 p-5 text-sm text-muted-foreground">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center sm:gap-8">
-            <span className="inline-flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
-              Personal finance focused
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
-              Built for daily use
-            </span>
-            <span className="inline-flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-emerald-600 dark:text-emerald-400" />
-              Income · Expense · Giving
-            </span>
+            ))}
           </div>
         </div>
+      </section>
+
+      <section className="mx-auto grid max-w-[1080px] gap-3 px-5 pb-20 sm:grid-cols-3 sm:px-8">
+        {features.map((feature) => (
+          <div
+            key={feature.title}
+            className="rounded-2xl border border-border/70 p-5 sm:px-[22px]"
+          >
+            <h2 className="font-display text-[15px] font-semibold">
+              {feature.title}
+            </h2>
+            <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+              {feature.description}
+            </p>
+          </div>
+        ))}
       </section>
     </main>
   );
