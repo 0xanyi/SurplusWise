@@ -60,109 +60,104 @@ export function BudgetOverview() {
     );
   }
 
+  const now = new Date();
+  const daysRemaining =
+    new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
+
+  const header = (
+    <div className="mb-3 flex items-baseline justify-between gap-4">
+      <h2 className="font-display text-base font-semibold tracking-[-0.015em]">
+        Budgets this month
+      </h2>
+      <span className="text-[12.5px] text-muted-foreground tabular-nums">
+        {daysRemaining === 0
+          ? "Last day"
+          : `${daysRemaining} ${daysRemaining === 1 ? "day" : "days"} remaining`}
+      </span>
+    </div>
+  );
+
   if (topBudgets.length === 0) {
     return (
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>Budget Overview</CardTitle>
-        </CardHeader>
-        <CardContent className="text-center py-10">
-          <div className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-muted">
-            <TrendingDown className="size-5 text-muted-foreground" />
-          </div>
-          <p className="font-medium">No budgets set</p>
-          <p className="mt-1 text-sm text-muted-foreground">Create your first budget to track progress.</p>
-          <Link href="/dashboard/settings" className="mt-4 inline-flex">
-            <Button size="sm">
-              <Plus className="size-4 mr-2" />
-              Create Budget
+      <section>
+        {header}
+        <Card>
+          <CardContent className="py-10 text-center">
+            <div className="mx-auto mb-3 flex size-11 items-center justify-center rounded-2xl bg-secondary">
+              <TrendingDown className="size-5 text-muted-foreground" />
+            </div>
+            <p className="font-medium">No budgets set</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Create your first budget to track progress.
+            </p>
+            <Button asChild size="sm" className="mt-4">
+              <Link href="/dashboard/settings">
+                <Plus />
+                Create budget
+              </Link>
             </Button>
-          </Link>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </section>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle>Budget Overview</CardTitle>
-        <Link href="/dashboard/settings">
-          <Button variant="ghost" size="sm" className="text-muted-foreground">
-            View All
-          </Button>
-        </Link>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {topBudgets.map((budget) => (
-          <div key={budget.id} className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                {budget.type === "expense" ? (
-                  <div className="rounded-lg p-1.5 bg-expense-surface">
-                    <TrendingDown className="size-3.5 text-expense" />
-                  </div>
-                ) : (
-                  <div className={`rounded-lg p-1.5 ${budget.type === "income" ? "bg-income-surface" : "bg-giving-surface"}`}>
-                    <TrendingUp
-                      className={`size-3.5 ${budget.type === "income" ? "text-income" : "text-giving"}`}
-                    />
-                  </div>
-                )}
-                {budget.category}
-              </div>
+    <section>
+      {header}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {topBudgets.map((budget) => {
+          const over = budget.status === "exceeded";
+          const near = budget.status === "warning";
+          const statusTone = over
+            ? "text-expense"
+            : near
+            ? "text-obligation"
+            : "text-muted-foreground";
 
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                {(budget.status === "warning" || budget.status === "exceeded") && (
-                  <AlertTriangle
-                    className={`size-3.5 ${budget.status === "exceeded" ? "text-expense" : "text-obligation"}`}
-                  />
-                )}
-                <span className="tabular-nums">
-                  {formatCurrency(budget.spent)} / {formatCurrency(budget.amount)}
-                </span>
-              </div>
-            </div>
-
+          return (
             <div
-              role="progressbar"
-              aria-valuenow={Math.min(Math.round(budget.percentage), 100)}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`${budget.category} budget used`}
-              className="h-1.5 overflow-hidden rounded-full bg-track"
+              key={budget.id}
+              className="rounded-2xl border border-border/70 bg-card p-4 sm:px-[18px]"
             >
-              {/* Healthy is neutral ink, not green: staying under budget is not
-                  giving, and Giving Green means giving. */}
-              <div
-                className={`h-full rounded-full transition-all duration-500 ${
-                  budget.status === "exceeded"
-                    ? "bg-expense"
-                    : budget.status === "warning"
-                    ? "bg-obligation"
-                    : "bg-foreground/70"
-                }`}
-                style={{ width: `${Math.min(budget.percentage, 100)}%` }}
-              />
-            </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="truncate text-[13.5px] font-medium">{budget.category}</p>
+                <p className={`flex-none text-[12.5px] font-semibold tabular-nums ${statusTone}`}>
+                  {Math.round(budget.percentage)}%
+                </p>
+              </div>
 
-            <p className="text-xs text-muted-foreground">
-              {/* The bar's colour also encodes status, so name the status in text. */}
-              <span className="font-medium text-foreground">
-                {budget.status === "exceeded"
-                  ? "Over budget"
-                  : budget.status === "warning"
-                  ? "Near limit"
-                  : "On track"}
-              </span>
-              {" · "}
-              {budget.remaining >= 0
-                ? `${formatCurrency(budget.remaining)} remaining`
-                : `${formatCurrency(Math.abs(budget.remaining))} over budget`}
-            </p>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+              <div
+                role="progressbar"
+                aria-valuenow={Math.min(Math.round(budget.percentage), 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${budget.category} budget used`}
+                className="my-3 h-[5px] overflow-hidden rounded-full bg-track"
+              >
+                {/* On track is neutral ink: staying under budget is not giving. */}
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    over ? "bg-expense" : near ? "bg-obligation" : "bg-foreground/70"
+                  }`}
+                  style={{ width: `${Math.min(budget.percentage, 100)}%` }}
+                />
+              </div>
+
+              {/* The bar's colour also encodes status, so name it in words. */}
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {formatCurrency(budget.spent)} of {formatCurrency(budget.amount)}
+                {" · "}
+                <span className={statusTone}>
+                  {budget.remaining >= 0
+                    ? `${formatCurrency(budget.remaining)} left`
+                    : `${formatCurrency(Math.abs(budget.remaining))} over`}
+                </span>
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

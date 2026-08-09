@@ -621,10 +621,14 @@ language for everything below while answering "how did I do" before anything is 
 
 ### Budget Progress Bar *(signature)*
 
-A `9999px`-radius track in Wash with a fill that animates over 500ms — the slowest motion
-in the system, and the only place duration is used expressively. Fill color shifts by
-utilization, which makes it the one component at genuine risk of communicating by color
-alone; the percentage label beside it is required, not decorative, and the track carries
+A `9999px`-radius track in `{colors.track}` with a fill that animates over 500ms — the
+slowest motion in the system, and the only place duration is used expressively. Fill
+colour shifts by utilisation: Outflow Rose over the limit, Obligation Amber near it, and
+**neutral ink on track** — never green, because staying under budget is not giving.
+
+That colour shift makes it the one component at genuine risk of communicating by colour
+alone, so two things are required rather than decorative: the percentage label beside it,
+and the remaining-or-over figure named in words beneath. The track carries
 `role="progressbar"` with `aria-valuenow` so the value is available without sight of it.
 
 ## Do's and Don'ts
