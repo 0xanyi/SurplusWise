@@ -9,6 +9,7 @@ import {
   Receipt,
   Loader2,
   CheckCircle2,
+  AlertCircle,
   Circle,
   Clock,
   Undo2,
@@ -17,7 +18,11 @@ import { useApiQuery, apiFetch } from "@/hooks/use-api";
 import type { ApiRecurringOutgoing } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
-import { getCurrentUtcDate, isDueDatePassed } from "@/lib/outgoings-date";
+import {
+  formatDaysUntilDue,
+  getCurrentUtcDate,
+  getDueState,
+} from "@/lib/outgoings-date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -81,6 +86,12 @@ export function RecurringOutgoingsManagement() {
 
   const outgoings = data?.outgoings;
   const monthlyTotal = data?.monthly_total ?? 0;
+
+  // Share of income is the one figure this endpoint cannot answer on its own.
+  const { data: analytics } = useApiQuery<{ totalIncome: number }>(
+    "/api/analytics?period=month"
+  );
+  const monthlyIncome = analytics?.totalIncome;
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -276,15 +287,24 @@ export function RecurringOutgoingsManagement() {
     );
   }
 
-  // Compute payment summary for the month
+  // The month's schedule, in the order the days fall.
   const activeOutgoings = outgoings.filter((o) => o.is_active);
+  const schedule = [...outgoings].sort((a, b) => a.day_of_month - b.day_of_month);
   const paidCount = activeOutgoings.filter((o) => o.payment_status.paid).length;
-  const paidTotal = activeOutgoings
-    .filter((o) => o.payment_status.paid)
-    .reduce((sum, o) => sum + (o.payment_status.amount_paid ?? o.amount), 0);
   const overdueCount = activeOutgoings.filter(
-    (o) => !o.payment_status.paid && isDueDatePassed(o.day_of_month),
+    (o) =>
+      !o.payment_status.paid &&
+      getDueState(o.day_of_month, false).urgency === "overdue",
   ).length;
+  const upcomingCount = activeOutgoings.length - paidCount - overdueCount;
+  const unpaidTotal = activeOutgoings
+    .filter((o) => !o.payment_status.paid)
+    .reduce((sum, o) => sum + o.amount, 0);
+  // Share of income needs income, which this endpoint does not carry.
+  const shareOfIncome =
+    monthlyIncome && monthlyIncome > 0
+      ? Math.round((monthlyTotal / monthlyIncome) * 100)
+      : null;
 
   const formFields = (
     <>
@@ -361,70 +381,29 @@ export function RecurringOutgoingsManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Monthly Outgoings</p>
-                <p className="text-2xl font-semibold text-expense tabular-nums">
-                  {formatCurrency(monthlyTotal)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {data?.active_count ?? 0} active {(data?.active_count ?? 0) === 1 ? "outgoing" : "outgoings"}
-                </p>
-              </div>
-              <div className="rounded-xl bg-expense-surface p-3">
-                <Receipt className="size-6 text-expense" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Paid This Month</p>
-                <p className="text-2xl font-semibold text-foreground tabular-nums">
-                  {formatCurrency(paidTotal)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {paidCount} of {activeOutgoings.length} paid
-                </p>
-              </div>
-              <div className="rounded-xl bg-muted p-3">
-                <CheckCircle2 className="size-6 text-muted-foreground" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Overdue</p>
-                <p className={`text-2xl font-semibold tabular-nums ${overdueCount > 0 ? "text-obligation" : "text-muted-foreground"}`}>
-                  {overdueCount}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {overdueCount === 0 ? "All caught up" : "past due date, not logged"}
-                </p>
-              </div>
-              <div className={`rounded-xl p-3 ${overdueCount > 0 ? "bg-obligation-surface" : "bg-muted"}`}>
-                <Clock className={`size-6 ${overdueCount > 0 ? "text-obligation" : "text-muted-foreground"}`} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Month indicator */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <CalendarDays className="size-4" />
-        <span>Showing payment status for <strong className="text-foreground">{getCurrentMonthLabel()}</strong></span>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-border/70 bg-card p-[18px] sm:px-5">
+          <p className="text-xs text-muted-foreground">Committed each month</p>
+          <p className="mt-1.5 font-display text-[26px] font-semibold tracking-[-0.02em] tabular-nums">
+            {formatCurrency(monthlyTotal)}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border/70 bg-card p-[18px] sm:px-5">
+          <p className="text-xs text-muted-foreground">Still unpaid</p>
+          <p
+            className={`mt-1.5 font-display text-[26px] font-semibold tracking-[-0.02em] tabular-nums ${
+              unpaidTotal > 0 ? "text-obligation" : "text-foreground"
+            }`}
+          >
+            {formatCurrency(unpaidTotal)}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border/70 bg-card p-[18px] sm:px-5">
+          <p className="text-xs text-muted-foreground">Share of income</p>
+          <p className="mt-1.5 font-display text-[26px] font-semibold tracking-[-0.02em] tabular-nums">
+            {shareOfIncome === null ? "—" : `${shareOfIncome}%`}
+          </p>
+        </div>
       </div>
 
       {/* Add button + dialogs */}
@@ -479,166 +458,179 @@ export function RecurringOutgoingsManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Outgoings list */}
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {outgoings.length === 0 ? (
-          <Card>
-            <CardContent className="pt-6 text-center text-muted-foreground">
-              <p className="font-medium text-foreground">No outgoings yet</p>
-              <p className="text-sm mt-1">Add your regular bills and payments to track them.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          outgoings.map((item) => {
-            const isPaid = item.payment_status.paid;
-            const isOverdue = !isPaid && item.is_active && isDueDatePassed(item.day_of_month);
-            const isLogging = loggingPayment === item.id;
+      {/* The month as a schedule, keyed by the day each bill falls due —
+          one list read top to bottom, rather than a grid of equal cards. */}
+      <div className="overflow-hidden rounded-[18px] border border-border/70 bg-card">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-[18px] pb-3.5 sm:px-6">
+          <h2 className="font-display text-base font-semibold tracking-[-0.015em]">
+            {getCurrentMonthLabel()} schedule
+          </h2>
+          {activeOutgoings.length > 0 && (
+            <span className="text-[12.5px] text-muted-foreground tabular-nums">
+              {paidCount} paid · {overdueCount} overdue · {upcomingCount} upcoming
+            </span>
+          )}
+        </div>
 
-            return (
-              <Card
-                key={item.id}
-                className={`${!item.is_active ? "opacity-60" : ""} ${
-                  isPaid
-                    ? "border-border"
-                    : isOverdue
-                    ? "border-obligation/30"
-                    : ""
-                }`}
-              >
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`rounded-xl p-2 ${
-                          isPaid
-                            ? "bg-muted"
-                            : isOverdue
-                            ? "bg-obligation-surface"
-                            : "bg-expense-surface"
+        {schedule.length === 0 ? (
+          <div className="border-t border-border/60 px-5 py-12 text-center sm:px-6">
+            <div className="mx-auto mb-3 flex size-11 items-center justify-center rounded-2xl bg-secondary">
+              <CalendarDays className="size-5 text-muted-foreground" />
+            </div>
+            <p className="font-medium">No outgoings yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Add your regular bills and payments to track them.
+            </p>
+          </div>
+        ) : (
+          <ul>
+            {schedule.map((item) => {
+              const isPaid = item.payment_status.paid;
+              const due = getDueState(item.day_of_month, isPaid);
+              const isOverdue = !isPaid && item.is_active && due.urgency === "overdue";
+              const isToday = !isPaid && item.is_active && due.urgency === "today";
+              const isLogging = loggingPayment === item.id;
+              const StatusIcon = isPaid
+                ? CheckCircle2
+                : isOverdue
+                ? AlertCircle
+                : isToday
+                ? Clock
+                : CalendarDays;
+
+              return (
+                <li
+                  key={item.id}
+                  className={`flex flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-border/60 px-5 py-3.5 sm:px-6 ${
+                    !item.is_active ? "opacity-60" : ""
+                  } ${
+                    isOverdue
+                      ? "bg-expense-surface/40"
+                      : isToday
+                      ? "bg-obligation-surface/40"
+                      : ""
+                  }`}
+                >
+                  <span
+                    className={`w-9 flex-none text-center text-xs tabular-nums ${
+                      isOverdue ? "text-expense" : "text-muted-foreground"
+                    }`}
+                  >
+                    {item.day_of_month}
+                    {getOrdinalSuffix(item.day_of_month)}
+                  </span>
+
+                  <StatusIcon
+                    className={`size-4 flex-none ${
+                      isOverdue
+                        ? "text-expense"
+                        : isToday
+                        ? "text-obligation"
+                        : "text-muted-foreground"
+                    }`}
+                  />
+
+                  <span className="min-w-[7rem] flex-1">
+                    <span
+                      className={`block truncate text-[13.5px] font-medium ${
+                        isPaid ? "text-muted-foreground line-through" : ""
+                      }`}
+                    >
+                      {item.name}
+                    </span>
+                    {item.category && (
+                      <span className="block truncate text-[11.5px] text-muted-foreground">
+                        {item.category}
+                        {item.frequency !== "monthly" && ` · ${item.frequency}`}
+                      </span>
+                    )}
+                  </span>
+
+                  <span className="flex w-full flex-wrap items-center justify-end gap-x-3.5 gap-y-2 sm:w-auto sm:flex-nowrap">
+                  <span className="flex-none">
+                    {isPaid ? (
+                      <span className="rounded-md bg-secondary px-2 py-[3px] text-[11.5px] text-muted-foreground">
+                        Paid
+                      </span>
+                    ) : isOverdue ? (
+                      <span className="rounded-md bg-expense-surface px-2 py-[3px] text-[11.5px] font-medium text-expense">
+                        {formatDaysUntilDue(due.daysUntilDue)}
+                      </span>
+                    ) : (
+                      <span
+                        className={`text-[11.5px] ${
+                          isToday ? "font-medium text-obligation" : "text-muted-foreground"
                         }`}
                       >
-                        {isPaid ? (
-                          <CheckCircle2 className="size-4 text-muted-foreground" />
-                        ) : isOverdue ? (
-                          <Clock className="size-4 text-obligation" />
-                        ) : (
-                          <Receipt className="size-4 text-expense" />
-                        )}
-                      </div>
-                      <div>
-                        <CardTitle className="text-base">{item.name}</CardTitle>
-                        <div className="flex items-center gap-1.5">
-                          {item.category && (
-                            <p className="text-xs text-muted-foreground">{item.category}</p>
-                          )}
-                          {isPaid && (
-                            <span className="text-[10px] bg-muted text-foreground px-1.5 py-0.5 rounded-full font-medium">
-                              Paid
-                            </span>
-                          )}
-                          {isOverdue && (
-                            <span className="text-[10px] bg-obligation-surface text-obligation px-1.5 py-0.5 rounded-full font-medium">
-                              Overdue
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8"
-                        aria-label={`Edit ${item.name}`}
-                        onClick={() => openEditDialog(item)}
-                      >
-                        <Edit2 className="h-3.5 w-3.5" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-8 w-8 text-destructive hover:text-destructive"
-                        aria-label={`Delete ${item.name}`}
-                        onClick={() => handleDelete(item)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Amount</span>
-                    <span className="font-semibold tabular-nums text-expense">
-                      {formatCurrency(item.amount)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground flex items-center gap-1.5">
-                      <CalendarDays className="size-3.5" />
-                      Due date
-                    </span>
-                    <span className="font-medium">
-                      {item.day_of_month}{getOrdinalSuffix(item.day_of_month)} of each month
-                    </span>
-                  </div>
-                  {item.frequency !== "monthly" && (
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Frequency</span>
-                      <span className="capitalize font-medium">{item.frequency}</span>
-                    </div>
-                  )}
-                  {item.notes && (
-                    <p className="text-xs text-muted-foreground pt-1 border-t border-border/50">
-                      {item.notes}
-                    </p>
-                  )}
+                        {formatDaysUntilDue(due.daysUntilDue)}
+                      </span>
+                    )}
+                  </span>
 
-                  {/* Payment action */}
-                  {item.is_active && (
-                    <div className="pt-2 border-t border-border/50">
-                      {isPaid ? (
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <CheckCircle2 className="size-3" />
-                            Paid on {new Date(item.payment_status.paid_at!).toLocaleDateString("en-GB")}
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-7 text-xs text-muted-foreground"
-                            onClick={() => handleUndoPayment(item)}
-                          >
-                            <Undo2 className="size-3 mr-1" />
-                            Undo
-                          </Button>
-                        </div>
+                  <span
+                    className={`flex-none text-right text-sm font-semibold tabular-nums sm:w-[90px] ${
+                      isPaid
+                        ? "text-muted-foreground"
+                        : isOverdue
+                        ? "text-expense"
+                        : "text-foreground"
+                    }`}
+                  >
+                    {formatCurrency(item.amount)}
+                  </span>
+
+                  <span className="flex flex-none items-center gap-1">
+                    {item.is_active &&
+                      (isPaid ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 px-2 text-xs text-muted-foreground"
+                          onClick={() => handleUndoPayment(item)}
+                        >
+                          <Undo2 className="size-3" />
+                          Undo
+                        </Button>
                       ) : (
                         <Button
                           size="sm"
-                          variant={isOverdue ? "default" : "outline"}
-                          className={`w-full h-8 text-xs ${
-                            isOverdue
-                              ? "bg-obligation hover:bg-obligation/90 text-obligation-foreground"
-                              : ""
-                          }`}
+                          variant="outline"
+                          className="h-8 px-2.5 text-xs"
                           disabled={isLogging}
                           onClick={() => handleLogPayment(item)}
                         >
                           {isLogging ? (
-                            <Loader2 className="size-3 mr-1 animate-spin" />
+                            <Loader2 className="size-3 animate-spin" />
                           ) : (
-                            <Circle className="size-3 mr-1" />
+                            <Circle className="size-3" />
                           )}
-                          {isOverdue ? "Log as Paid (Overdue)" : "Log as Paid"}
+                          Log paid
                         </Button>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })
+                      ))}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8"
+                      aria-label={`Edit ${item.name}`}
+                      onClick={() => openEditDialog(item)}
+                    >
+                      <Edit2 className="size-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 text-destructive hover:text-destructive"
+                      aria-label={`Delete ${item.name}`}
+                      onClick={() => handleDelete(item)}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
     </div>
