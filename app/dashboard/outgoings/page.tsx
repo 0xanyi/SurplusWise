@@ -1,17 +1,14 @@
 import { RecurringOutgoingsManagement } from "@/components/dashboard/recurring-outgoings-management";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export default function OutgoingsPage() {
   return (
-    <div className="space-y-6 pb-8">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-          Monthly Outgoings
-        </h1>
-        <p className="mt-1.5 text-muted-foreground">
-          Track your regular monthly bills, subscriptions, and fixed expenses so
-          you always know what&apos;s going out.
-        </p>
-      </div>
+    <div className="flex flex-col gap-[18px] pb-4">
+      <PageHeader
+        kicker="Money in & out"
+        title="Recurring outgoings"
+        description="Track your regular monthly bills, subscriptions, and fixed expenses so you always know what's going out."
+      />
 
       <RecurringOutgoingsManagement />
     </div>

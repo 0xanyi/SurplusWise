@@ -1,14 +1,14 @@
 import { AnalyticsChartsClient } from "./analytics-charts-client";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export default function ReportsPage() {
   return (
-    <div className="space-y-8 pb-8">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">Reports</h1>
-        <p className="mt-1 text-muted-foreground">
-          View trends and export your finance summary when needed.
-        </p>
-      </div>
+    <div className="flex flex-col gap-[18px] pb-4">
+      <PageHeader
+        kicker="Money in & out"
+        title="Reports"
+        description="View trends and export your finance summary when needed."
+      />
 
       <AnalyticsChartsClient />
     </div>

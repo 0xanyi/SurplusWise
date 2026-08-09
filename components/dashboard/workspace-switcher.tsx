@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useWorkspace } from "@/contexts/workspace-context";
-import { Building2, ChevronDown, Plus, User, Check } from "lucide-react";
+import { Building2, ChevronsUpDown, Plus, User, Check } from "lucide-react";
 import { SUPPORTED_CURRENCIES } from "@/lib/currency";
 
 function WorkspaceIcon({ type }: { type: string }) {
@@ -68,11 +68,23 @@ export function WorkspaceSwitcher() {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium hover:bg-accent transition-colors"
+        aria-haspopup="menu"
+        aria-expanded={isOpen}
+        className="flex h-11 w-full items-center gap-2.5 rounded-xl border border-border bg-card px-2.5 text-left transition-colors hover:border-foreground/20"
       >
-        <WorkspaceIcon type={activeWorkspace.type} />
-        <span className="max-w-[120px] truncate">{activeWorkspace.name}</span>
-        <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+        {/* Mint tint marks workspace identity, not an amount. */}
+        <span className="flex size-[26px] flex-none items-center justify-center rounded-lg bg-brand/15 text-brand">
+          <WorkspaceIcon type={activeWorkspace.type} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[13px] font-medium">
+            {activeWorkspace.name}
+          </span>
+          <span className="block text-[11px] capitalize text-muted-foreground">
+            {activeWorkspace.type}
+          </span>
+        </span>
+        <ChevronsUpDown className="size-3.5 flex-none text-muted-foreground" />
       </button>
 
       {isOpen && (
@@ -87,7 +99,7 @@ export function WorkspaceSwitcher() {
           />
 
           {/* Dropdown */}
-          <div className="absolute left-0 top-full z-50 mt-1 w-64 rounded-lg border border-border bg-card shadow-lg">
+          <div className="absolute left-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-border bg-popover shadow-lg">
             <div className="p-1.5">
               <p className="px-2 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Workspaces

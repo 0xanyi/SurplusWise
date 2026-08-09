@@ -1,17 +1,14 @@
 import { InvestmentsManagement } from "@/components/dashboard/investments-management";
+import { PageHeader } from "@/components/dashboard/page-header";
 
 export default function InvestmentsPage() {
   return (
-    <div className="space-y-6 pb-8">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
-          Investments & Assets
-        </h1>
-        <p className="mt-1.5 text-muted-foreground">
-          Manage your investment portfolio — stocks, crypto, forex, property, and
-          more. Log returns, dividends, and sales to track your performance.
-        </p>
-      </div>
+    <div className="flex flex-col gap-[18px] pb-4">
+      <PageHeader
+        kicker="Balance sheet"
+        title="Investments"
+        description="Manage your investment portfolio — stocks, crypto, forex, property, and more. Log returns, dividends, and sales to track your performance."
+      />
 
       <InvestmentsManagement />
     </div>
