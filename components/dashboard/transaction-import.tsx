@@ -169,11 +169,11 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
   return (
     <div className="flex flex-col gap-2 sm:flex-row">
       <Button type="button" variant="outline" className="h-11" onClick={() => inputRef.current?.click()} disabled={uploading}>
-        <Upload className="mr-2 size-4" />
+        <Upload className="size-4" />
         Import CSV
       </Button>
       <Button type="button" variant="ghost" className="h-11" onClick={downloadSample}>
-        <Download className="mr-2 size-4" />
+        <Download className="size-4" />
         Sample CSV
       </Button>
       <input

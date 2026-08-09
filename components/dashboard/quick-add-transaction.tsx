@@ -162,7 +162,7 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
 
           <div className="grid grid-cols-1 gap-2 sm:flex">
             <Button type="submit" disabled={loading} className="h-11 sm:w-auto">
-              {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <Plus className="mr-2 size-4" />}
+              {loading ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
               Add quickly
             </Button>
             {onOpenFullForm && (

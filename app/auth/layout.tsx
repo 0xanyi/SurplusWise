@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SikaLogo } from "@/components/sika-logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function AuthLayout({
   children,
@@ -10,9 +11,12 @@ export default function AuthLayout({
     <main className="grid min-h-screen bg-background lg:grid-cols-2">
       <div className="flex items-center justify-center px-5 py-12 sm:px-10">
         <div className="w-full max-w-[352px]">
-          <Link href="/" className="mb-11 inline-flex">
-            <SikaLogo />
-          </Link>
+          <div className="mb-11 flex items-center justify-between">
+            <Link href="/" className="inline-flex">
+              <SikaLogo />
+            </Link>
+            <ThemeToggle />
+          </div>
           {children}
         </div>
       </div>

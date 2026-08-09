@@ -330,7 +330,7 @@ export function AnalyticsCharts() {
         </div>
 
         <Button variant="outline" size="sm" onClick={exportCsv}>
-          <Download className="mr-2 size-4" />
+          <Download className="size-4" />
           Export CSV
         </Button>
       </div>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SikaLogo } from "@/components/sika-logo";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { isAuthenticated } from "@/lib/auth-server";
 
 const pillars = [
@@ -50,6 +51,7 @@ export default async function Home() {
       <header className="mx-auto flex h-[78px] max-w-[1080px] items-center justify-between px-5 sm:px-8">
         <SikaLogo />
         <div className="flex items-center gap-2.5">
+          <ThemeToggle />
           <Link
             href="/auth/login"
             className="text-[13.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"

@@ -264,7 +264,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
 
                   <div className="mt-3 flex gap-2 sm:justify-end">
                     <Button type="button" size="sm" variant="outline" className="h-9 flex-1 sm:flex-none" onClick={() => handleEdit(transaction)}>
-                      <Pencil className="mr-2 size-3.5" />
+                      <Pencil className="size-3.5" />
                       Edit
                     </Button>
                     <Button
@@ -274,7 +274,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                       className="h-9 flex-1 border-destructive/40 text-destructive hover:bg-destructive/10 sm:flex-none"
                       onClick={() => handleDelete(transaction.id)}
                     >
-                      <Trash2 className="mr-2 size-3.5" />
+                      <Trash2 className="size-3.5" />
                       Delete
                     </Button>
                   </div>

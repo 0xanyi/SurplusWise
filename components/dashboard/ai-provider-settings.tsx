@@ -329,12 +329,12 @@ export function AIProviderSettings() {
           <Button onClick={handleSave} disabled={saving}>
             {saving ? (
               <>
-                <Loader2 className="mr-2 size-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
                 Saving...
               </>
             ) : (
               <>
-                <Save className="mr-2 size-4" />
+                <Save className="size-4" />
                 Save Settings
               </>
             )}

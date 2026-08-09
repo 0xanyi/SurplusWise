@@ -141,7 +141,7 @@ export function OnboardingCard({ onCompleted }: OnboardingCardProps) {
         </div>
 
         <Button onClick={() => void handleComplete()} disabled={saving} className="h-11">
-          <CheckCircle2 className="mr-2 size-4" />
+          <CheckCircle2 className="size-4" />
           {saving ? "Saving..." : "Finish setup"}
         </Button>
       </CardContent>
