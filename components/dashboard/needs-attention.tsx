@@ -16,6 +16,7 @@ import type { ApiBudget, ApiRecurringOutgoing } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getDueState } from "@/lib/outgoings-date";
+import { EmptyState } from "@/components/dashboard/panel";
 
 interface OutgoingsResponse {
   outgoings: ApiRecurringOutgoing[];
@@ -138,15 +139,11 @@ export function NeedsAttention() {
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
           </div>
         ) : items.length === 0 ? (
-          <div className="px-5 py-12 text-center sm:px-6">
-            <div className="mx-auto mb-3 flex size-11 items-center justify-center rounded-2xl bg-secondary">
-              <CheckCircle2 className="size-5 text-muted-foreground" />
-            </div>
-            <p className="font-medium">Nothing needs you right now</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              No overdue bills and no budgets over their limit.
-            </p>
-          </div>
+          <EmptyState
+            icon={CheckCircle2}
+            title="Nothing needs you right now"
+            description="No overdue bills and no budgets over their limit."
+          />
         ) : (
           <ul>
             {visibleItems.map((item) => {

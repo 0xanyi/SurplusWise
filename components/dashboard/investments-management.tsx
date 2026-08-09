@@ -28,6 +28,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { EventHistorySection } from "./investments/event-history-section";
+import { EmptyState, StatTile } from "@/components/dashboard/panel";
 import {
   InvestmentFormFields,
   INVESTMENT_TYPE_LABELS,
@@ -54,6 +55,14 @@ const EMPTY_FORM: InvestmentFormData = {
 };
 
 // ── Main Component ──────────────────────────────────────────────────────
+
+/**
+ * Shared by the column head and every row so the two cannot drift apart.
+ * Passed as a custom property rather than interpolated into the class name:
+ * Tailwind scans source for literal class strings, so a built-up
+ * `grid-cols-[...]` would never be compiled.
+ */
+const HOLDING_COLUMNS = "minmax(160px,1.4fr) 88px 110px 110px 110px 150px 88px";
 
 export function InvestmentsManagement() {
   const { toast } = useToast();
@@ -213,35 +222,15 @@ export function InvestmentsManagement() {
   return (
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border/70 bg-card p-[18px] sm:px-5">
-          <p className="text-xs text-muted-foreground">Total invested</p>
-          <p className="mt-1.5 font-display text-[26px] font-semibold tracking-[-0.02em] tabular-nums">
-            {formatCurrency(totalCostBasis)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-[18px] sm:px-5">
-          <p className="text-xs text-muted-foreground">Current value</p>
-          <p className="mt-1.5 font-display text-[26px] font-semibold tracking-[-0.02em] tabular-nums">
-            {formatCurrency(totalCurrentValue)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-[18px] sm:px-5">
-          <p className="text-xs text-muted-foreground">Total return</p>
-          {/* A gain is neutral ink, not green — see the Giving-Is-Not-Green-Money
-              rule. Only a loss earns a money colour, because a loss is outflow. */}
-          <p
-            className={`mt-1.5 font-display text-[26px] font-semibold tracking-[-0.02em] tabular-nums ${
-              isPositiveReturn ? "text-foreground" : "text-expense"
-            }`}
-          >
-            {isPositiveReturn ? "+" : "−"}
-            {formatCurrency(Math.abs(totalGainLoss))}
-          </p>
-          <p className="mt-0.5 text-xs font-medium text-muted-foreground tabular-nums">
-            {totalReturnPct >= 0 ? "+" : ""}
-            {totalReturnPct.toFixed(2)}%
-          </p>
-        </div>
+        <StatTile label="Total invested" value={formatCurrency(totalCostBasis)} />
+        <StatTile label="Current value" value={formatCurrency(totalCurrentValue)} />
+        {/* A gain is neutral ink; only a loss earns a money colour. */}
+        <StatTile
+          label="Total return"
+          value={`${isPositiveReturn ? "+" : "−"}${formatCurrency(Math.abs(totalGainLoss))}`}
+          tone={isPositiveReturn ? undefined : "text-expense"}
+          note={`${totalReturnPct >= 0 ? "+" : ""}${totalReturnPct.toFixed(2)}%`}
+        />
       </div>
 
       {/* Add button + dialogs */}
@@ -301,19 +290,18 @@ export function InvestmentsManagement() {
           basis you cannot line up against a current value is not worth showing. */}
       <div className="overflow-hidden rounded-[18px] border border-border/70 bg-card">
         {investments.length === 0 ? (
-          <div className="px-5 py-12 text-center sm:px-6">
-            <div className="mx-auto mb-3 flex size-11 items-center justify-center rounded-2xl bg-secondary">
-              <Landmark className="size-5 text-muted-foreground" />
-            </div>
-            <p className="font-medium">No investments yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Add a holding to track its cost basis and current value.
-            </p>
-          </div>
+          <EmptyState
+            icon={Landmark}
+            title="No investments yet"
+            description="Add a holding to track its cost basis and current value."
+          />
         ) : (
           <div className="overflow-x-auto">
             <div className="min-w-[900px]">
-              <div className="grid grid-cols-[minmax(160px,1.4fr)_88px_110px_110px_110px_150px_88px] gap-3 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground sm:px-6">
+              <div
+                className="grid grid-cols-[var(--cols)] gap-3 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground sm:px-6"
+                style={{ "--cols": HOLDING_COLUMNS } as React.CSSProperties}
+              >
                 <span>Holding</span>
                 <span>Type</span>
                 <span>Platform</span>
@@ -330,7 +318,10 @@ export function InvestmentsManagement() {
 
                   return (
                     <li key={item.id} className="border-t border-border/60">
-                      <div className="grid grid-cols-[minmax(160px,1.4fr)_88px_110px_110px_110px_150px_88px] items-center gap-3 px-5 py-3.5 sm:px-6">
+                      <div
+                        className="grid grid-cols-[var(--cols)] items-center gap-3 px-5 py-3.5 sm:px-6"
+                        style={{ "--cols": HOLDING_COLUMNS } as React.CSSProperties}
+                      >
                         <div className="min-w-0">
                           <p className="truncate text-[13.5px] font-medium">{item.name}</p>
                           <p className="truncate text-[11.5px] text-muted-foreground">

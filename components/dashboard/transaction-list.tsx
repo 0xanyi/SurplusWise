@@ -38,6 +38,14 @@ interface TransactionListProps {
   refreshKey?: number;
 }
 
+/**
+ * Shared by the column head and every row so the two cannot drift apart.
+ * Passed as a custom property rather than interpolated into the class name:
+ * Tailwind scans source for literal class strings, so a built-up
+ * `grid-cols-[...]` would never be compiled.
+ */
+const TX_COLUMNS = "minmax(0,1fr) 130px 100px 110px 84px";
+
 export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   const { toast } = useToast();
 
@@ -245,7 +253,10 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
             <div className="-mx-5 sm:-mx-6">
               {/* Column head, desktop only: below sm the row restates its own
                   fields, so a header would label columns that are not there. */}
-              <div className="hidden gap-4 px-5 py-3 sm:grid-cols-[minmax(0,1fr)_130px_100px_110px_84px] text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground sm:grid sm:px-6">
+              <div
+                className="hidden gap-4 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground sm:grid sm:grid-cols-[var(--cols)] sm:px-6"
+                style={{ "--cols": TX_COLUMNS } as React.CSSProperties}
+              >
                 <span>Category</span>
                 <span>Tags</span>
                 <span>Date</span>
@@ -262,7 +273,8 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                   {group.items.map((transaction) => (
                     <div
                       key={transaction.id}
-                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 border-b sm:grid-cols-[minmax(0,1fr)_130px_100px_110px_84px] border-border/60 px-5 py-3.5 transition-colors hover:bg-secondary/40 sm:px-6"
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 border-b border-border/60 px-5 py-3.5 transition-colors hover:bg-secondary/40 sm:grid-cols-[var(--cols)] sm:px-6"
+                      style={{ "--cols": TX_COLUMNS } as React.CSSProperties}
                     >
                       <div className="flex min-w-0 items-center gap-3">
                         <div

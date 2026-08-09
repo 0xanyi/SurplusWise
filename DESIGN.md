@@ -70,7 +70,7 @@ typography:
     lineHeight: 1.5
   control:
     fontFamily: "Geist, system-ui, -apple-system, sans-serif"
-    fontSize: "0.875rem"
+    fontSize: "0.8125rem"
     fontWeight: 500
     lineHeight: 1
   label:
@@ -153,18 +153,18 @@ components:
   type-tile-income:
     backgroundColor: "{colors.income-surface}"
     textColor: "{colors.income}"
-    rounded: "{rounded.tile}"
-    size: "2.5rem"
+    rounded: "0.5625rem"
+    size: "1.75rem"
   type-tile-expense:
     backgroundColor: "{colors.expense-surface}"
     textColor: "{colors.expense}"
-    rounded: "{rounded.tile}"
-    size: "2.5rem"
+    rounded: "0.5625rem"
+    size: "1.75rem"
   type-tile-giving:
     backgroundColor: "{colors.giving-surface}"
     textColor: "{colors.giving}"
-    rounded: "{rounded.tile}"
-    size: "2.5rem"
+    rounded: "0.5625rem"
+    size: "1.75rem"
 ---
 
 # Design System: Sika
@@ -392,7 +392,11 @@ prose, 500 for controls, 600 for headings and figures.
   the only weight bump in the system, and it is what makes a filled action read as the
   one thing on the row you are meant to press.
 - **Label** (500, 0.75rem, Graphite): field labels, stat-card captions, metadata.
-- **Amount** (600, fluid 1.125rem → 1.5rem, tabular): every currency figure.
+- **Amount** (600, fluid 1.125rem → 1.5rem, tabular): every currency figure in a row,
+  table cell, or list.
+- **Figure** (display face, 600, 1.4375rem → 3.75rem, tabular, -0.02em to -0.035em): the
+  one number a surface exists to show — the net-position hero, a stat tile, a page's
+  total-owed or total-invested. One per surface; if a card has two, neither is a Figure.
 
 ### Named Rules
 
@@ -429,25 +433,28 @@ transaction entry**, 3rem for marketing calls to action.
 ### Named Rules
 
 **The Thumb Row Rule.** Every control on a transaction-entry path — quick add, the
-transaction form, onboarding — is 2.75rem tall, not the default 2.5rem. Entry happens
+transaction form, onboarding — is 2.75rem tall, not the 2.375rem default. Entry happens
 one-handed on a phone, and the record's accuracy depends on entry never being fiddly.
 
-**The Two-Up Ceiling Rule.** Dashboard panels go at most two across. A third column
-shrinks financial figures below comfortable reading size and has never earned its place.
+**The Two-Up Ceiling Rule.** Dashboard *panels* go at most two across — a panel being
+anything with a heading and its own internal structure. A third column shrinks financial
+figures below comfortable reading size and has never earned its place.
+
+Stat *tiles* are not panels and go up to three: a label and one figure survive a narrow
+column where a table or a list does not. The hero's three tiles and the budget row are
+the sanctioned cases.
 
 ## Elevation & Depth
 
-This system is flat by conviction. Cards carry `0 1px 2px rgb(0 0 0 / 0.02)` — a shadow
-so faint it is effectively decorative — and rely on a 60%-opacity hairline border plus the
-white-on-paper-white value step to read as raised. Depth is tonal, not cast.
+This system is flat by conviction. Cards carry **no shadow at all** and rely on a
+70%-opacity hairline border plus the value step against the ground to read as raised —
+lighter than the page in dark, white against paper in light. Depth is tonal, not cast.
 
 Real shadow is reserved for the two things that genuinely float above the page, and it
 arrives together with a scrim or a blur, never alone.
 
 ### Shadow Vocabulary
 
-- **Resting surface** (`box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.02)`): cards and panels.
-  Barely perceptible; the border is doing the work.
 - **Control** (`box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05)`): filled primary and
   destructive buttons only. Outline and ghost buttons stay flat.
 - **Transient** (`box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.05), 0 4px 6px -4px rgb(0 0 0 / 0.05)`):
@@ -461,7 +468,7 @@ arrives together with a scrim or a blur, never alone.
 ### Named Rules
 
 **The Hairline Rule.** Separation is a border, not a shadow. When two surfaces need to be
-distinguished, reach for `border-border/50` or a tonal step before reaching for elevation.
+distinguished, reach for `border-border/60` or a tonal step before reaching for elevation.
 
 **The Float-Or-Flat Rule.** An element either sits on the page (flat, hairline, tonal) or
 floats above it (modal/transient shadow, plus scrim or blur). There is no middle tier, and
@@ -487,16 +494,18 @@ The scale grew a step in the 2026 redesign: with a hero slab above the cards, ca
 to sit between the hero and the tiles inside them, so surfaces moved 16px → 18px and the
 hero took 20px.
 
-Borders are uniformly 1px and almost always translucent: `border-border/40` on marketing
-chrome, `/50` on navigation, `/60` on cards and dialogs. Full-opacity `border-input` is
+Borders are uniformly 1px and almost always translucent: `/60` on the rows inside a
+surface, `/70` on cards, dialogs and the sidebar rail. Full-opacity `border-input` is
 reserved for form fields, where the stroke has to be findable. There are no double
 borders, no dashed strokes, and no decorative dividers where whitespace would do.
 
 ### Named Rules
 
-**The Radius-Scales-With-Surface Rule.** 8px for things you click, 12px for things that
-hold an icon, 16px for things that hold content. A 16px-radius button or an 8px-radius
-card is out of system.
+**The Radius-Scales-With-Surface Rule.** Corner softening scales with the surface:
+~11px for things you click, ~16px for things that hold an icon or a single figure, 18px
+for things that hold content, 20px for a hero slab. A hero-radius button or a
+control-radius card is out of system. The exact steps are in Shapes; this rule is the
+ordering they must keep.
 
 > **Inert token.** `--radius: 0.75rem` is declared in `@theme` but consumed by nothing;
 > the `rounded-*` utilities resolve to Tailwind's own defaults. The values above are what
@@ -510,7 +519,8 @@ Modest, confident, and physically responsive — a 200ms transition on everythin
 `scale(0.98)` press that makes the whole app feel connected to the finger.
 
 - **Shape:** softened corners (`0.6875rem`), default height 2.375rem, 0.9375rem
-  horizontal padding, 0.8125rem weight-600 text.
+  horizontal padding, 0.8125rem text. Weight follows Hierarchy: 500, stepping to 600 on
+  filled primary and destructive only.
 - **Primary:** Contrast Slab fill (cream on near-black, ink on paper), no shadow; hover
   drops to 90% opacity of the fill.
 - **Outline:** Card White fill with a full-opacity hairline; hover darkens the border and
@@ -531,7 +541,8 @@ Modest, confident, and physically responsive — a 200ms transition on everythin
   than the page.
 - **Shadow Strategy:** flat at rest — the card carries no shadow at all. See Elevation.
 - **Border:** 1px hairline at 70% opacity. This, not a shadow, is what defines the card.
-- **Internal Padding:** 1.5rem uniform, 1.25rem below `sm`.
+- **Internal Padding:** 1.5rem uniform, 1.25rem below `sm`. Stat tiles and table rows
+  sit tighter at 1.125rem, since they hold one line rather than a composition.
 - **Header:** title and an optional semantic icon on one row, 0.375rem gap to the
   description beneath.
 
@@ -582,8 +593,10 @@ up-right arrow on `bg-giving-surface`. The glyph is the matching `text-*` token.
 are translucent tints of whatever sits beneath, so the tile works on Paper, on a card, and
 on the Sunken ground without a second value.
 
-It appears in transaction rows, budget lists, and summary cards, and it is the single
-place a user learns the color language. It always pairs color with a distinct glyph — that
+It appears in transaction rows and summary cards. Budget tiles dropped it in the 2026
+redesign — a budget is a category, not a movement, so the directional arrow was claiming
+a direction it did not have. The quick-add segmented control now shares the job of being
+where a user learns the colour language. It always pairs color with a distinct glyph — that
 pairing is the accessibility contract, not a nicety.
 
 ### Overlay Motion

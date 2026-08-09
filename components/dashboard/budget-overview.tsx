@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
+import { SectionHeading } from "@/components/dashboard/panel";
 
 function BudgetSkeleton() {
   return (
@@ -65,16 +66,14 @@ export function BudgetOverview() {
     new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
 
   const header = (
-    <div className="mb-3 flex items-baseline justify-between gap-4">
-      <h2 className="font-display text-base font-semibold tracking-[-0.015em]">
-        Budgets this month
-      </h2>
-      <span className="text-[12.5px] text-muted-foreground tabular-nums">
-        {daysRemaining === 0
+    <SectionHeading
+      title="Budgets this month"
+      aside={
+        daysRemaining === 0
           ? "Last day"
-          : `${daysRemaining} ${daysRemaining === 1 ? "day" : "days"} remaining`}
-      </span>
-    </div>
+          : `${daysRemaining} ${daysRemaining === 1 ? "day" : "days"} remaining`
+      }
+    />
   );
 
   if (topBudgets.length === 0) {

@@ -27,6 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { StatTile } from "@/components/dashboard/panel";
 import {
   Select,
   SelectContent,
@@ -382,28 +383,16 @@ export function RecurringOutgoingsManagement() {
   return (
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-border/70 bg-card p-[18px] sm:px-5">
-          <p className="text-xs text-muted-foreground">Committed each month</p>
-          <p className="mt-1.5 font-display text-[26px] font-semibold tracking-[-0.02em] tabular-nums">
-            {formatCurrency(monthlyTotal)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-[18px] sm:px-5">
-          <p className="text-xs text-muted-foreground">Still unpaid</p>
-          <p
-            className={`mt-1.5 font-display text-[26px] font-semibold tracking-[-0.02em] tabular-nums ${
-              unpaidTotal > 0 ? "text-obligation" : "text-foreground"
-            }`}
-          >
-            {formatCurrency(unpaidTotal)}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-border/70 bg-card p-[18px] sm:px-5">
-          <p className="text-xs text-muted-foreground">Share of income</p>
-          <p className="mt-1.5 font-display text-[26px] font-semibold tracking-[-0.02em] tabular-nums">
-            {shareOfIncome === null ? "—" : `${shareOfIncome}%`}
-          </p>
-        </div>
+        <StatTile label="Committed each month" value={formatCurrency(monthlyTotal)} />
+        <StatTile
+          label="Still unpaid"
+          value={formatCurrency(unpaidTotal)}
+          tone={unpaidTotal > 0 ? "text-obligation" : undefined}
+        />
+        <StatTile
+          label="Share of income"
+          value={shareOfIncome === null ? "—" : `${shareOfIncome}%`}
+        />
       </div>
 
       {/* Add button + dialogs */}

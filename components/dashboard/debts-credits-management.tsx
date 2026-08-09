@@ -32,6 +32,7 @@ import {
   type DebtFormData,
 } from "@/components/dashboard/debts/debt-form-fields";
 import { BalanceLogSection } from "@/components/dashboard/debts/balance-log-section";
+import { EmptyState } from "@/components/dashboard/panel";
 
 const DEBT_TYPE_LABELS: Record<DebtType, string> = {
   credit_card: "Credit Card",
@@ -57,6 +58,14 @@ interface DebtsResponse {
   total_min_payment: number;
   active_count: number;
 }
+
+/**
+ * Shared by the column head and every row so the two cannot drift apart.
+ * Passed as a custom property rather than interpolated into the class name:
+ * Tailwind scans source for literal class strings, so a built-up
+ * `grid-cols-[...]` would never be compiled.
+ */
+const DEBT_COLUMNS = "minmax(0,1.4fr) minmax(0,1fr) 90px 100px 110px 88px";
 
 export function DebtsCreditsManagement() {
   const { toast } = useToast();
@@ -388,18 +397,17 @@ export function DebtsCreditsManagement() {
           columns stay comparable down the page. */}
       <div className="overflow-hidden rounded-[18px] border border-border/70 bg-card">
         {debts.length === 0 ? (
-          <div className="px-5 py-12 text-center sm:px-6">
-            <div className="mx-auto mb-3 flex size-11 items-center justify-center rounded-2xl bg-secondary">
-              <CreditCard className="size-5 text-muted-foreground" />
-            </div>
-            <p className="font-medium">No debts tracked</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Add a card or loan to see your balance sheet.
-            </p>
-          </div>
+          <EmptyState
+            icon={CreditCard}
+            title="No debts tracked"
+            description="Add a card or loan to see your balance sheet."
+          />
         ) : (
           <>
-            <div className="hidden grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_90px_100px_110px_88px] gap-4 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground sm:grid sm:px-6">
+            <div
+              className="hidden gap-4 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground sm:grid sm:grid-cols-[var(--cols)] sm:px-6"
+              style={{ "--cols": DEBT_COLUMNS } as React.CSSProperties}
+            >
               <span>Account</span>
               <span>Type</span>
               <span className="text-right">APR</span>
@@ -418,7 +426,10 @@ export function DebtsCreditsManagement() {
 
                 return (
                   <li key={item.id} className="border-t border-border/60">
-                    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-5 py-3.5 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_90px_100px_110px_88px] sm:px-6">
+                    <div
+                      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-5 py-3.5 sm:grid-cols-[var(--cols)] sm:px-6"
+                      style={{ "--cols": DEBT_COLUMNS } as React.CSSProperties}
+                    >
                       <div className="min-w-0">
                         <p className="truncate text-[13.5px] font-medium">{item.name}</p>
                         {item.lender && (
