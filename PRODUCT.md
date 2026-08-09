@@ -84,7 +84,8 @@ today; it is a position, not a measured market finding.)*
 **Present:**
 
 - Email/password auth (Better Auth); single user per instance; no admin tier — the
-  first account is an ordinary user.
+  first account is an ordinary user. Creating it requires the operator's server-only
+  `SIKA_SETUP_TOKEN`; registration closes after that account exists.
 - Workspaces: `personal` and `business` types, multiple allowed, per-workspace
   currency, hard data isolation across every feature.
 - Transactions: `income`, `expense`, `giving`; CRUD, search, type/category/date-range

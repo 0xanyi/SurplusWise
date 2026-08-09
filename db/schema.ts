@@ -75,17 +75,21 @@ export const investmentEventTypeEnum = pgEnum("investment_event_type", [
 
 // ─── Better Auth tables ──────────────────────────────────────────────────────
 
-export const users = pgTable("users", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull().default(false),
-  image: text("image"),
-  categoriesSeeded: boolean("categories_seeded").notNull().default(false),
-  onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+export const users = pgTable(
+  "users",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    image: text("image"),
+    categoriesSeeded: boolean("categories_seeded").notNull().default(false),
+    onboardingCompleted: boolean("onboarding_completed").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  () => [uniqueIndex("users_singleton").on(sql`(true)`)],
+);
 
 export const sessions = pgTable(
   "sessions",

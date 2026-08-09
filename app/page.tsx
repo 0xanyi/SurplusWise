@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { SikaLogo } from "@/components/sika-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { isAuthenticated } from "@/lib/auth-server";
+import { getRegistrationState } from "@/lib/registration";
 
 const pillars = [
   {
@@ -40,7 +41,10 @@ const features = [
 ];
 
 export default async function Home() {
-  const authenticated = await isAuthenticated();
+  const [authenticated, registrationState] = await Promise.all([
+    isAuthenticated(),
+    getRegistrationState(),
+  ]);
 
   if (authenticated) {
     redirect("/dashboard");
@@ -58,9 +62,11 @@ export default async function Home() {
           >
             Sign in
           </Link>
-          <Button asChild>
-            <Link href="/auth/signup">Get started</Link>
-          </Button>
+          {registrationState === "available" && (
+            <Button asChild>
+              <Link href="/auth/signup">Set up Sika</Link>
+            </Button>
+          )}
         </div>
       </header>
 
@@ -77,12 +83,14 @@ export default async function Home() {
         </p>
 
         <div className="mt-8 flex flex-col gap-2.5 sm:flex-row">
-          <Button asChild size="xl">
-            <Link href="/auth/signup">
-              Create free account
-              <ArrowRight />
-            </Link>
-          </Button>
+          {registrationState === "available" && (
+            <Button asChild size="xl">
+              <Link href="/auth/signup">
+                Set up Sika
+                <ArrowRight />
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="outline" size="xl">
             <Link href="/auth/login">I already have an account</Link>
           </Button>

@@ -42,6 +42,7 @@ services:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://sika:${POSTGRES_PASSWORD:-localdev}@db:5432/sika
       - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+      - SIKA_SETUP_TOKEN=${SIKA_SETUP_TOKEN}
       - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - S3_ENDPOINT=${S3_ENDPOINT}

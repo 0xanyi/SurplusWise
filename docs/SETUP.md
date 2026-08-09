@@ -32,6 +32,7 @@ Edit `.env.local`:
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@localhost:5432/sika
 BETTER_AUTH_SECRET=<run: openssl rand -base64 32>
+SIKA_SETUP_TOKEN=<run: openssl rand -hex 32>
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 OPENAI_API_KEY=your_openai_api_key
 
@@ -42,6 +43,10 @@ S3_REGION=us-east-1
 S3_ACCESS_KEY_ID=your_access_key
 S3_SECRET_ACCESS_KEY=your_secret_key
 ```
+
+Keep `SIKA_SETUP_TOKEN` server-only. Do not put it in a URL, browser storage, or a
+`NEXT_PUBLIC_*` variable, and redact the `x-sika-setup-token` header in any proxy or
+request-logging configuration.
 
 ### 4. Run Database Migrations
 
@@ -95,6 +100,7 @@ In the application service → Environment:
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | Postgres connection string |
 | `BETTER_AUTH_SECRET` | Yes | `openssl rand -base64 32` |
+| `SIKA_SETUP_TOKEN` | Yes | First-account setup secret, `openssl rand -hex 32` |
 | `NEXT_PUBLIC_SITE_URL` | Yes | Your public app URL |
 | `OPENAI_API_KEY` | No | For AI receipt scanning |
 | `S3_ENDPOINT` | No | S3/MinIO endpoint |
@@ -137,6 +143,10 @@ SKIP_DB_SCHEMA_CHECK=false
 If DB connectivity is unavailable, startup fails fast and container restarts
 until the database is reachable.
 
+When upgrading, the one-account registration migration deliberately stops if the
+database already contains multiple users. Back up the database and reconcile those
+accounts before retrying; the migration does not delete data automatically.
+
 ### Step 4: Deploy
 
 Click **Deploy** in Dokploy. Monitor build logs. Once complete, access via your configured domain.
@@ -157,7 +167,7 @@ For exact production command order, use:
 
 ## Testing the Setup
 
-1. Sign up and log in.
+1. Set up the only account using `SIKA_SETUP_TOKEN`, then log in.
 2. Add a transaction and confirm it appears in the dashboard.
 3. Upload a receipt and verify AI scanning works.
 4. Check the analytics dashboard and export CSV/PDF reports.
@@ -171,6 +181,7 @@ For exact production command order, use:
 ### Auth errors
 - Ensure `NEXT_PUBLIC_SITE_URL` matches your actual domain (including protocol).
 - Regenerate `BETTER_AUTH_SECRET` if sessions fail to validate.
+- On an empty database, ensure `SIKA_SETUP_TOKEN` is configured and matches the token entered on the setup page.
 
 ### Receipt upload fails
 - Verify S3 credentials and bucket exist.
