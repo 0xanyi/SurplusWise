@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { NetPositionHero } from "@/components/dashboard/net-position-hero";
 import { NeedsAttention } from "@/components/dashboard/needs-attention";
+import { UpcomingBills } from "@/components/dashboard/upcoming-bills";
 import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { BudgetOverview } from "@/components/dashboard/budget-overview";
 import { GoalsOverview } from "@/components/dashboard/goals-overview";
@@ -216,10 +217,14 @@ export default function DashboardPage() {
 
       {onboardingCompleted === false && <OnboardingCard onCompleted={loadData} />}
 
-      {/* Band 2 — what needs you, and what just happened */}
+      {/* Band 2 — what is late, and what is next */}
       <section className="grid gap-4 lg:grid-cols-2">
         <NeedsAttention />
+        <UpcomingBills />
+      </section>
 
+      {/* Band 3 — what just happened */}
+      <section>
         <Card className="overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3.5">
             <CardTitle>Recent activity</CardTitle>
@@ -287,13 +292,13 @@ export default function DashboardPage() {
         </Card>
       </section>
 
-      {/* Band 3 — budgets */}
+      {/* Band 4 — budgets */}
       <BudgetOverview />
 
-      {/* Band 4 — the balance sheet, in one figure */}
+      {/* Band 5 — the balance sheet, in one figure */}
       <NetWorthOverview />
 
-      {/* Band 5 — goals */}
+      {/* Band 6 — goals */}
       <GoalsOverview />
     </div>
   );
