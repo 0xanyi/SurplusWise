@@ -118,6 +118,19 @@
     background-color: var(--color-brand);
     color: var(--color-brand-foreground);
   }
+
+  /* Hero slabs are dark in BOTH themes, so money drawn on one keeps its
+     dark-mode value. Light mode's 700-step tokens sit at 2.3–2.9:1 against the
+     forest ground — under the 3:1 floor WCAG 1.4.11 sets for graphics. Because
+     these are custom properties, every `text-expense` / `bg-giving` inside a
+     hero picks the corrected value up by inheritance. */
+  .bg-hero,
+  .bg-hero-debt {
+    --color-income: oklch(76.9% 0.117 261.6);
+    --color-expense: oklch(76.5% 0.142 11.8);
+    --color-giving: oklch(83.4% 0.129 162.7);
+    --color-obligation: oklch(85.6% 0.126 76);
+  }
 }
 
 /* ─── Dark mode overrides ─── */

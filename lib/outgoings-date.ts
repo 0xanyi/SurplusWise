@@ -67,6 +67,25 @@ export function getNextDueDate(dayOfMonth: number, reference: Date): Date {
 }
 
 /**
+ * The due date a bill should be judged against, given whether it has been paid.
+ *
+ * `getNextDueDate` always looks forward, so composing it with `getDueUrgency`
+ * can never produce "overdue" — an unpaid bill whose day has passed rolls to
+ * next month and reports as weeks away. That is right for a paid bill, which
+ * has no outstanding obligation this cycle, and wrong for an unpaid one.
+ */
+export function getEffectiveDueDate(
+  dayOfMonth: number,
+  isPaid: boolean,
+  reference: Date = new Date(),
+): Date {
+  if (!isPaid && isDueDatePassed(dayOfMonth, reference)) {
+    return getDueDateForMonth(reference.getFullYear(), reference.getMonth(), dayOfMonth);
+  }
+  return getNextDueDate(dayOfMonth, reference);
+}
+
+/**
  * Calculate days until due date from today.
  * Returns negative if overdue.
  */

@@ -9,7 +9,7 @@ import type { ApiRecurringOutgoing } from "@/types";
 import {
   getDaysUntilDue,
   getDueUrgency,
-  getNextDueDate,
+  getEffectiveDueDate,
 } from "@/lib/outgoings-date";
 import { SikaLogo } from "@/components/sika-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -86,7 +86,7 @@ function useDueOutgoingsCount() {
     return data.outgoings.filter((outgoing) => {
       if (!outgoing.is_active || outgoing.payment_status?.paid) return false;
       const urgency = getDueUrgency(
-        getDaysUntilDue(getNextDueDate(outgoing.day_of_month, now), now)
+        getDaysUntilDue(getEffectiveDueDate(outgoing.day_of_month, false, now), now)
       );
       return urgency === "overdue" || urgency === "today";
     }).length;
@@ -108,14 +108,21 @@ export function DashboardSidebar({ user }: { user: SidebarUser }) {
   const initial = (user.name || user.email).charAt(0).toUpperCase();
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-[248px] flex-none flex-col gap-6 border-r border-border/70 px-3.5 py-5 lg:flex">
+    // The whole rail scrolls, not just the nav. Scrolling only the nav meant a
+    // short viewport silently clipped the last destinations while the logo and
+    // account footer held their space — eight items need ~366px and a 577px
+    // window left the nav 294px.
+    <aside className="sticky top-0 hidden h-screen w-[248px] flex-none flex-col gap-6 overflow-y-auto border-r border-border/70 px-3.5 py-5 lg:flex">
       <Link href="/dashboard" className="px-2">
         <SikaLogo />
       </Link>
 
       <WorkspaceSwitcher />
 
-      <nav className="flex flex-1 flex-col gap-[22px] overflow-y-auto">
+      {/* flex-1 still pushes the footer down when there is room; without an
+          overflow of its own the nav keeps min-height:auto and cannot shrink
+          below its content. */}
+      <nav className="flex flex-1 flex-col gap-[22px]">
         {navGroups.map((group, i) => (
           <div key={group.heading ?? i} className="flex flex-col gap-0.5">
             {group.heading && (

@@ -18,7 +18,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import {
   getDaysUntilDue,
   getDueUrgency,
-  getNextDueDate,
+  getEffectiveDueDate,
 } from "@/lib/outgoings-date";
 
 interface OutgoingsResponse {
@@ -62,7 +62,7 @@ export function NeedsAttention() {
     for (const outgoing of outgoingsData?.outgoings ?? []) {
       if (!outgoing.is_active || outgoing.payment_status?.paid) continue;
 
-      const dueDate = getNextDueDate(outgoing.day_of_month, now);
+      const dueDate = getEffectiveDueDate(outgoing.day_of_month, false, now);
       const daysUntilDue = getDaysUntilDue(dueDate, now);
       const urgency = getDueUrgency(daysUntilDue);
       if (urgency !== "overdue" && urgency !== "today") continue;

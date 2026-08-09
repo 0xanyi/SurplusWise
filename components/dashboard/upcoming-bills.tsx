@@ -12,7 +12,7 @@ import {
   formatDaysUntilDue,
   getDaysUntilDue,
   getDueUrgency,
-  getNextDueDate,
+  getEffectiveDueDate,
 } from "@/lib/outgoings-date";
 
 interface OutgoingsResponse {
@@ -49,7 +49,7 @@ export function UpcomingBills() {
     const now = new Date();
 
     const dated = unpaid.map((outgoing) => {
-      const dueDate = getNextDueDate(outgoing.day_of_month, now);
+      const dueDate = getEffectiveDueDate(outgoing.day_of_month, false, now);
       const daysUntilDue = getDaysUntilDue(dueDate, now);
       return {
         outgoing,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Plus,
   Edit2,
@@ -68,6 +68,20 @@ export function DebtsCreditsManagement() {
   } = useApiQuery<DebtsResponse>("/api/debts-credits");
 
   const debts = data?.debts;
+
+  // Balance-weighted, so a large cheap loan does not get averaged away by a
+  // small expensive card. Null when nothing carries a rate.
+  const averageApr = useMemo(() => {
+    const rated = (debts ?? []).filter(
+      (d) => d.is_active && d.current_balance > 0 && d.interest_rate != null,
+    );
+    const balance = rated.reduce((sum, d) => sum + d.current_balance, 0);
+    if (balance === 0) return null;
+    return (
+      rated.reduce((sum, d) => sum + d.current_balance * Number(d.interest_rate), 0) /
+      balance
+    );
+  }, [debts]);
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -242,53 +256,35 @@ export function DebtsCreditsManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Outstanding</p>
-                <p className="text-2xl font-semibold text-obligation tabular-nums">
-                  {formatCurrency(data?.total_balance ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-obligation-surface p-3">
-                <CreditCard className="size-6 text-obligation" />
-              </div>
+      {/* Total owed — the page's anchor figure, on the obligation-toned hero.
+          The slab is dark in both themes; globals.css keeps money tokens at
+          their dark-mode values inside it. */}
+      <div className="flex flex-wrap items-end justify-between gap-6 rounded-[20px] bg-hero-debt p-6 sm:px-[26px]">
+        <div>
+          <p className="text-[12.5px] text-obligation">Total owed</p>
+          <p className="mt-1.5 font-display text-[34px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-hero-debt-ink sm:text-[44px]">
+            {formatCurrency(data?.total_balance ?? 0)}
+          </p>
+          <p className="mt-2.5 text-[13px] text-hero-debt-muted">
+            {formatCurrency(data?.total_min_payment ?? 0)} minimum due each month
+          </p>
+        </div>
+        <div className="flex gap-7">
+          <div>
+            <p className="text-[11.5px] text-hero-debt-muted">Active accounts</p>
+            <p className="mt-1 text-lg font-semibold tabular-nums text-hero-debt-ink">
+              {data?.active_count ?? 0}
+            </p>
+          </div>
+          {averageApr !== null && (
+            <div>
+              <p className="text-[11.5px] text-hero-debt-muted">Avg. interest</p>
+              <p className="mt-1 text-lg font-semibold tabular-nums text-hero-debt-ink">
+                {averageApr.toFixed(1)}%
+              </p>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Monthly Min. Payments</p>
-                <p className="text-2xl font-semibold text-obligation tabular-nums">
-                  {formatCurrency(data?.total_min_payment ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-obligation-surface p-3">
-                <TrendingDown className="size-6 text-obligation" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Active Accounts</p>
-                <p className="text-2xl font-semibold tabular-nums">
-                  {data?.active_count ?? 0}
-                </p>
-              </div>
-              <div className="rounded-xl bg-muted p-3">
-                <Building2 className="size-6 text-muted-foreground" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       </div>
 
       {/* Add button + dialogs */}
