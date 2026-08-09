@@ -44,7 +44,16 @@ export function AccountMenu({
   const { toast } = useToast();
 
   const handleLogout = async () => {
-    await authClient.signOut();
+    try {
+      await authClient.signOut();
+    } catch (error: unknown) {
+      // A failed sign-out must not look like a successful one: the session is
+      // still live, so say so rather than routing to the login page.
+      const message =
+        error instanceof Error ? error.message : "Could not sign you out";
+      toast({ title: "Still signed in", description: message, variant: "destructive" });
+      return;
+    }
     toast({ title: "Logged out", description: "You have been logged out." });
     router.push("/auth/login");
     router.refresh();

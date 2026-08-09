@@ -40,10 +40,22 @@ export function NetPositionHero({
   // Shares are of money that came in. With no income there is nothing to
   // apportion, so the bar collapses rather than dividing by zero.
   const base = totalIncome > 0 ? totalIncome : 0;
-  const pct = (n: number) => (base > 0 ? Math.max(0, Math.min(100, (n / base) * 100)) : 0);
+  const pct = (n: number) => (base > 0 ? Math.max(0, (n / base) * 100) : 0);
+
+  // Shown as they really are — spending 120% of income is the fact worth
+  // reading, so the label is not clamped.
   const spentPct = pct(totalExpenses);
   const givenPct = pct(totalGivings);
+  // With no income there is nothing to have kept — not 100% of nothing.
   const keptPct = base > 0 ? Math.max(0, 100 - spentPct - givenPct) : 0;
+
+  // Drawn to fit. In a deficit month spent + given exceeds the track, so the
+  // segments are scaled to fill it proportionally instead of overflowing and
+  // being clipped into a misleading picture.
+  const drawnTotal = Math.max(spentPct + givenPct, 100);
+  const spentWidth = (spentPct / drawnTotal) * 100;
+  const givenWidth = (givenPct / drawnTotal) * 100;
+  const keptWidth = base > 0 ? Math.max(0, 100 - spentWidth - givenWidth) : 0;
 
   const tiles: Tile[] = [
     {
@@ -102,16 +114,16 @@ export function NetPositionHero({
               givenPct
             )} percent, kept ${Math.round(keptPct)} percent of income`}
           >
-            {spentPct > 0 && (
-              <div className="rounded-full bg-expense" style={{ width: `${spentPct}%` }} />
+            {spentWidth > 0 && (
+              <div className="rounded-full bg-expense" style={{ width: `${spentWidth}%` }} />
             )}
-            {givenPct > 0 && (
-              <div className="rounded-full bg-giving" style={{ width: `${givenPct}%` }} />
+            {givenWidth > 0 && (
+              <div className="rounded-full bg-giving" style={{ width: `${givenWidth}%` }} />
             )}
-            {keptPct > 0 && (
+            {keptWidth > 0 && (
               <div
                 className="rounded-full bg-hero-ink/25"
-                style={{ width: `${keptPct}%` }}
+                style={{ width: `${keptWidth}%` }}
               />
             )}
             {base === 0 && <div className="w-full rounded-full bg-hero-ink/15" />}

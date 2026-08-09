@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -14,6 +14,7 @@ import {
 import { useApiQuery } from "@/hooks/use-api";
 import type { ApiBudget, ApiRecurringOutgoing } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getDueState } from "@/lib/outgoings-date";
 import { EmptyState } from "@/components/dashboard/panel";
@@ -53,11 +54,18 @@ const TONE = {
  * by urgency rather than by which table they came from.
  */
 export function NeedsAttention() {
-  const { data: outgoingsData, loading: outgoingsLoading } =
-    useApiQuery<OutgoingsResponse>("/api/recurring-outgoings");
-  const { data: budgetsData, loading: budgetsLoading } = useApiQuery<{
-    budgets: ApiBudget[];
-  }>("/api/budgets?period=monthly");
+  const {
+    data: outgoingsData,
+    loading: outgoingsLoading,
+    error: outgoingsError,
+    refresh: refreshOutgoings,
+  } = useApiQuery<OutgoingsResponse>("/api/recurring-outgoings");
+  const {
+    data: budgetsData,
+    loading: budgetsLoading,
+    error: budgetsError,
+    refresh: refreshBudgets,
+  } = useApiQuery<{ budgets: ApiBudget[] }>("/api/budgets?period=monthly");
 
   const items = useMemo<AttentionItem[]>(() => {
     const result: AttentionItem[] = [];
@@ -119,15 +127,19 @@ export function NeedsAttention() {
 
   // The list is capped, the count is not — a badge reading "6 items" when nine
   // need you is worse than no badge.
-  const visibleItems = items.slice(0, MAX_VISIBLE);
+  const [showAll, setShowAll] = useState(false);
+  const visibleItems = showAll ? items : items.slice(0, MAX_VISIBLE);
 
   const loading = outgoingsLoading || budgetsLoading;
+  // "Nothing needs you" is a claim about the data. If a request failed we do
+  // not have the data to make it, so say that instead of the all-clear.
+  const error = outgoingsError ?? budgetsError;
 
   return (
     <Card className="overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3.5">
         <CardTitle>Needs your attention</CardTitle>
-        {!loading && items.length > 0 && (
+        {!loading && !error && items.length > 0 && (
           <span className="rounded-md bg-obligation-surface px-2 py-0.5 text-[11.5px] font-semibold text-obligation tabular-nums">
             {items.length} {items.length === 1 ? "item" : "items"}
           </span>
@@ -137,6 +149,21 @@ export function NeedsAttention() {
         {loading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : error ? (
+          <div className="px-5 py-12 text-center sm:px-6">
+            <p className="text-sm text-muted-foreground">{error}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => {
+                refreshOutgoings();
+                refreshBudgets();
+              }}
+            >
+              Retry
+            </Button>
           </div>
         ) : items.length === 0 ? (
           <EmptyState
@@ -183,14 +210,21 @@ export function NeedsAttention() {
                 </li>
               );
             })}
-            {items.length > visibleItems.length && (
+            {items.length > MAX_VISIBLE && (
               <li className="border-t border-border/60">
-                <Link
-                  href="/dashboard/outgoings"
-                  className="block px-5 py-3 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-6"
+                {/* Expands in place. The hidden rows are a mix of bills and
+                    budgets with different destinations, so no single link can
+                    be the right one. */}
+                <button
+                  type="button"
+                  onClick={() => setShowAll((prev) => !prev)}
+                  aria-expanded={showAll}
+                  className="block w-full px-5 py-3 text-left text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-6"
                 >
-                  {items.length - visibleItems.length} more need you
-                </Link>
+                  {showAll
+                    ? "Show fewer"
+                    : `${items.length - MAX_VISIBLE} more need you`}
+                </button>
               </li>
             )}
           </ul>
