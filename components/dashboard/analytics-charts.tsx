@@ -2,17 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   BarChart,
   Bar,
 } from "recharts";
@@ -20,7 +14,6 @@ import { Download, Calendar, TrendingDown, TrendingUp, Wallet, PiggyBank, Sparkl
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
@@ -150,6 +143,60 @@ function LoadingState() {
   );
 }
 
+/** The month you are in reads brighter — the spec's one emphasis on this axis. */
+function MonthTick({ x, y, payload, series }: any) {
+  const point = series[payload.index];
+  return (
+    <text
+      x={x}
+      y={y + 12}
+      textAnchor="middle"
+      fontSize={11}
+      fontWeight={point?.isCurrent ? 600 : 400}
+      fill={point?.isCurrent ? "var(--color-foreground)" : "var(--color-muted-foreground)"}
+    >
+      {payload.value}
+    </text>
+  );
+}
+
+function LegendKey({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={`size-[7px] rounded-sm ${className}`} />
+      {label}
+    </span>
+  );
+}
+
+function SummaryRow({
+  label,
+  value,
+  tone,
+  hint,
+  last,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+  hint?: React.ReactNode;
+  last?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-baseline justify-between gap-4 py-3 ${
+        last ? "" : "border-b border-border/60"
+      }`}
+    >
+      <span className="text-[13px] text-muted-foreground">{label}</span>
+      <span className="flex flex-col items-end">
+        <span className={`text-sm font-semibold tabular-nums ${tone ?? ""}`}>{value}</span>
+        {hint}
+      </span>
+    </div>
+  );
+}
+
 function CategoryList({
   title,
   items,
@@ -220,6 +267,59 @@ export function AnalyticsCharts() {
     }
     fetchAnalytics();
   }, [fetchAnalytics, period, startDate, endDate]);
+
+  /**
+   * monthlyTrends only carries months that had transactions, so a twelve-month
+   * chart drawn straight from it has holes. Zero-fill across the returned
+   * window: a month with nothing in it really is nil, and the gap between two
+   * bars should read as time passing, not as missing data.
+   */
+  const monthSeries = useMemo(() => {
+    if (!analytics) return [];
+    const byMonth = new Map(analytics.monthlyTrends.map((m) => [m.month, m]));
+    const start = new Date(`${analytics.period.startDate}T00:00:00`);
+    const end = new Date(`${analytics.period.endDate}T00:00:00`);
+
+    const out: { key: string; label: string; income: number; expenses: number; givings: number; isCurrent: boolean }[] = [];
+    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    const now = new Date();
+    const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    // 36 is a guard, not a limit — the longest window the picker offers is 12.
+    for (let i = 0; i < 36 && cursor <= end; i++) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
+      const hit = byMonth.get(key);
+      out.push({
+        key,
+        label: cursor.toLocaleDateString("en-GB", { month: "short" }),
+        income: hit?.income ?? 0,
+        expenses: hit?.expenses ?? 0,
+        givings: hit?.givings ?? 0,
+        isCurrent: key === currentKey,
+      });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+    return out;
+  }, [analytics]);
+
+  /** Top expense categories with their share, for the tonal-ramp breakdown. */
+  const topExpenses = useMemo(() => {
+    if (!analytics) return [];
+    const total = analytics.expensesByCategoryArray.reduce((sum, c) => sum + c.value, 0);
+    if (total === 0) return [];
+    return analytics.expensesByCategoryArray.slice(0, 5).map((c) => ({
+      name: c.name,
+      value: c.value,
+      share: Math.round((c.value / total) * 100),
+    }));
+  }, [analytics]);
+
+  /** Spend per month actually covered by the window, not per calendar month. */
+  const averageMonthlySpend = useMemo(() => {
+    if (!analytics) return 0;
+    const months = Math.max(1, monthSeries.length);
+    return analytics.totalExpenses / months;
+  }, [analytics, monthSeries]);
 
   const netBalance = useMemo(() => {
     if (!analytics) return 0;
@@ -296,18 +396,30 @@ export function AnalyticsCharts() {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
             <Calendar className="size-4 text-muted-foreground" />
-          <Select value={period} onValueChange={(value) => setPeriod(value as Period)}>
-            <SelectTrigger className="h-9 w-[170px]" aria-label="Reporting period">
-              <SelectValue placeholder="Select period" />
-            </SelectTrigger>
-            <SelectContent>
-              {PERIOD_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
+          <div
+            role="group"
+            aria-label="Reporting period"
+            className="flex flex-wrap gap-1.5"
+          >
+            {PERIOD_OPTIONS.map((option) => {
+              const active = option.value === period;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setPeriod(option.value)}
+                  className={`rounded-[9px] px-3.5 py-2 text-[12.5px] transition-colors ${
+                    active
+                      ? "bg-primary font-semibold text-primary-foreground"
+                      : "border border-border font-medium text-muted-foreground hover:text-foreground"
+                  }`}
+                >
                   {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+                </button>
+              );
+            })}
+          </div>
           </div>
 
           {period === "custom" && (
@@ -340,61 +452,6 @@ export function AnalyticsCharts() {
           Comparing <span className="font-medium text-foreground">{periodSummary.current}</span> with <span className="font-medium text-foreground">{periodSummary.previous}</span>
         </p>
       )}
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Income</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xl font-semibold tabular-nums text-income">
-            {formatCurrency(analytics.totalIncome)}
-            <ComparisonHint value={analytics.comparisons.incomeChange} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Expenses</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xl font-semibold tabular-nums text-expense">
-            {formatCurrency(analytics.totalExpenses)}
-            <ComparisonHint value={analytics.comparisons.expensesChange} positiveIsGood={false} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Giving</CardTitle>
-          </CardHeader>
-          <CardContent className="text-xl font-semibold tabular-nums text-giving">
-            {formatCurrency(analytics.totalGivings)}
-            <ComparisonHint value={analytics.comparisons.givingsChange} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Net</CardTitle>
-          </CardHeader>
-          <CardContent className={`text-xl font-semibold tabular-nums ${netBalance >= 0 ? "text-foreground" : "text-expense"}`}>
-            {netBalance >= 0 ? <Wallet className="mr-1 inline size-4" /> : <TrendingDown className="mr-1 inline size-4" />}
-            {formatCurrency(Math.abs(netBalance))}
-            <span className="ml-1 text-xs text-muted-foreground">{netBalance >= 0 ? "surplus" : "deficit"}</span>
-            <ComparisonHint value={analytics.comparisons.netBalanceChange} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-muted-foreground">Safe to spend</CardTitle>
-          </CardHeader>
-          <CardContent className={`text-xl font-semibold tabular-nums ${analytics.safeToSpend >= 0 ? "text-foreground" : "text-expense"}`}>
-            <PiggyBank className="mr-1 inline size-4" />
-            {formatCurrency(Math.abs(analytics.safeToSpend))}
-            <span className="ml-1 text-xs text-muted-foreground">{analytics.safeToSpend >= 0 ? "available" : "overcommitted"}</span>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Spending Prediction Card */}
       <Card>
@@ -503,60 +560,55 @@ export function AnalyticsCharts() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Period comparison</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="rounded-xl border border-border/60 p-4">
-            <p className="text-sm text-muted-foreground">Income</p>
-            <p className={`mt-2 flex items-center gap-2 text-lg font-semibold tabular-nums ${getComparisonTone(analytics.comparisons.incomeChange)}`}>
-              <TrendingUp className="size-4" />
-              {formatChangeLabel(analytics.comparisons.incomeChange)}
-            </p>
+        <CardHeader className="flex flex-col gap-2 pb-5 sm:flex-row sm:items-baseline sm:justify-between sm:space-y-0">
+          <CardTitle>Money in and out</CardTitle>
+          <div className="flex gap-4 text-xs text-muted-foreground">
+            <LegendKey className="bg-income" label="Income" />
+            <LegendKey className="bg-expense" label="Expenses" />
+            <LegendKey className="bg-giving" label="Giving" />
           </div>
-          <div className="rounded-xl border border-border/60 p-4">
-            <p className="text-sm text-muted-foreground">Expenses</p>
-            <p className={`mt-2 flex items-center gap-2 text-lg font-semibold tabular-nums ${getComparisonTone(analytics.comparisons.expensesChange, false)}`}>
-              <TrendingDown className="size-4" />
-              {formatChangeLabel(analytics.comparisons.expensesChange)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-border/60 p-4">
-            <p className="text-sm text-muted-foreground">Net balance</p>
-            <p className={`mt-2 flex items-center gap-2 text-lg font-semibold tabular-nums ${getComparisonTone(analytics.comparisons.netBalanceChange)}`}>
-              <Wallet className="size-4" />
-              {formatChangeLabel(analytics.comparisons.netBalanceChange)}
-            </p>
-          </div>
-          <div className="rounded-xl border border-border/60 p-4">
-            <p className="text-sm text-muted-foreground">Activity</p>
-            <p className={`mt-2 flex items-center gap-2 text-lg font-semibold tabular-nums ${getComparisonTone(analytics.comparisons.transactionCountChange)}`}>
-              <Calendar className="size-4" />
-              {formatChangeLabel(analytics.comparisons.transactionCountChange)}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Trend</CardTitle>
         </CardHeader>
         <CardContent>
-          {chartData.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No trend data for this period.</p>
+          {monthSeries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No data for this period.</p>
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
-                <Legend />
-                <Line dataKey="income" stroke="var(--color-income)" strokeWidth={2} name="Income" dot={false} />
-                <Line dataKey="expenses" stroke="var(--color-expense)" strokeWidth={2} name="Expenses" dot={false} />
-                <Line dataKey="givings" stroke="var(--color-giving)" strokeWidth={2} name="Giving" dot={false} />
-              </LineChart>
+            <ResponsiveContainer width="100%" height={230}>
+              <BarChart data={monthSeries} barGap={3} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+                <XAxis
+                  dataKey="label"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={<MonthTick series={monthSeries} />}
+                />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  width={46}
+                  tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
+                  /* Compact on the axis, full currency in the tooltip — a
+                     y-axis that spells out every pound crowds out the bars. */
+                  tickFormatter={(v) =>
+                    new Intl.NumberFormat("en", {
+                      notation: "compact",
+                      maximumFractionDigits: 1,
+                    }).format(Number(v))
+                  }
+                />
+                <Tooltip
+                  cursor={{ fill: "var(--color-muted)" }}
+                  contentStyle={{
+                    background: "var(--color-popover)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 12,
+                    fontSize: 12,
+                  }}
+                  formatter={(value) => formatCurrency(Number(value ?? 0))}
+                />
+                <Bar dataKey="income" name="Income" fill="var(--color-income)" radius={[4, 4, 0, 0]} maxBarSize={11} />
+                <Bar dataKey="expenses" name="Expenses" fill="var(--color-expense)" radius={[4, 4, 0, 0]} maxBarSize={11} />
+                <Bar dataKey="givings" name="Giving" fill="var(--color-giving)" radius={[4, 4, 0, 0]} maxBarSize={11} />
+              </BarChart>
             </ResponsiveContainer>
           )}
         </CardContent>
@@ -564,56 +616,77 @@ export function AnalyticsCharts() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle>Expense Breakdown</CardTitle>
+          <CardHeader className="pb-4">
+            <CardTitle>Where the money went</CardTitle>
           </CardHeader>
-          <CardContent>
-            {analytics.expensesByCategoryArray.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No expense categories for this period.</p>
+          <CardContent className="space-y-3.5">
+            {topExpenses.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No expense categories for this period.
+              </p>
             ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie
-                    data={analytics.expensesByCategoryArray.slice(0, 6)}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={60}
-                    outerRadius={90}
-                    paddingAngle={3}
-                  >
-                    {analytics.expensesByCategoryArray.slice(0, 6).map((entry, index) => (
-                      <Cell
-                        key={entry.name}
-                        fill={EXPENSE_CATEGORY_COLORS[index % EXPENSE_CATEGORY_COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              topExpenses.map((row, i) => (
+                <div key={row.name}>
+                  <div className="mb-1.5 flex justify-between text-[13px]">
+                    <span className="truncate pr-3">{row.name}</span>
+                    <span className="flex-none tabular-nums text-muted-foreground">
+                      {formatCurrency(row.value)} · {row.share}%
+                    </span>
+                  </div>
+                  {/* A breakdown of one money type stays within that type's
+                      tonal ramp — see the Single-Type Chart Rule. */}
+                  <div className="h-1.5 overflow-hidden rounded-full bg-track">
+                    <div
+                      className="h-full rounded-full"
+                      style={{
+                        width: `${row.share}%`,
+                        background: EXPENSE_CATEGORY_COLORS[i % EXPENSE_CATEGORY_COLORS.length],
+                      }}
+                    />
+                  </div>
+                </div>
+              ))
             )}
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Top Categories</CardTitle>
+          <CardHeader className="pb-4">
+            <CardTitle>Summary</CardTitle>
           </CardHeader>
-          <CardContent>
-            {analytics.expensesByCategoryArray.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No expense categories for this period.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={analytics.expensesByCategoryArray.slice(0, 6)} layout="vertical" margin={{ left: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tick={{ fontSize: 12 }} />
-                  <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(value) => formatCurrency(Number(value ?? 0))} />
-                  <Bar dataKey="value" fill="var(--color-expense)" radius={[0, 6, 6, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
+          <CardContent className="flex flex-col">
+            <SummaryRow
+              label="Total income"
+              value={formatCurrency(analytics.totalIncome)}
+              tone="text-income"
+              hint={<ComparisonHint value={analytics.comparisons.incomeChange} />}
+            />
+            <SummaryRow
+              label="Total expenses"
+              value={formatCurrency(analytics.totalExpenses)}
+              tone="text-expense"
+              hint={<ComparisonHint value={analytics.comparisons.expensesChange} positiveIsGood={false} />}
+            />
+            <SummaryRow
+              label="Total giving"
+              value={formatCurrency(analytics.totalGivings)}
+              tone="text-giving"
+              hint={<ComparisonHint value={analytics.comparisons.givingsChange} />}
+            />
+            <SummaryRow
+              label="Average monthly spend"
+              value={formatCurrency(averageMonthlySpend)}
+            />
+            {/* Kept is neutral: a surplus is not giving. */}
+            <SummaryRow
+              label="Kept"
+              value={`${formatCurrency(netBalance)}${
+                analytics.totalIncome > 0
+                  ? ` · ${Math.round((netBalance / analytics.totalIncome) * 100)}%`
+                  : ""
+              }`}
+              last
+            />
           </CardContent>
         </Card>
       </div>
