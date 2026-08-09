@@ -18,8 +18,14 @@ const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 function isTrustedOrigin(origin: string, request: NextRequest) {
   const trustedOrigins = new Set([request.nextUrl.origin]);
 
-  if (process.env.NEXT_PUBLIC_SITE_URL) {
-    trustedOrigins.add(process.env.NEXT_PUBLIC_SITE_URL);
+  for (const configuredOrigin of [process.env.PUBLIC_URL, process.env.NEXT_PUBLIC_SITE_URL]) {
+    if (!configuredOrigin) continue;
+
+    try {
+      trustedOrigins.add(new URL(configuredOrigin).origin);
+    } catch {
+      // Invalid configuration cannot be trusted as an origin.
+    }
   }
 
   return trustedOrigins.has(origin);
