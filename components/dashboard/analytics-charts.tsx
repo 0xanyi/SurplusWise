@@ -231,7 +231,7 @@ function CategoryList({
 
 export function AnalyticsCharts() {
   const { toast } = useToast();
-  const [period, setPeriod] = useState<Period>("monthly");
+  const [period, setPeriod] = useState<Period>("yearly");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(true);
@@ -409,7 +409,7 @@ export function AnalyticsCharts() {
                   type="button"
                   aria-pressed={active}
                   onClick={() => setPeriod(option.value)}
-                  className={`rounded-[9px] px-3.5 py-2 text-[12.5px] transition-colors ${
+                  className={`rounded-[10px] px-3.5 py-2 text-[12.5px] transition-colors ${
                     active
                       ? "bg-primary font-semibold text-primary-foreground"
                       : "border border-border font-medium text-muted-foreground hover:text-foreground"
@@ -452,112 +452,6 @@ export function AnalyticsCharts() {
           Comparing <span className="font-medium text-foreground">{periodSummary.current}</span> with <span className="font-medium text-foreground">{periodSummary.previous}</span>
         </p>
       )}
-
-      {/* Spending Prediction Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Sparkles className="size-5 text-primary" />
-            Spending Prediction
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-border/60 p-4">
-              <p className="text-sm text-muted-foreground">Projected Monthly Income</p>
-              <p className="mt-2 text-lg font-semibold tabular-nums text-income">
-                {formatCurrency(analytics.spendingPrediction.projectedMonthlyIncome)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/60 p-4">
-              <p className="text-sm text-muted-foreground">Projected Monthly Expenses</p>
-              <p className="mt-2 text-lg font-semibold tabular-nums text-expense">
-                {formatCurrency(analytics.spendingPrediction.projectedMonthlyExpenses)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/60 p-4">
-              <p className="text-sm text-muted-foreground">Trend Direction</p>
-              <p className={`mt-2 flex items-center gap-2 text-lg font-semibold ${
-                analytics.spendingPrediction.trendDirection === "improving"
-                  ? "text-foreground"
-                  : analytics.spendingPrediction.trendDirection === "declining"
-                    ? "text-expense"
-                    : "text-foreground"
-              }`}>
-                {analytics.spendingPrediction.trendDirection === "improving" && <TrendingUp className="size-5" />}
-                {analytics.spendingPrediction.trendDirection === "declining" && <TrendingDown className="size-5" />}
-                {analytics.spendingPrediction.trendDirection === "stable" && <CheckCircle2 className="size-5" />}
-                {analytics.spendingPrediction.trendDirection.charAt(0).toUpperCase() +
-                  analytics.spendingPrediction.trendDirection.slice(1)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/60 p-4">
-              <p className="text-sm text-muted-foreground">Days of Runway</p>
-              <p className={`mt-2 text-lg font-semibold tabular-nums ${
-                analytics.spendingPrediction.daysOfRunway === null
-                  ? "text-foreground"
-                  : analytics.spendingPrediction.daysOfRunway > 30
-                    ? "text-obligation"
-                    : "text-expense"
-              }`}>
-                {analytics.spendingPrediction.daysOfRunway === null
-                  ? "∞"
-                  : `${analytics.spendingPrediction.daysOfRunway} days`}
-              </p>
-            </div>
-          </div>
-          <div className="mt-4 flex items-start gap-2 rounded-lg bg-muted p-3">
-            <AlertCircle className="mt-0.5 size-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">{analytics.spendingPrediction.insight}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Safe to Spend Breakdown Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wallet className="size-5 text-muted-foreground" />
-            Safe to Spend Breakdown
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-xl border border-border/60 p-4">
-              <p className="text-sm text-muted-foreground">Available</p>
-              <p className="mt-2 text-lg font-semibold tabular-nums text-foreground">
-                {formatCurrency(analytics.safeToSpendBreakdown.available)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/60 p-4">
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                <Receipt className="size-3" />
-                Committed Expenses
-              </p>
-              <p className="mt-2 text-lg font-semibold tabular-nums text-expense">
-                -{formatCurrency(analytics.safeToSpendBreakdown.committedExpenses)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/60 p-4">
-              <p className="text-sm text-muted-foreground flex items-center gap-1">
-                <Target className="size-3" />
-                Active Goals
-              </p>
-              <p className="mt-2 text-lg font-semibold tabular-nums text-obligation">
-                -{formatCurrency(analytics.safeToSpendBreakdown.activeGoalsAllocation)}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/60 p-4">
-              <p className="text-sm text-muted-foreground">Remaining</p>
-              <p className={`mt-2 text-lg font-semibold tabular-nums ${
-                analytics.safeToSpendBreakdown.remaining >= 0 ? "text-foreground" : "text-expense"
-              }`}>
-                {formatCurrency(analytics.safeToSpendBreakdown.remaining)}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader className="flex flex-col gap-2 pb-5 sm:flex-row sm:items-baseline sm:justify-between sm:space-y-0">
@@ -691,13 +585,102 @@ export function AnalyticsCharts() {
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <CategoryList title="Income Categories" items={analytics.incomeByCategoryArray} />
-        <CategoryList title="Expense Categories" items={analytics.expensesByCategoryArray} />
-        <CategoryList title="Giving Categories" items={analytics.givingsByCategoryArray} />
+      {/* The app's own forecasting, condensed to two panels. It is not in the
+          prototype, but it is real analysis the redesign should not delete —
+          it just belongs after the figures it is forecasting from. */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="size-4 text-brand" />
+              Looking ahead
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col">
+            <SummaryRow
+              label="Projected monthly income"
+              value={formatCurrency(analytics.spendingPrediction.projectedMonthlyIncome)}
+              tone="text-income"
+            />
+            <SummaryRow
+              label="Projected monthly expenses"
+              value={formatCurrency(analytics.spendingPrediction.projectedMonthlyExpenses)}
+              tone="text-expense"
+            />
+            <SummaryRow
+              label="Days of runway"
+              value={
+                analytics.spendingPrediction.daysOfRunway === null
+                  ? "Unlimited"
+                  : `${analytics.spendingPrediction.daysOfRunway} days`
+              }
+              tone={
+                analytics.spendingPrediction.daysOfRunway !== null &&
+                analytics.spendingPrediction.daysOfRunway <= 30
+                  ? "text-expense"
+                  : undefined
+              }
+            />
+            <SummaryRow
+              label="Trend"
+              value={
+                analytics.spendingPrediction.trendDirection.charAt(0).toUpperCase() +
+                analytics.spendingPrediction.trendDirection.slice(1)
+              }
+              tone={
+                analytics.spendingPrediction.trendDirection === "declining"
+                  ? "text-expense"
+                  : undefined
+              }
+              last
+            />
+            <p className="mt-4 rounded-xl bg-secondary px-3.5 py-3 text-[12.5px] text-muted-foreground">
+              {analytics.spendingPrediction.insight}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="size-4 text-muted-foreground" />
+              Safe to spend
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col">
+            <SummaryRow
+              label="Available"
+              value={formatCurrency(analytics.safeToSpendBreakdown.available)}
+            />
+            <SummaryRow
+              label="Committed expenses"
+              value={`−${formatCurrency(analytics.safeToSpendBreakdown.committedExpenses)}`}
+              tone="text-expense"
+            />
+            <SummaryRow
+              label="Active goals"
+              value={`−${formatCurrency(analytics.safeToSpendBreakdown.activeGoalsAllocation)}`}
+              tone="text-obligation"
+            />
+            <SummaryRow
+              label="Remaining"
+              value={formatCurrency(analytics.safeToSpendBreakdown.remaining)}
+              tone={
+                analytics.safeToSpendBreakdown.remaining >= 0 ? undefined : "text-expense"
+              }
+              last
+            />
+          </CardContent>
+        </Card>
       </div>
 
-      <p className="text-sm tabular-nums text-muted-foreground">Transactions in report: {analytics.transactionCount}</p>
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* Expenses are already broken down by "Where the money went" above;
+            repeating them here was the same table twice on one page. */}
+        <CategoryList title="Income by category" items={analytics.incomeByCategoryArray} />
+        <CategoryList title="Giving by category" items={analytics.givingsByCategoryArray} />
+      </div>
+
     </div>
   );
 }

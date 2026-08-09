@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { apiFetch } from "@/hooks/use-api";
 import { formatCurrency, cn } from "@/lib/utils";
-import { formatSignedAmount } from "@/lib/money-type";
+import { formatSignedAmount, moneyTypeTone } from "@/lib/money-type";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -167,22 +167,13 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
     }
   };
 
+  /** Glyph is the one thing that varies by direction; colour comes from the
+   *  shared map, so a tile and its amount can never disagree. */
   const getIcon = (type: TransactionType) => {
-    if (type === "expense") return <ArrowDownRight className="size-4 text-expense" />;
-    if (type === "income") return <TrendingUp className="size-4 text-income" />;
-    return <ArrowUpRight className="size-4 text-giving" />;
-  };
-
-  const getIconBg = (type: TransactionType) => {
-    if (type === "expense") return "bg-expense-surface";
-    if (type === "income") return "bg-income-surface";
-    return "bg-giving-surface";
-  };
-
-  const getAmountColor = (type: TransactionType) => {
-    if (type === "expense") return "text-expense";
-    if (type === "income") return "text-income";
-    return "text-giving";
+    const cls = `size-3.5 ${moneyTypeTone(type).text}`;
+    if (type === "expense") return <ArrowDownRight className={cls} />;
+    if (type === "income") return <TrendingUp className={cls} />;
+    return <ArrowUpRight className={cls} />;
   };
 
   const displayPage = page + 1;
@@ -277,7 +268,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                         <div
                           className={cn(
                             "flex size-7 shrink-0 items-center justify-center rounded-[9px]",
-                            getIconBg(transaction.type)
+                            moneyTypeTone(transaction.type).surface
                           )}
                         >
                           {getIcon(transaction.type)}
@@ -322,7 +313,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                       <span
                         className={cn(
                           "text-right text-sm font-semibold tabular-nums",
-                          getAmountColor(transaction.type)
+                          moneyTypeTone(transaction.type).text
                         )}
                       >
                         {formatSignedAmount(transaction.type, transaction.amount)}

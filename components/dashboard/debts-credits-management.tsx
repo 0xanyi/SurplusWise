@@ -83,6 +83,45 @@ export function DebtsCreditsManagement() {
     );
   }, [debts]);
 
+  /**
+   * When the minimum payment clears the debt, at today's balances and rates.
+   * Amortised month by month rather than balance/payment, because interest on
+   * a 21.9% card eats a large share of a minimum payment. Null when the
+   * minimums do not outrun the interest — there is no honest date to give.
+   */
+  const debtFreeBy = useMemo(() => {
+    const active = (debts ?? []).filter(
+      (d) => d.is_active && d.current_balance > 0 && (d.minimum_payment ?? 0) > 0,
+    );
+    if (active.length === 0) return null;
+
+    let balances = active.map((d) => ({
+      balance: d.current_balance,
+      payment: d.minimum_payment!,
+      monthlyRate: (Number(d.interest_rate ?? 0) / 100) / 12,
+    }));
+
+    for (let month = 1; month <= 600; month++) {
+      balances = balances.map((b) => ({
+        ...b,
+        balance: b.balance * (1 + b.monthlyRate) - b.payment,
+      }));
+      if (balances.every((b) => b.balance <= 0)) {
+        const date = new Date();
+        date.setMonth(date.getMonth() + month);
+        return date;
+      }
+      // A balance that grew this month will never be cleared by this payment.
+      if (balances.some((b) => b.balance >= b.balance / (1 + b.monthlyRate))) {
+        const stuck = balances.some(
+          (b) => b.balance > 0 && b.balance * b.monthlyRate >= b.payment,
+        );
+        if (stuck) return null;
+      }
+    }
+    return null;
+  }, [debts]);
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -265,8 +304,13 @@ export function DebtsCreditsManagement() {
           <p className="mt-1.5 font-display text-[34px] font-semibold leading-none tracking-[-0.03em] tabular-nums text-hero-debt-ink sm:text-[44px]">
             {formatCurrency(data?.total_balance ?? 0)}
           </p>
-          <p className="mt-2.5 text-[13px] text-hero-debt-muted">
+          <p className="mt-2.5 text-[13px] text-hero-debt-muted tabular-nums">
             {formatCurrency(data?.total_min_payment ?? 0)} minimum due each month
+            {debtFreeBy &&
+              ` · debt-free by ${debtFreeBy.toLocaleDateString("en-GB", {
+                month: "short",
+                year: "numeric",
+              })} at this rate`}
           </p>
         </div>
         <div className="flex gap-7">
@@ -449,7 +493,7 @@ export function DebtsCreditsManagement() {
                         {utilisation !== null && (
                           <div>
                             <div className="flex items-baseline justify-between text-[12.5px]">
-                              <span className="text-muted-foreground">
+                              <span className="tabular-nums text-muted-foreground">
                                 Credit limit {formatCurrency(item.credit_limit!)}
                               </span>
                               <span className="tabular-nums text-muted-foreground">
