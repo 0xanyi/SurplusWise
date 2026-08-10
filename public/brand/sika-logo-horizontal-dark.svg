@@ -1,14 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 580 326" role="img" aria-labelledby="title">
   <title id="title">Sika</title>
-  <g>
+  <defs>
+    <mask id="underlay" maskUnits="userSpaceOnUse" x="0" y="0" width="196" height="326">
+      <rect width="196" height="326" fill="#fff"/>
+      <path fill="none" stroke="#000" stroke-width="7" stroke-linejoin="round" d="M136 19l22-10v93l-89 39-8-16 75-33V19Z"/>
+      <path fill="none" stroke="#000" stroke-width="8" stroke-linejoin="round" d="M8 94c10 15 26 23 47 28l77 18c36 8 56 28 56 55v30c-11-18-28-29-53-35l-81-18C24 165 8 150 8 128V94Z"/>
+    </mask>
+    <mask id="ribbon-gap" maskUnits="userSpaceOnUse" x="0" y="0" width="196" height="326">
+      <rect width="196" height="326" fill="#fff"/>
+      <path fill="none" stroke="#000" stroke-width="8" stroke-linejoin="round" d="M8 94c10 15 26 23 47 28l77 18c36 8 56 28 56 55v30c-11-18-28-29-53-35l-81-18C24 165 8 150 8 128V94Z"/>
+    </mask>
+  </defs>
+  <g mask="url(#underlay)">
     <path fill="#F5F1E8" d="M126 0v102l-53 24C42 140 8 124 8 94 8 72 22 57 44 47L126 0Z"/>
     <path fill="#2B6BF3" d="M167 42l21-9v91l-86 13-26-7 91-36V42Z"/>
-    <path fill="#2B6BF3" stroke="#111318" stroke-width="7" stroke-linejoin="round" d="M136 19l22-10v93l-89 39-8-16 75-33V19Z"/>
     <path fill="#2B6BF3" d="M8 186l84 8-62 26v43L8 273v-87Z"/>
     <path fill="#F5F1E8" d="M40 232l44-21c29-13 58-12 79 7 20 18 18 46 3 62-9 10-19 15-33 21l-93 25v-94Z"/>
-    <path fill="#111318" stroke="#111318" stroke-width="8" stroke-linejoin="round" d="M8 94c10 15 26 23 47 28l77 18c36 8 56 28 56 55v30c-11-18-28-29-53-35l-81-18C24 165 8 150 8 128V94Z"/>
-    <path fill="#B58A3A" d="M8 94c10 15 26 23 47 28l77 18c36 8 56 28 56 55v30c-11-18-28-29-53-35l-81-18C24 165 8 150 8 128V94Z"/>
   </g>
+  <path mask="url(#ribbon-gap)" fill="#2B6BF3" d="M136 19l22-10v93l-89 39-8-16 75-33V19Z"/>
+  <path fill="#B58A3A" d="M8 94c10 15 26 23 47 28l77 18c36 8 56 28 56 55v30c-11-18-28-29-53-35l-81-18C24 165 8 150 8 128V94Z"/>
   <g fill="#F5F1E8" transform="translate(230 220) scale(.17 -.17)">
     <path transform="translate(0 0)" d="M312 -14Q246 -14 195.5 0Q145 14 109.5 41.5Q74 69 56 109Q38 149 39 202L154 231Q154 181 174.5 150Q195 119 232.5 103.5Q270 88 317 88Q362 88 394.5 99.5Q427 111 443.5 131Q460 151 460 177Q460 206 439 224.5Q418 243 382 254Q346 265 302 276Q256 287 211 300.5Q166 314 129.5 335.5Q93 357 71 391Q49 425 49 477Q49 537 79 581Q109 625 166 649.5Q223 674 301 674Q378 674 436 649.5Q494 625 526.5 578.5Q559 532 559 466L442 439Q443 472 433 497Q423 522 404.5 538.5Q386 555 359 563.5Q332 572 298 572Q257 572 229 561Q201 550 185.5 531Q170 512 170 486Q170 456 192 437.5Q214 419 252.5 408Q291 397 336 385Q379 375 422.5 362Q466 349 502 327.5Q538 306 560.5 270.5Q583 235 583 181Q583 120 551 76.5Q519 33 459 9.5Q399 -14 312 -14Z"/>
     <path transform="translate(597.762 0)" d="M58 0L58 522L185 522L185 0ZM121 592Q83 592 63 608.5Q43 625 43 655Q43 687 63.5 703.5Q84 720 121 720Q160 720 180 703Q200 686 200 656Q200 625 180 608.5Q160 592 121 592Z"/>
