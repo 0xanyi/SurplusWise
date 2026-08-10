@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   BarChart,
@@ -16,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { TRANSACTION_CHANGED_EVENT } from "@/lib/client-events";
+import { buildMonthlySeries } from "@/lib/report-series";
 
 type Period = "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
 
@@ -268,6 +269,16 @@ export function AnalyticsCharts() {
     fetchAnalytics();
   }, [fetchAnalytics, period, startDate, endDate]);
 
+  useEffect(() => {
+    const refresh = () => {
+      if (period === "custom" && (!startDate || !endDate)) return;
+      void fetchAnalytics();
+    };
+
+    window.addEventListener(TRANSACTION_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(TRANSACTION_CHANGED_EVENT, refresh);
+  }, [endDate, fetchAnalytics, period, startDate]);
+
   /**
    * monthlyTrends only carries months that had transactions, so a twelve-month
    * chart drawn straight from it has holes. Zero-fill across the returned
@@ -276,30 +287,11 @@ export function AnalyticsCharts() {
    */
   const monthSeries = useMemo(() => {
     if (!analytics) return [];
-    const byMonth = new Map(analytics.monthlyTrends.map((m) => [m.month, m]));
-    const start = new Date(`${analytics.period.startDate}T00:00:00`);
-    const end = new Date(`${analytics.period.endDate}T00:00:00`);
-
-    const out: { key: string; label: string; income: number; expenses: number; givings: number; isCurrent: boolean }[] = [];
-    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-    const now = new Date();
-    const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-    // 36 is a guard, not a limit — the longest window the picker offers is 12.
-    for (let i = 0; i < 36 && cursor <= end; i++) {
-      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
-      const hit = byMonth.get(key);
-      out.push({
-        key,
-        label: cursor.toLocaleDateString("en-GB", { month: "short" }),
-        income: hit?.income ?? 0,
-        expenses: hit?.expenses ?? 0,
-        givings: hit?.givings ?? 0,
-        isCurrent: key === currentKey,
-      });
-      cursor.setMonth(cursor.getMonth() + 1);
-    }
-    return out;
+    return buildMonthlySeries(
+      analytics.monthlyTrends,
+      analytics.period.startDate,
+      analytics.period.endDate,
+    );
   }, [analytics]);
 
   /** Top expense categories with their share, for the tonal-ramp breakdown. */
@@ -340,25 +332,31 @@ export function AnalyticsCharts() {
     };
   }, [analytics]);
 
-  const chartData = useMemo(() => {
+  const chartSeries = useMemo(() => {
     if (!analytics) return [];
 
-    if (period === "yearly") {
-      return analytics.monthlyTrends.map((item) => ({
-        label: item.month,
-        income: item.income,
-        expenses: item.expenses,
-        givings: item.givings,
-      }));
+    const rangeDays = Math.ceil(
+      (new Date(`${analytics.period.endDate}T00:00:00`).getTime() -
+        new Date(`${analytics.period.startDate}T00:00:00`).getTime()) /
+        86_400_000
+    );
+
+    if (period === "yearly" || period === "quarterly" || rangeDays > 62) {
+      return monthSeries;
     }
 
     return analytics.dailyTrends.map((item) => ({
-      label: item.date,
+      key: item.date,
+      label: new Date(`${item.date}T00:00:00`).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: period === "weekly" ? "short" : undefined,
+      }),
       income: item.income,
       expenses: item.expenses,
       givings: item.givings,
+      isCurrent: item.date === new Date().toISOString().slice(0, 10),
     }));
-  }, [analytics, period]);
+  }, [analytics, monthSeries, period]);
 
   const exportCsv = () => {
     if (!analytics) return;
@@ -463,32 +461,19 @@ export function AnalyticsCharts() {
           </div>
         </CardHeader>
         <CardContent>
-          {monthSeries.length === 0 ? (
+          {chartSeries.length === 0 ? (
             <p className="text-sm text-muted-foreground">No data for this period.</p>
           ) : (
             <ResponsiveContainer width="100%" height={230}>
-              <BarChart data={monthSeries} barGap={3} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+              <BarChart data={chartSeries} barGap={3} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
                 <XAxis
                   dataKey="label"
                   tickLine={false}
                   axisLine={false}
-                  tick={<MonthTick series={monthSeries} />}
+                  interval="preserveStartEnd"
+                  tick={<MonthTick series={chartSeries} />}
                 />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  width={46}
-                  tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
-                  /* Compact on the axis, full currency in the tooltip — a
-                     y-axis that spells out every pound crowds out the bars. */
-                  tickFormatter={(v) =>
-                    new Intl.NumberFormat("en", {
-                      notation: "compact",
-                      maximumFractionDigits: 1,
-                    }).format(Number(v))
-                  }
-                />
+                <YAxis hide />
                 <Tooltip
                   cursor={{ fill: "var(--color-muted)" }}
                   contentStyle={{

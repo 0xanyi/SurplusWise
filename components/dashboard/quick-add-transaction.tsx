@@ -95,17 +95,23 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Quick add</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3.5">
+        <CardTitle>Quick add</CardTitle>
+        <span className="text-[12.5px] text-muted-foreground">
+          Or import a CSV below
+        </span>
       </CardHeader>
 
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-wrap items-end gap-2.5"
+        >
           {/* A segmented group, not a dropdown: type is the first decision on
               the entry path and it has exactly three answers, so it costs one
               tap instead of two. Each option carries its own money token, which
               is also where a user learns the colour language. */}
-          <fieldset className="min-w-0">
+          <fieldset className="w-full min-w-0 lg:w-auto">
             <legend className="sr-only">Transaction type</legend>
             <div className="flex h-11 gap-[3px] rounded-[11px] bg-secondary p-[3px]">
               {TYPE_OPTIONS.map((option) => {
@@ -131,69 +137,68 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
             </div>
           </fieldset>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-
-            <div className="space-y-1.5">
-              <Label htmlFor="quick-amount" className="text-xs font-medium text-muted-foreground">
-                Amount
-              </Label>
-              <Input
-                id="quick-amount"
-                type="number"
-                min="0.01"
-                step="0.01"
-                placeholder="0.00"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="h-11"
-                required
-              />
-            </div>
-
-            <div className="col-span-2 space-y-1.5 sm:col-span-1">
-              <Label htmlFor="quick-category" className="text-xs font-medium text-muted-foreground">
-                Category
-              </Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger id="quick-category" className="h-11" aria-label="Category">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredCategories.map((item) => (
-                    <SelectItem key={item.id} value={item.name}>
-                      {item.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="col-span-2 space-y-1.5 sm:col-span-1">
-              <Label htmlFor="quick-date" className="text-xs font-medium text-muted-foreground">
-                Date
-              </Label>
-              <Input
-                id="quick-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="h-11"
-                required
-              />
-            </div>
+          <div className="min-w-[150px] flex-1 space-y-1.5">
+            <Label htmlFor="quick-amount" className="text-xs font-medium text-muted-foreground">
+              Amount
+            </Label>
+            <Input
+              id="quick-amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="0.00"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+            />
           </div>
 
-          <div className="grid grid-cols-1 gap-2 sm:flex">
-            <Button type="submit" disabled={loading} className="h-11 sm:w-auto">
-              {loading ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-              Add quickly
+          <div className="min-w-[150px] flex-1 space-y-1.5">
+            <Label htmlFor="quick-category" className="text-xs font-medium text-muted-foreground">
+              Category
+            </Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger id="quick-category" className="h-11" aria-label="Category">
+                <SelectValue placeholder="Select" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredCategories.map((item) => (
+                  <SelectItem key={item.id} value={item.name}>
+                    {item.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="min-w-[150px] flex-1 space-y-1.5">
+            <Label htmlFor="quick-date" className="text-xs font-medium text-muted-foreground">
+              Date
+            </Label>
+            <Input
+              id="quick-date"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              required
+            />
+          </div>
+
+          <Button type="submit" size="lg" disabled={loading} className="flex-1 lg:flex-none">
+            {loading ? <Loader2 className="animate-spin" /> : <Plus />}
+            Save
+          </Button>
+          {onOpenFullForm && (
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              className="flex-1 lg:flex-none"
+              onClick={() => onOpenFullForm(type)}
+            >
+              More
             </Button>
-            {onOpenFullForm && (
-              <Button type="button" variant="outline" className="h-11" onClick={() => onOpenFullForm(type)}>
-                Open full form
-              </Button>
-            )}
-          </div>
+          )}
         </form>
       </CardContent>
     </Card>

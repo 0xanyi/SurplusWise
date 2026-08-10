@@ -8,7 +8,7 @@ import { useDebounce } from "@/hooks/use-debounce";
 import { apiFetch } from "@/hooks/use-api";
 import { formatCurrency, cn } from "@/lib/utils";
 import { formatSignedAmount, moneyTypeTone } from "@/lib/money-type";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -110,6 +110,13 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
     }
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (window.location.hash !== "#transaction-search") return;
+    requestAnimationFrame(() => {
+      document.getElementById("transaction-search")?.focus();
+    });
+  }, []);
+
   /**
    * The list is already date-ordered, so grouping only has to break it where
    * the day changes — a running date header reads faster than repeating the
@@ -188,51 +195,48 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
 
   return (
     <>
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">All transactions</CardTitle>
-        </CardHeader>
+      <div className="flex flex-col gap-2.5 min-[860px]:flex-row min-[860px]:items-center">
+        <div className="relative min-w-[240px] flex-1">
+          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="transaction-search"
+            placeholder="Search category, notes, or tags"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-[38px] scroll-mt-6 bg-card pl-9"
+          />
+        </div>
 
-        <CardContent>
-          <div className="mb-5 space-y-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search category, notes, or tags"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-11 pl-10"
-              />
-            </div>
+        <Input
+          placeholder="Exact tag"
+          value={tagFilter}
+          onChange={(e) => setTagFilter(e.target.value)}
+          className="h-[38px] bg-card min-[860px]:w-[190px]"
+        />
 
-            <Input
-              placeholder="Filter by exact tag"
-              value={tagFilter}
-              onChange={(e) => setTagFilter(e.target.value)}
-              className="h-11"
-            />
+        <div className="grid grid-cols-4 gap-1.5">
+          {typeFilterOptions.map((option) => (
+            <Button
+              key={option.value}
+              type="button"
+              size="sm"
+              variant={typeFilter === option.value ? "default" : "outline"}
+              onClick={() => setTypeFilter(option.value)}
+              className="h-[38px]"
+            >
+              {option.label}
+            </Button>
+          ))}
+        </div>
+      </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-              {typeFilterOptions.map((option) => (
-                <Button
-                  key={option.value}
-                  type="button"
-                  size="sm"
-                  variant={typeFilter === option.value ? "default" : "outline"}
-                  onClick={() => setTypeFilter(option.value)}
-                  className="h-10"
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
           {loadingFirst ? (
-            <div className="space-y-2">
+            <div className="space-y-2 p-5 sm:p-6">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center gap-3 rounded-xl border border-border/50 p-3.5">
-                  <Skeleton className="size-10 rounded-xl" />
+                <div key={i} className="flex items-center gap-3 p-3.5">
+                  <Skeleton className="size-7 rounded-[9px]" />
                   <div className="flex-1 space-y-1.5">
                     <Skeleton className="h-4 w-28" />
                     <Skeleton className="h-3 w-24" />
@@ -250,7 +254,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
               <p className="mt-1 text-sm text-muted-foreground">Try another filter or search term.</p>
             </div>
           ) : (
-            <div className="-mx-5 sm:-mx-6">
+            <div>
               {/* Column head, desktop only: below sm the row restates its own
                   fields, so a header would label columns that are not there. */}
               <div
@@ -360,25 +364,25 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
             </div>
           )}
 
-          {loadingPage && <p className="mt-3 text-xs text-muted-foreground">Loading...</p>}
-
           {(transactions.length > 0 || loadingPage) && (
-            <div className="mt-5 flex items-center justify-between">
-              <Button variant="outline" size="sm" className="h-9" onClick={handlePrev} disabled={page <= 0 || loadingFirst || loadingPage}>
-                Prev
-              </Button>
-              <span className="text-sm text-muted-foreground tabular-nums">
+            <div className="flex items-center justify-between border-t border-border/60 bg-sunken px-5 py-3.5 sm:px-6">
+              <span className="text-[12.5px] text-muted-foreground tabular-nums">
                 Page {displayPage}
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9"
-                onClick={handleNext}
-                disabled={!hasMore || loadingFirst || loadingPage}
-              >
-                {loadingPage ? "Loading..." : "Next"}
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="h-8" onClick={handlePrev} disabled={page <= 0 || loadingFirst || loadingPage}>
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8"
+                  onClick={handleNext}
+                  disabled={!hasMore || loadingFirst || loadingPage}
+                >
+                  {loadingPage ? "Loading..." : "Next"}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

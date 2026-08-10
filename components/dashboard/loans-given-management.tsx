@@ -7,7 +7,6 @@ import {
   Trash2,
   HandCoins,
   Clock,
-  Users,
   CalendarDays,
   History,
   Loader2,
@@ -30,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { RepaymentSection } from "./loans/repayment-section";
 import { LoanFormFields, type LoanFormData } from "./loans/loan-form-fields";
+import { StatTile } from "@/components/dashboard/panel";
 
 const STATUS_CONFIG: Record<LoanStatus, { label: string; color: string; bg: string }> = {
   active: {
@@ -233,53 +233,20 @@ export function LoansGivenManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Lent</p>
-                <p className="text-2xl font-semibold text-foreground tabular-nums">
-                  {formatCurrency(data?.total_lent ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-muted p-3">
-                <HandCoins className="size-6 text-muted-foreground" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Outstanding</p>
-                <p className="text-2xl font-semibold text-obligation tabular-nums">
-                  {formatCurrency(data?.total_outstanding ?? 0)}
-                </p>
-              </div>
-              <div className="rounded-xl bg-obligation-surface p-3">
-                <Clock className="size-6 text-obligation" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Active Loans</p>
-                <p className="text-2xl font-semibold tabular-nums">
-                  {data?.active_count ?? 0}
-                </p>
-              </div>
-              <div className="rounded-xl bg-muted p-3">
-                <Users className="size-6 text-muted-foreground" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatTile
+          label="Total lent"
+          value={formatCurrency(data?.total_lent ?? 0)}
+        />
+        <StatTile
+          label="Total outstanding"
+          value={formatCurrency(data?.total_outstanding ?? 0)}
+          tone="text-obligation"
+        />
+        <StatTile
+          label="Active loans"
+          value={String(data?.active_count ?? 0)}
+        />
       </div>
 
       {/* Add button + dialogs */}

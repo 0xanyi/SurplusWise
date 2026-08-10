@@ -7,7 +7,6 @@ export default function ReportsPage() {
       <PageHeader
         kicker="Money in & out"
         title="Reports"
-        description="View trends and export your finance summary when needed."
       />
 
       <AnalyticsChartsClient />

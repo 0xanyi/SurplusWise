@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Save, Bot, Eye, EyeOff, Sparkles } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Loader2, Save, Eye, EyeOff, Sparkles } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -165,20 +165,20 @@ export function AIProviderSettings() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Bot className="size-5 text-primary" />
-          AI Provider Settings
-        </CardTitle>
+        <h2 className="font-display text-base font-semibold leading-none tracking-[-0.015em]">
+          AI provider
+        </h2>
         <CardDescription>
-          Configure your AI provider for receipt scanning and other AI-powered features.
+          Configure your AI provider for receipt scanning. Use OpenAI,
+          OpenRouter, Groq, or any OpenAI-compatible API.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-0">
         {/* Enable/Disable Toggle */}
-        <div className="flex items-center justify-between rounded-lg border p-4">
+        <div className="flex items-center justify-between gap-4 border-t border-border/60 py-3.5">
           <div className="space-y-0.5">
-            <Label className="text-base">Enable AI Features</Label>
-            <p className="text-sm text-muted-foreground">
+            <Label>Enable AI features</Label>
+            <p className="text-xs text-muted-foreground">
               Turn on to use AI-powered receipt scanning
             </p>
           </div>
@@ -192,8 +192,8 @@ export function AIProviderSettings() {
         </div>
 
         {/* Provider Selection */}
-        <div className="space-y-2">
-          <Label htmlFor="provider">AI Provider</Label>
+        <div className="space-y-1.5 border-t border-border/60 py-3.5">
+          <Label htmlFor="provider">AI provider</Label>
           <Select
             value={settings.provider}
             onValueChange={(value) => handleProviderChange(value as AIProvider)}
@@ -217,8 +217,8 @@ export function AIProviderSettings() {
         </div>
 
         {/* API Endpoint */}
-        <div className="space-y-2">
-          <Label htmlFor="endpoint">API Endpoint</Label>
+        <div className="space-y-1.5 border-t border-border/60 py-3.5">
+          <Label htmlFor="endpoint">API endpoint</Label>
           <Input
             id="endpoint"
             value={settings.apiEndpoint}
@@ -233,8 +233,8 @@ export function AIProviderSettings() {
         </div>
 
         {/* API Key */}
-        <div className="space-y-2">
-          <Label htmlFor="apiKey">API Key</Label>
+        <div className="space-y-1.5 border-t border-border/60 py-3.5">
+          <Label htmlFor="apiKey">API key</Label>
           <div className="relative">
             <Input
               id="apiKey"
@@ -269,7 +269,7 @@ export function AIProviderSettings() {
         </div>
 
         {/* Model Selection */}
-        <div className="space-y-2">
+        <div className="space-y-1.5 border-t border-border/60 py-3.5">
           <Label htmlFor="model">Model</Label>
           {availableModels.length > 0 ? (
             <Select
@@ -302,7 +302,7 @@ export function AIProviderSettings() {
 
         {/* Provider-specific hints */}
         {settings.provider === "openrouter" && (
-          <div className="rounded-lg bg-muted p-4 text-sm">
+          <div className="mt-3 rounded-xl bg-secondary p-4 text-sm">
             <p className="flex items-center gap-2 font-medium">
               <Sparkles className="size-4 text-primary" />
               Free models available on OpenRouter
@@ -315,7 +315,7 @@ export function AIProviderSettings() {
         )}
 
         {settings.provider === "ollama" && (
-          <div className="rounded-lg bg-muted p-4 text-sm">
+          <div className="mt-3 rounded-xl bg-secondary p-4 text-sm">
             <p className="font-medium">Local AI Setup</p>
             <p className="mt-1 text-muted-foreground">
               Make sure Ollama is running locally. Install vision models with:{" "}
@@ -325,7 +325,7 @@ export function AIProviderSettings() {
         )}
 
         {/* Save Button */}
-        <div className="flex justify-end pt-4">
+        <div className="flex justify-end border-t border-border/60 pt-4">
           <Button onClick={handleSave} disabled={saving}>
             {saving ? (
               <>
@@ -335,7 +335,7 @@ export function AIProviderSettings() {
             ) : (
               <>
                 <Save className="size-4" />
-                Save Settings
+                Save settings
               </>
             )}
           </Button>

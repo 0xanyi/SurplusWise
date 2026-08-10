@@ -6,7 +6,8 @@ import { useApiQuery } from "@/hooks/use-api";
 import type { ApiGoal } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { SectionHeading } from "@/components/dashboard/panel";
 
 interface GoalsResponse {
   goals: ApiGoal[];
@@ -21,12 +22,14 @@ export function GoalsOverview() {
 
   if (loading || !data) {
     return (
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>Goals</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">Loading goals...</CardContent>
-      </Card>
+      <section>
+        <SectionHeading title="Goals" />
+        <Card>
+          <CardContent className="py-8 text-sm text-muted-foreground">
+            Loading goals...
+          </CardContent>
+        </Card>
+      </section>
     );
   }
 
@@ -34,64 +37,64 @@ export function GoalsOverview() {
 
   if (activeGoals.length === 0) {
     return (
-      <Card>
-        <CardHeader className="pb-4">
-          <CardTitle>Goals</CardTitle>
-        </CardHeader>
-        <CardContent className="py-8 text-center">
-          <PiggyBank className="mx-auto mb-3 h-10 w-10 text-primary/60" />
-          <p className="font-medium">No goals yet</p>
-          <p className="mt-1 text-sm text-muted-foreground">Set a savings goal to track progress.</p>
-          <Link href="/dashboard/settings" className="mt-4 inline-flex">
-            <Button size="sm">
-              <Target className="h-4 w-4" />
-              Create Goal
+      <section>
+        <SectionHeading title="Goals" />
+        <Card>
+          <CardContent className="py-8 text-center">
+            <PiggyBank className="mx-auto mb-3 size-10 text-muted-foreground" />
+            <p className="font-medium">No goals yet</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Set a savings goal to track progress.
+            </p>
+            <Button asChild size="sm" className="mt-4">
+              <Link href="/dashboard/settings">
+                <Target />
+                Create goal
+              </Link>
             </Button>
-          </Link>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </section>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle>Goals</CardTitle>
-        <Link href="/dashboard/settings">
-          <Button variant="ghost" size="sm" className="text-muted-foreground">
-            View All
-          </Button>
-        </Link>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-xl bg-primary/5 p-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Saved so far</span>
-            <span className="font-semibold tabular-nums text-primary">{formatCurrency(data.total_current)}</span>
-          </div>
-          <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
-            <span>Target {formatCurrency(data.total_target)}</span>
-            <span>{data.completion_rate.toFixed(0)}% complete</span>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          {activeGoals.map((goal) => (
-            <div key={goal.id} className="rounded-lg border border-border/50 px-3 py-2.5">
-              <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                <div>
-                  <p className="font-medium">{goal.name}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{goal.category.replace(/_/g, " ")}</p>
-                </div>
-                <span className="font-medium tabular-nums">{goal.progress.toFixed(0)}%</span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-muted">
-                <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(goal.progress, 100)}%` }} />
+    <section>
+      <SectionHeading
+        title="Goals"
+        aside={`${formatCurrency(data.total_current)} saved of ${formatCurrency(
+          data.total_target
+        )}`}
+      />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {activeGoals.map((goal) => (
+          <Link
+            key={goal.id}
+            href="/dashboard/settings#goals"
+            className="flex items-center gap-3.5 rounded-2xl border border-border/70 bg-card p-4 transition-colors hover:bg-secondary/30 sm:px-[18px]"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13.5px] font-medium">{goal.name}</p>
+              <div
+                role="progressbar"
+                aria-valuenow={Math.min(Math.round(goal.progress), 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${goal.name} goal progress`}
+                className="mt-2.5 h-1 overflow-hidden rounded-full bg-track"
+              >
+                <div
+                  className="h-full rounded-full bg-foreground/70 transition-all duration-500"
+                  style={{ width: `${Math.min(goal.progress, 100)}%` }}
+                />
               </div>
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+            <span className="flex-none text-[13px] font-semibold text-muted-foreground tabular-nums">
+              {goal.progress.toFixed(0)}%
+            </span>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Search } from "lucide-react";
 import { SikaLogo } from "@/components/sika-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { mobileTabItems } from "@/components/dashboard/nav-items";
@@ -29,6 +30,13 @@ export function DashboardMobileHeader({ user }: { user: AccountUser }) {
       </div>
 
       <div className="flex flex-none items-center gap-2">
+        <Link
+          href="/dashboard/transactions#transaction-search"
+          aria-label="Search transactions"
+          className="flex size-[38px] items-center justify-center rounded-[11px] border border-border bg-card text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+        >
+          <Search className="size-4" />
+        </Link>
         <ThemeToggle />
         <AccountMenu user={user} align="end">
           <button

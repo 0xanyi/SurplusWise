@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { PageHeaderActions } from "@/components/dashboard/page-header-actions";
 
 interface PageHeaderProps {
   /** Small uppercase line above the title — usually the sidebar group. */
@@ -6,7 +7,7 @@ interface PageHeaderProps {
   title: string;
   /** Optional supporting line below the title. */
   description?: string;
-  /** Buttons, filters, or a period picker, right-aligned on desktop. */
+  /** Buttons or filters that replace the shared search and Add controls. */
   actions?: React.ReactNode;
   className?: string;
 }
@@ -25,7 +26,7 @@ export function PageHeader({
   return (
     <header
       className={cn(
-        "flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-end",
+        "flex flex-col items-stretch justify-between gap-4 min-[860px]:flex-row min-[860px]:items-end",
         className
       )}
     >
@@ -40,9 +41,9 @@ export function PageHeader({
           <p className="mt-2 text-sm text-muted-foreground">{description}</p>
         )}
       </div>
-      {actions && (
-        <div className="flex flex-none items-center gap-2">{actions}</div>
-      )}
+      <div className="flex flex-none items-center gap-2">
+        {actions ?? <PageHeaderActions />}
+      </div>
     </header>
   );
 }

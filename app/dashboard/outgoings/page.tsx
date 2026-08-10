@@ -7,7 +7,6 @@ export default function OutgoingsPage() {
       <PageHeader
         kicker="Money in & out"
         title="Recurring outgoings"
-        description="Track your regular monthly bills, subscriptions, and fixed expenses so you always know what's going out."
       />
 
       <RecurringOutgoingsManagement />
