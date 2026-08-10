@@ -15,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { TRANSACTION_CHANGED_EVENT } from "@/lib/client-events";
+import { buildMonthlySeries } from "@/lib/report-series";
 
 type Period = "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
 
@@ -267,6 +269,16 @@ export function AnalyticsCharts() {
     fetchAnalytics();
   }, [fetchAnalytics, period, startDate, endDate]);
 
+  useEffect(() => {
+    const refresh = () => {
+      if (period === "custom" && (!startDate || !endDate)) return;
+      void fetchAnalytics();
+    };
+
+    window.addEventListener(TRANSACTION_CHANGED_EVENT, refresh);
+    return () => window.removeEventListener(TRANSACTION_CHANGED_EVENT, refresh);
+  }, [endDate, fetchAnalytics, period, startDate]);
+
   /**
    * monthlyTrends only carries months that had transactions, so a twelve-month
    * chart drawn straight from it has holes. Zero-fill across the returned
@@ -275,30 +287,11 @@ export function AnalyticsCharts() {
    */
   const monthSeries = useMemo(() => {
     if (!analytics) return [];
-    const byMonth = new Map(analytics.monthlyTrends.map((m) => [m.month, m]));
-    const start = new Date(`${analytics.period.startDate}T00:00:00`);
-    const end = new Date(`${analytics.period.endDate}T00:00:00`);
-
-    const out: { key: string; label: string; income: number; expenses: number; givings: number; isCurrent: boolean }[] = [];
-    const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-    const now = new Date();
-    const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-
-    // 36 is a guard, not a limit — the longest window the picker offers is 12.
-    for (let i = 0; i < 36 && cursor <= end; i++) {
-      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
-      const hit = byMonth.get(key);
-      out.push({
-        key,
-        label: cursor.toLocaleDateString("en-GB", { month: "short" }),
-        income: hit?.income ?? 0,
-        expenses: hit?.expenses ?? 0,
-        givings: hit?.givings ?? 0,
-        isCurrent: key === currentKey,
-      });
-      cursor.setMonth(cursor.getMonth() + 1);
-    }
-    return out;
+    return buildMonthlySeries(
+      analytics.monthlyTrends,
+      analytics.period.startDate,
+      analytics.period.endDate,
+    );
   }, [analytics]);
 
   /** Top expense categories with their share, for the tonal-ramp breakdown. */

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { TransactionForm } from "@/components/dashboard/transaction-form";
+import { TRANSACTION_CHANGED_EVENT } from "@/lib/client-events";
 
 /**
  * The shared app-level actions from the redesign. Search deliberately routes to
@@ -31,6 +32,11 @@ export function PageHeaderActions({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [router]);
+
+  const handleTransactionAdded = () => {
+    window.dispatchEvent(new Event(TRANSACTION_CHANGED_EVENT));
+    onTransactionAdded?.();
+  };
 
   return (
     <>
@@ -58,7 +64,7 @@ export function PageHeaderActions({
       <TransactionForm
         open={formOpen}
         onOpenChange={setFormOpen}
-        onSuccess={onTransactionAdded}
+        onSuccess={handleTransactionAdded}
       />
     </>
   );
