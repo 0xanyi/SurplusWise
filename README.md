@@ -122,7 +122,7 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - ✅ Modern UI with Tailwind CSS and shadcn/ui
 - ✅ Dark mode support
 - ✅ Toast notifications
-- ✅ PWA-ready configuration
+- ✅ Installable PWA with a privacy-safe offline fallback
 - ✅ Mobile-friendly design
 
 ### Upcoming Features

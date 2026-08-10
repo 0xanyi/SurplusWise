@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Geist } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ServiceWorkerRegistration } from "@/components/pwa/service-worker-registration";
 
 // Geist carries every UI string; Bricolage Grotesque is the display face, used
 // only for figures and headings. Both are self-hosted by next/font — globals.css
@@ -124,6 +125,7 @@ export default function RootLayout({
         >
           {children}
           <Toaster />
+          <ServiceWorkerRegistration />
         </ThemeProvider>
       </body>
     </html>
