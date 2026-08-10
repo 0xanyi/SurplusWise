@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Save, Eye, EyeOff, Sparkles } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -165,7 +165,9 @@ export function AIProviderSettings() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>AI provider</CardTitle>
+        <h2 className="font-display text-base font-semibold leading-none tracking-[-0.015em]">
+          AI provider
+        </h2>
         <CardDescription>
           Configure your AI provider for receipt scanning. Use OpenAI,
           OpenRouter, Groq, or any OpenAI-compatible API.
