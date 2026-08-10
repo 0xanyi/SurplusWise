@@ -2,11 +2,15 @@
   "name": "Sika - Personal Finance Manager",
   "short_name": "Sika",
   "description": "Track expenditures, manage church givings, and gain financial insights with AI-powered receipt scanning.",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0B0B0D",
   "theme_color": "#0B0B0D",
-  "orientation": "portrait",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["finance", "productivity"],
   "icons": [
     {
       "src": "/icon-192.png",

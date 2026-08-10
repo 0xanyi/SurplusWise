@@ -79,6 +79,22 @@ the migration never deletes or chooses an account automatically.
 
 Click **Deploy** and monitor build logs.
 
+### Step 6: Verify and Install the PWA
+
+PWA installation requires the final HTTPS domain; it will not be offered from an
+insecure public HTTP URL.
+
+1. Open the deployed domain and confirm `/manifest.json`, `/sw.js`, and both app
+   icons return HTTP 200.
+2. In Chrome or Edge, choose **Install Sika** from the address bar or browser menu.
+3. On iPhone or iPad, open the site in Safari and choose **Share → Add to Home Screen**.
+4. Launch Sika from the installed icon and confirm it opens without browser chrome.
+5. Disconnect the device and reload. Sika should show its offline screen without
+   displaying previously loaded financial data; reconnect and choose **Try again**.
+
+The service worker caches only public PWA assets and immutable Next.js code. It does
+not cache authenticated pages, API responses, transactions, or receipt data.
+
 ### Production Protocol Checklist
 
 Use the exact command/order runbook here:

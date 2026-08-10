@@ -150,7 +150,7 @@ This document tracks implemented improvements and future enhancements for the Si
 **Impact**: Better financial insights
 
 ### Mobile Experience
-- [ ] PWA offline capabilities
+- [x] Installable PWA with a static offline fallback (financial data is never cached)
 - [ ] Touch gestures (swipe to delete)
 - [ ] Mobile-optimized layouts
 - [ ] Native share API
