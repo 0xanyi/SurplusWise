@@ -1,4 +1,4 @@
-const STATIC_CACHE = "sika-static-v1";
+const STATIC_CACHE = "sika-static-v2";
 const STATIC_ASSETS = [
   "/manifest.json",
   "/favicon.ico",
@@ -70,7 +70,7 @@ function offlineResponse() {
       * { box-sizing: border-box; }
       body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #0B0B0D; color: #F5F4F0; }
       main { width: min(100%, 420px); }
-      .mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: #2B6BF3; color: white; font-size: 24px; font-weight: 700; }
+      .mark { display: block; width: 29px; height: 48px; }
       h1 { margin: 28px 0 10px; font-size: clamp(2rem, 8vw, 3rem); line-height: 1; letter-spacing: -0.04em; }
       p { margin: 0; color: #A9A7A1; font-size: 1rem; line-height: 1.6; }
       button { margin-top: 28px; min-height: 44px; border: 0; border-radius: 12px; padding: 0 20px; background: #F5F4F0; color: #0B0B0D; font: inherit; font-weight: 650; cursor: pointer; }
@@ -79,7 +79,15 @@ function offlineResponse() {
   </head>
   <body>
     <main>
-      <div class="mark" aria-hidden="true">S</div>
+      <svg class="mark" viewBox="0 0 196 326" aria-hidden="true">
+        <path fill="#F5F1E8" d="M126 0v102l-53 24C42 140 8 124 8 94 8 72 22 57 44 47L126 0Z"/>
+        <path fill="#2B6BF3" d="M167 42l21-9v91l-86 13-26-7 91-36V42Z"/>
+        <path fill="#2B6BF3" stroke="#0B0B0D" stroke-width="7" stroke-linejoin="round" d="M136 19l22-10v93l-89 39-8-16 75-33V19Z"/>
+        <path fill="#2B6BF3" d="M8 186l84 8-62 26v43L8 273v-87Z"/>
+        <path fill="#F5F1E8" d="M40 232l44-21c29-13 58-12 79 7 20 18 18 46 3 62-9 10-19 15-33 21l-93 25v-94Z"/>
+        <path fill="#0B0B0D" stroke="#0B0B0D" stroke-width="8" stroke-linejoin="round" d="M8 94c10 15 26 23 47 28l77 18c36 8 56 28 56 55v30c-11-18-28-29-53-35l-81-18C24 165 8 150 8 128V94Z"/>
+        <path fill="#B58A3A" d="M8 94c10 15 26 23 47 28l77 18c36 8 56 28 56 55v30c-11-18-28-29-53-35l-81-18C24 165 8 150 8 128V94Z"/>
+      </svg>
       <h1>You're offline</h1>
       <p>Sika needs a connection to load your financial data. Reconnect, then try again.</p>
       <form method="get"><button type="submit">Try again</button></form>

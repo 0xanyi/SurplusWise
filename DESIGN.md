@@ -213,10 +213,10 @@ piece of text, and a small saturated set that exists only to classify money.
   cream on near-black in dark, ink on paper in light. At 17.7:1 it is the highest
   contrast pairing in the system, and because it carries no hue, pressing a button can
   never be mistaken for reading a money figure. Filled primary buttons and nothing else.
-- **Sika Mint** (`{colors.brand}` / `{colors.dark-brand}`): identity and non-money chrome
-  — the logo tile, the workspace chip, focus rings, the selection highlight, marketing
-  kickers. Darkens to a forest step in light mode so it clears AA on paper. Bound by the
-  Mint-Is-Chrome Rule below.
+- **Sika Mint** (`{colors.brand}` / `{colors.dark-brand}`): interface accent and
+  non-money chrome — the workspace chip, focus rings, the selection highlight, and
+  marketing kickers. Darkens to a forest step in light mode so it clears AA on paper.
+  Bound by the Mint-Is-Chrome Rule below; the logo palette lives in `docs/BRAND.md`.
 
 ### Secondary
 
@@ -329,10 +329,10 @@ exists to make.
 > ink on import.
 
 **The Mint-Is-Chrome Rule.** Sika Mint (`{colors.brand}` / `{colors.dark-brand}`) is
-identity and non-money chrome: the logo tile, the workspace chip, the focus ring, the
-selection highlight, a marketing kicker. It is adjacent in hue to Giving Green, so the
-line has to be absolute — Mint never colours a figure, a badge on an amount, a chart
-series, or a table cell. If a mint pixel sits next to a number, it is a bug.
+non-money chrome: the workspace chip, the focus ring, the selection highlight, and a
+marketing kicker. It is adjacent in hue to Giving Green, so the line has to be absolute
+— Mint never colours a figure, a badge on an amount, a chart series, or a table cell. If
+a mint pixel sits next to a number, it is a bug.
 
 > **Tension, acknowledged.** Mint and Giving Green are closer to each other than Signal
 > Blue and Inflow Blue ever were. They are kept apart by *role* rather than by hue: money
