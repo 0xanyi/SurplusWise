@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 160" role="img" aria-labelledby="title">
+  <title id="title">Sika</title>
+  <path fill="#111318" d="M12 25C12 11 23 0 38 0h38v29H43c-7 0-12 4-12 11 0 5 3 9 9 12l22 8-14 24-20-8C18 72 12 62 12 50V25Z"/>
+  <path fill="#2B6BF3" d="M70 59V20h14v28l10 4V10h14v60L70 59Z"/>
+  <path fill="#2B6BF3" d="M58 101v39H44v-28l-10-4v42H20V90l38 11Z"/>
+  <path fill="#111318" d="M116 135c0 14-11 25-26 25H52v-29h33c7 0 12-4 12-11 0-5-3-9-9-12l-22-8 14-24 20 8c10 4 16 14 16 26v25Z"/>
+  <path fill="#B58A3A" d="M12 56c18 11 31 16 52 20 24 4 38 12 52 23v16c-17-13-30-19-53-23-24-4-38-11-51-20V56Z"/>
+</svg>

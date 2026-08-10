@@ -1,4 +1,4 @@
-const STATIC_CACHE = "sika-static-v1";
+const STATIC_CACHE = "sika-static-v2";
 const STATIC_ASSETS = [
   "/manifest.json",
   "/favicon.ico",
@@ -70,7 +70,7 @@ function offlineResponse() {
       * { box-sizing: border-box; }
       body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #0B0B0D; color: #F5F4F0; }
       main { width: min(100%, 420px); }
-      .mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: #2B6BF3; color: white; font-size: 24px; font-weight: 700; }
+      .mark { display: block; width: 38px; height: 48px; }
       h1 { margin: 28px 0 10px; font-size: clamp(2rem, 8vw, 3rem); line-height: 1; letter-spacing: -0.04em; }
       p { margin: 0; color: #A9A7A1; font-size: 1rem; line-height: 1.6; }
       button { margin-top: 28px; min-height: 44px; border: 0; border-radius: 12px; padding: 0 20px; background: #F5F4F0; color: #0B0B0D; font: inherit; font-weight: 650; cursor: pointer; }
@@ -79,7 +79,13 @@ function offlineResponse() {
   </head>
   <body>
     <main>
-      <div class="mark" aria-hidden="true">S</div>
+      <svg class="mark" viewBox="0 0 128 160" aria-hidden="true">
+        <path fill="#F5F1E8" d="M12 25C12 11 23 0 38 0h38v29H43c-7 0-12 4-12 11 0 5 3 9 9 12l22 8-14 24-20-8C18 72 12 62 12 50V25Z"/>
+        <path fill="#2B6BF3" d="M70 59V20h14v28l10 4V10h14v60L70 59Z"/>
+        <path fill="#2B6BF3" d="M58 101v39H44v-28l-10-4v42H20V90l38 11Z"/>
+        <path fill="#F5F1E8" d="M116 135c0 14-11 25-26 25H52v-29h33c7 0 12-4 12-11 0-5-3-9-9-12l-22-8 14-24 20 8c10 4 16 14 16 26v25Z"/>
+        <path fill="#B58A3A" d="M12 56c18 11 31 16 52 20 24 4 38 12 52 23v16c-17-13-30-19-53-23-24-4-38-11-51-20V56Z"/>
+      </svg>
       <h1>You're offline</h1>
       <p>Sika needs a connection to load your financial data. Reconnect, then try again.</p>
       <form method="get"><button type="submit">Try again</button></form>

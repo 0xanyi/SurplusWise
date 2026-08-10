@@ -50,11 +50,12 @@
      the rail is chrome. */
   --color-track: hsl(45 8% 89%);
 
-  /* ─── Brand ───
-     Sika Mint marks identity and non-money chrome only: the logo tile, the
-     selection highlight, the focus ring. It is NOT a money token and must never
-     colour a figure, a badge, or a chart series — see the Mint-Is-Chrome Rule in
-     DESIGN.md. Light mode drops to a forest step so it clears AA on paper. */
+  /* ─── Interface accent ───
+     Sika Mint marks non-money chrome only: the workspace chip, selection
+     highlight, focus ring, and marketing kickers. It is NOT a money token and
+     must never colour a figure, badge, or chart series — see the
+     Mint-Is-Chrome Rule in DESIGN.md. Light mode drops to a forest step so it
+     clears AA on paper. The logo palette is documented in docs/BRAND.md. */
   --color-brand: hsl(157 72% 26%);
   --color-brand-foreground: hsl(45 20% 96%);
 
@@ -164,7 +165,7 @@
   --color-sunken: hsl(240 6% 6%); /* #0F0F11 */
   --color-track: hsl(240 11% 15%); /* #22222A */
 
-  /* Sika Mint. 12.28:1 on the canvas. Chrome and identity only. */
+  /* Sika Mint. 12.28:1 on the canvas. Non-money chrome only. */
   --color-brand: hsl(146 61% 69%); /* #7EE0A8 */
   --color-brand-foreground: hsl(240 8% 5%);
 
