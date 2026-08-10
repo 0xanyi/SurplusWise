@@ -70,7 +70,7 @@ function offlineResponse() {
       * { box-sizing: border-box; }
       body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; background: #0B0B0D; color: #F5F4F0; }
       main { width: min(100%, 420px); }
-      .mark { display: block; width: 38px; height: 48px; }
+      .mark { display: block; width: 29px; height: 48px; }
       h1 { margin: 28px 0 10px; font-size: clamp(2rem, 8vw, 3rem); line-height: 1; letter-spacing: -0.04em; }
       p { margin: 0; color: #A9A7A1; font-size: 1rem; line-height: 1.6; }
       button { margin-top: 28px; min-height: 44px; border: 0; border-radius: 12px; padding: 0 20px; background: #F5F4F0; color: #0B0B0D; font: inherit; font-weight: 650; cursor: pointer; }
@@ -79,12 +79,14 @@ function offlineResponse() {
   </head>
   <body>
     <main>
-      <svg class="mark" viewBox="0 0 128 160" aria-hidden="true">
-        <path fill="#F5F1E8" d="M12 25C12 11 23 0 38 0h38v29H43c-7 0-12 4-12 11 0 5 3 9 9 12l22 8-14 24-20-8C18 72 12 62 12 50V25Z"/>
-        <path fill="#2B6BF3" d="M70 59V20h14v28l10 4V10h14v60L70 59Z"/>
-        <path fill="#2B6BF3" d="M58 101v39H44v-28l-10-4v42H20V90l38 11Z"/>
-        <path fill="#F5F1E8" d="M116 135c0 14-11 25-26 25H52v-29h33c7 0 12-4 12-11 0-5-3-9-9-12l-22-8 14-24 20 8c10 4 16 14 16 26v25Z"/>
-        <path fill="#B58A3A" d="M12 56c18 11 31 16 52 20 24 4 38 12 52 23v16c-17-13-30-19-53-23-24-4-38-11-51-20V56Z"/>
+      <svg class="mark" viewBox="0 0 196 326" aria-hidden="true">
+        <path fill="#F5F1E8" d="M126 0v102l-53 24C42 140 8 124 8 94 8 72 22 57 44 47L126 0Z"/>
+        <path fill="#2B6BF3" d="M167 42l21-9v91l-86 13-26-7 91-36V42Z"/>
+        <path fill="#2B6BF3" stroke="#0B0B0D" stroke-width="7" stroke-linejoin="round" d="M136 19l22-10v93l-89 39-8-16 75-33V19Z"/>
+        <path fill="#2B6BF3" d="M8 186l84 8-62 26v43L8 273v-87Z"/>
+        <path fill="#F5F1E8" d="M40 232l44-21c29-13 58-12 79 7 20 18 18 46 3 62-9 10-19 15-33 21l-93 25v-94Z"/>
+        <path fill="#0B0B0D" stroke="#0B0B0D" stroke-width="8" stroke-linejoin="round" d="M8 94c10 15 26 23 47 28l77 18c36 8 56 28 56 55v30c-11-18-28-29-53-35l-81-18C24 165 8 150 8 128V94Z"/>
+        <path fill="#B58A3A" d="M8 94c10 15 26 23 47 28l77 18c36 8 56 28 56 55v30c-11-18-28-29-53-35l-81-18C24 165 8 150 8 128V94Z"/>
       </svg>
       <h1>You're offline</h1>
       <p>Sika needs a connection to load your financial data. Reconnect, then try again.</p>
