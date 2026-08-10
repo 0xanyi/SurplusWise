@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,15 @@ export default function LoginPage() {
         </Button>
       </form>
 
+      <p className="mt-7 text-[13.5px] text-muted-foreground">
+        New here?{" "}
+        <Link
+          href="/auth/signup"
+          className="font-medium text-brand transition-colors hover:text-foreground"
+        >
+          Create an account
+        </Link>
+      </p>
     </>
   );
 }

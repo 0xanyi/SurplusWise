@@ -11,10 +11,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { PageHeaderActions } from "@/components/dashboard/page-header-actions";
 import { NetPositionHero } from "@/components/dashboard/net-position-hero";
 import { NeedsAttention } from "@/components/dashboard/needs-attention";
 import { UpcomingBills } from "@/components/dashboard/upcoming-bills";
-import { DashboardClient } from "@/components/dashboard/dashboard-client";
 import { BudgetOverview } from "@/components/dashboard/budget-overview";
 import { GoalsOverview } from "@/components/dashboard/goals-overview";
 import { NetWorthOverview } from "@/components/dashboard/net-worth-overview";
@@ -183,6 +183,7 @@ export default function DashboardPage() {
           activeWorkspace ? `${activeWorkspace.name} workspace` : "Your workspace"
         }
         title={`${getGreeting()}, ${firstName}`}
+        actions={<PageHeaderActions onTransactionAdded={loadData} />}
       />
 
       {analyticsError && (
@@ -213,8 +214,6 @@ export default function DashboardPage() {
         periodControl={periodControl}
         periodLabel={activeOption.label}
       />
-
-      <DashboardClient onDataChanged={loadData} />
 
       {onboardingCompleted === false && <OnboardingCard onCompleted={loadData} />}
 

@@ -7,7 +7,6 @@ export default function DebtsPage() {
       <PageHeader
         kicker="Balance sheet"
         title="Debts & credit"
-        description="Monitor your credit cards, loans, and other debts. Log balance updates each month to track your progress towards being debt-free."
       />
 
       <DebtsCreditsManagement />

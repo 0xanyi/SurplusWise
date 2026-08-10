@@ -21,16 +21,7 @@ export default function SettingsPage() {
         <SettingsNav sections={sections} />
 
         <div className="flex min-w-0 flex-col gap-[18px]">
-          <section id="ai-provider" className="scroll-mt-6 space-y-4">
-            <div>
-              <h2 className="font-display text-base font-semibold tracking-[-0.015em]">
-                AI provider
-              </h2>
-              <p className="mt-1 text-[12.5px] text-muted-foreground">
-                Configure your AI provider for receipt scanning. Use OpenAI,
-                OpenRouter, Groq, or any OpenAI-compatible API.
-              </p>
-            </div>
+          <section id="ai-provider" className="scroll-mt-6">
             <AIProviderSettings />
           </section>
 

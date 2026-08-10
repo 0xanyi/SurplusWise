@@ -7,7 +7,6 @@ export default function LoansPage() {
       <PageHeader
         kicker="Balance sheet"
         title="Loans given"
-        description="Track money you've lent to others, log repayments, and monitor outstanding balances."
       />
 
       <LoansGivenManagement />

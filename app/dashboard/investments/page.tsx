@@ -7,7 +7,6 @@ export default function InvestmentsPage() {
       <PageHeader
         kicker="Balance sheet"
         title="Investments"
-        description="Manage your investment portfolio — stocks, crypto, forex, property, and more. Log returns, dividends, and sales to track your performance."
       />
 
       <InvestmentsManagement />

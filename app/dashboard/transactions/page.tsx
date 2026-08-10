@@ -1,9 +1,8 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/dashboard/page-header";
+import { PageHeaderActions } from "@/components/dashboard/page-header-actions";
 import { TransactionForm } from "@/components/dashboard/transaction-form";
 import { TransactionList } from "@/components/dashboard/transaction-list";
 import { QuickAddTransaction } from "@/components/dashboard/quick-add-transaction";
@@ -22,13 +21,7 @@ export default function TransactionsPage() {
       <PageHeader
         kicker="Money in & out"
         title="Transactions"
-        description="Quickly add new entries and manage your full history."
-        actions={
-          <Button onClick={() => setIsFormOpen(true)} className="w-full sm:w-auto">
-            <Plus />
-            Add transaction
-          </Button>
-        }
+        actions={<PageHeaderActions onTransactionAdded={triggerRefresh} />}
       />
 
       <QuickAddTransaction onOpenFullForm={() => setIsFormOpen(true)} onTransactionAdded={triggerRefresh} />

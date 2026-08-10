@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   BarChart,
@@ -340,25 +339,31 @@ export function AnalyticsCharts() {
     };
   }, [analytics]);
 
-  const chartData = useMemo(() => {
+  const chartSeries = useMemo(() => {
     if (!analytics) return [];
 
-    if (period === "yearly") {
-      return analytics.monthlyTrends.map((item) => ({
-        label: item.month,
-        income: item.income,
-        expenses: item.expenses,
-        givings: item.givings,
-      }));
+    const rangeDays = Math.ceil(
+      (new Date(`${analytics.period.endDate}T00:00:00`).getTime() -
+        new Date(`${analytics.period.startDate}T00:00:00`).getTime()) /
+        86_400_000
+    );
+
+    if (period === "yearly" || period === "quarterly" || rangeDays > 62) {
+      return monthSeries;
     }
 
     return analytics.dailyTrends.map((item) => ({
-      label: item.date,
+      key: item.date,
+      label: new Date(`${item.date}T00:00:00`).toLocaleDateString("en-GB", {
+        day: "numeric",
+        month: period === "weekly" ? "short" : undefined,
+      }),
       income: item.income,
       expenses: item.expenses,
       givings: item.givings,
+      isCurrent: item.date === new Date().toISOString().slice(0, 10),
     }));
-  }, [analytics, period]);
+  }, [analytics, monthSeries, period]);
 
   const exportCsv = () => {
     if (!analytics) return;
@@ -463,32 +468,19 @@ export function AnalyticsCharts() {
           </div>
         </CardHeader>
         <CardContent>
-          {monthSeries.length === 0 ? (
+          {chartSeries.length === 0 ? (
             <p className="text-sm text-muted-foreground">No data for this period.</p>
           ) : (
             <ResponsiveContainer width="100%" height={230}>
-              <BarChart data={monthSeries} barGap={3} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border)" />
+              <BarChart data={chartSeries} barGap={3} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
                 <XAxis
                   dataKey="label"
                   tickLine={false}
                   axisLine={false}
-                  tick={<MonthTick series={monthSeries} />}
+                  interval="preserveStartEnd"
+                  tick={<MonthTick series={chartSeries} />}
                 />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  width={46}
-                  tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }}
-                  /* Compact on the axis, full currency in the tooltip — a
-                     y-axis that spells out every pound crowds out the bars. */
-                  tickFormatter={(v) =>
-                    new Intl.NumberFormat("en", {
-                      notation: "compact",
-                      maximumFractionDigits: 1,
-                    }).format(Number(v))
-                  }
-                />
+                <YAxis hide />
                 <Tooltip
                   cursor={{ fill: "var(--color-muted)" }}
                   contentStyle={{
