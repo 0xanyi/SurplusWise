@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Plus,
   Edit2,
@@ -8,6 +9,7 @@ import {
   CreditCard,
   Building2,
   CalendarDays,
+  FileText,
   TrendingDown,
   History,
   Loader2,
@@ -31,7 +33,6 @@ import {
   DebtFormFields,
   type DebtFormData,
 } from "@/components/dashboard/debts/debt-form-fields";
-import { BalanceLogSection } from "@/components/dashboard/debts/balance-log-section";
 import { EmptyState } from "@/components/dashboard/panel";
 
 const DEBT_TYPE_LABELS: Record<DebtType, string> = {
@@ -57,6 +58,24 @@ interface DebtsResponse {
   total_balance: number;
   total_min_payment: number;
   active_count: number;
+}
+
+function emptyForm(): DebtFormData {
+  return {
+    name: "",
+    debtType: "credit_card",
+    lender: "",
+    currentBalance: "",
+    creditLimit: "",
+    interestRate: "",
+    minimumPayment: "",
+    minPaymentPercent: "",
+    minPaymentFloor: "",
+    paymentDayOfMonth: "",
+    startDate: "",
+    endDate: "",
+    notes: "",
+  };
 }
 
 /**
@@ -137,34 +156,10 @@ export function DebtsCreditsManagement() {
   const [editingItem, setEditingItem] = useState<ApiDebtCredit | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<DebtFormData>({
-    name: "",
-    debtType: "credit_card" as DebtType,
-    lender: "",
-    currentBalance: "",
-    creditLimit: "",
-    interestRate: "",
-    minimumPayment: "",
-    paymentDayOfMonth: "",
-    startDate: "",
-    endDate: "",
-    notes: "",
-  });
+  const [formData, setFormData] = useState<DebtFormData>(() => emptyForm());
 
   const resetForm = () => {
-    setFormData({
-      name: "",
-      debtType: "credit_card",
-      lender: "",
-      currentBalance: "",
-      creditLimit: "",
-      interestRate: "",
-      minimumPayment: "",
-      paymentDayOfMonth: "",
-      startDate: "",
-      endDate: "",
-      notes: "",
-    });
+    setFormData(emptyForm());
     setEditingItem(null);
   };
 
@@ -180,6 +175,12 @@ export function DebtsCreditsManagement() {
       creditLimit: formData.creditLimit ? Number.parseFloat(formData.creditLimit) : null,
       interestRate: formData.interestRate ? Number.parseFloat(formData.interestRate) : null,
       minimumPayment: formData.minimumPayment ? Number.parseFloat(formData.minimumPayment) : null,
+      minPaymentPercent: formData.minPaymentPercent
+        ? Number.parseFloat(formData.minPaymentPercent)
+        : null,
+      minPaymentFloor: formData.minPaymentFloor
+        ? Number.parseFloat(formData.minPaymentFloor)
+        : null,
       paymentDayOfMonth: formData.paymentDayOfMonth
         ? Number.parseInt(formData.paymentDayOfMonth, 10)
         : null,
@@ -266,6 +267,8 @@ export function DebtsCreditsManagement() {
       creditLimit: item.credit_limit?.toString() ?? "",
       interestRate: item.interest_rate?.toString() ?? "",
       minimumPayment: item.minimum_payment?.toString() ?? "",
+      minPaymentPercent: item.min_payment_percent?.toString() ?? "",
+      minPaymentFloor: item.min_payment_floor?.toString() ?? "",
       paymentDayOfMonth: item.payment_day_of_month?.toString() ?? "",
       startDate: item.start_date ?? "",
       endDate: item.end_date ?? "",
@@ -431,7 +434,12 @@ export function DebtsCreditsManagement() {
                       style={{ "--cols": DEBT_COLUMNS } as React.CSSProperties}
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-[13.5px] font-medium">{item.name}</p>
+                        <Link
+                          href={`/dashboard/debts/${item.id}`}
+                          className="block truncate text-[13.5px] font-medium transition-colors hover:text-obligation"
+                        >
+                          {item.name}
+                        </Link>
                         {item.lender && (
                           <p className="truncate text-[11.5px] text-muted-foreground">
                             {item.lender}
@@ -539,7 +547,13 @@ export function DebtsCreditsManagement() {
                           </p>
                         )}
 
-                        <BalanceLogSection debtId={item.id} onChanged={refresh} />
+                        <Link
+                          href={`/dashboard/debts/${item.id}`}
+                          className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          <FileText className="size-3.5" />
+                          Statements, payments and balance history
+                        </Link>
                       </div>
                     )}
                   </li>

@@ -321,6 +321,8 @@ export const debtCreditCreateSchema = z.object({
   creditLimit: z.number().min(0).nullish(),
   interestRate: z.number().min(0).max(100).nullish(),
   minimumPayment: z.number().min(0).nullish(),
+  minPaymentPercent: z.number().min(0).max(100).nullish(),
+  minPaymentFloor: z.number().min(0).nullish(),
   paymentDayOfMonth: dayOfMonthSchema.nullish(),
   startDate: dateStringSchema.nullish(),
   endDate: dateStringSchema.nullish(),
@@ -336,6 +338,8 @@ export const debtCreditUpdateSchema = z
     creditLimit: z.number().min(0).nullish(),
     interestRate: z.number().min(0).max(100).nullish(),
     minimumPayment: z.number().min(0).nullish(),
+    minPaymentPercent: z.number().min(0).max(100).nullish(),
+    minPaymentFloor: z.number().min(0).nullish(),
     paymentDayOfMonth: dayOfMonthSchema.nullish(),
     startDate: dateStringSchema.nullish(),
     endDate: dateStringSchema.nullish(),
@@ -349,10 +353,64 @@ export const debtCreditUpdateSchema = z
 
 export const balanceLogCreateSchema = z.object({
   balance: z.number().min(0, "balance must be non-negative"),
-  paymentMade: z.number().min(0).nullish(),
   notes: z.string().nullish(),
   loggedAt: dateStringSchema,
 });
+
+export const debtPaymentCreateSchema = z.object({
+  amount: z.number().positive("payment amount must be positive"),
+  paidAt: dateStringSchema,
+  notes: z.string().nullish(),
+});
+
+const debtStatementFields = {
+  periodStart: dateStringSchema,
+  periodEnd: dateStringSchema,
+  statementDate: dateStringSchema,
+  dueDate: dateStringSchema.nullish(),
+  openingBalance: z.number(),
+  closingBalance: z.number(),
+  interestCharged: z.number().min(0).default(0),
+  feesCharged: z.number().min(0).default(0),
+  newSpending: z.number().min(0).nullish(),
+  minimumPayment: z.number().min(0).nullish(),
+  balanceSubjectToInterest: z.number().min(0).nullish(),
+  principalPaid: z.number().min(0).nullish(),
+  interestPaid: z.number().min(0).nullish(),
+  notes: z.string().nullish(),
+};
+
+export const debtStatementCreateSchema = z
+  .object(debtStatementFields)
+  .refine((d) => d.periodEnd >= d.periodStart, {
+    message: "period end must not be before period start",
+    path: ["periodEnd"],
+  });
+
+export const debtStatementUpdateSchema = z
+  .object({
+    periodStart: dateStringSchema.optional(),
+    periodEnd: dateStringSchema.optional(),
+    statementDate: dateStringSchema.optional(),
+    dueDate: dateStringSchema.nullish(),
+    openingBalance: z.number().optional(),
+    closingBalance: z.number().optional(),
+    interestCharged: z.number().min(0).optional(),
+    feesCharged: z.number().min(0).optional(),
+    newSpending: z.number().min(0).nullish(),
+    minimumPayment: z.number().min(0).nullish(),
+    balanceSubjectToInterest: z.number().min(0).nullish(),
+    principalPaid: z.number().min(0).nullish(),
+    interestPaid: z.number().min(0).nullish(),
+    notes: z.string().nullish(),
+  })
+  .refine((data) => Object.values(data).some((v) => v !== undefined), {
+    message: "At least one field must be provided for update",
+  })
+  .refine(
+    (d) => d.periodStart == null || d.periodEnd == null || d.periodEnd >= d.periodStart,
+    { message: "period end must not be before period start", path: ["periodEnd"] },
+  );
 
 // ─── Loans Given ─────────────────────────────────────────────────────────────
 

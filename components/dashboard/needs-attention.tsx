@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getDueState } from "@/lib/outgoings-date";
+import { useDebtDueDates } from "@/hooks/use-debt-due-dates";
 import { EmptyState } from "@/components/dashboard/panel";
 
 interface OutgoingsResponse {
@@ -66,6 +67,7 @@ export function NeedsAttention() {
     error: budgetsError,
     refresh: refreshBudgets,
   } = useApiQuery<{ budgets: ApiBudget[] }>("/api/budgets?period=monthly");
+  const { items: debtDues } = useDebtDueDates();
 
   const items = useMemo<AttentionItem[]>(() => {
     const result: AttentionItem[] = [];
@@ -100,6 +102,30 @@ export function NeedsAttention() {
       });
     }
 
+    // A missed card minimum costs more than a missed subscription; it belongs
+    // in the same panel rather than only on the debts page.
+    for (const debt of debtDues) {
+      if (!debt.due.isDueNow) continue;
+
+      const overdue = debt.due.urgency === "overdue";
+      const days = Math.abs(debt.due.daysUntilDue);
+      result.push({
+        id: `debt-${debt.id}`,
+        title: overdue
+          ? `${debt.name} payment is ${days} ${days === 1 ? "day" : "days"} overdue`
+          : `${debt.name} payment due today`,
+        detail: `${debt.amountIsActual ? "Minimum" : "Estimated minimum"} · due ${debt.due.dueDate.toLocaleDateString(
+          "en-GB",
+          { day: "numeric", month: "short" },
+        )}`,
+        amount: debt.amount,
+        icon: overdue ? AlertCircle : Clock,
+        tone: "obligation",
+        rank: overdue ? 0 : 1,
+        href: `/dashboard/debts/${debt.id}`,
+      });
+    }
+
     for (const budget of budgetsData?.budgets ?? []) {
       if (!budget.is_active) continue;
       if (budget.status !== "exceeded" && budget.status !== "warning") continue;
@@ -123,7 +149,7 @@ export function NeedsAttention() {
     }
 
     return result.sort((a, b) => a.rank - b.rank || b.amount - a.amount);
-  }, [outgoingsData, budgetsData]);
+  }, [outgoingsData, budgetsData, debtDues]);
 
   // The list is capped, the count is not — a badge reading "6 items" when nine
   // need you is worse than no badge.

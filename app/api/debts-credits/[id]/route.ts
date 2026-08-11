@@ -1,7 +1,45 @@
 import { requireAuth } from "@/lib/auth-server";
 import * as debtsService from "@/lib/db/debts-credits";
+import { errorResponse } from "@/lib/api-errors";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const userId = await requireAuth();
+    const { id } = await params;
+
+    const row = await debtsService.getById(userId, id);
+
+    return NextResponse.json({
+      debt: {
+        id: row.id,
+        name: row.name,
+        debt_type: row.debtType,
+        lender: row.lender,
+        current_balance: Number(row.currentBalance),
+        credit_limit: row.creditLimit != null ? Number(row.creditLimit) : null,
+        interest_rate: row.interestRate != null ? Number(row.interestRate) : null,
+        minimum_payment: row.minimumPayment != null ? Number(row.minimumPayment) : null,
+        min_payment_percent:
+          row.minPaymentPercent != null ? Number(row.minPaymentPercent) : null,
+        min_payment_floor: row.minPaymentFloor != null ? Number(row.minPaymentFloor) : null,
+        payment_day_of_month: row.paymentDayOfMonth,
+        start_date: row.startDate,
+        end_date: row.endDate,
+        notes: row.notes,
+        is_active: row.isActive,
+        created_at: row.createdAt,
+        updated_at: row.updatedAt,
+      },
+    });
+  } catch (error) {
+    return errorResponse(error, "Failed to fetch debt/credit");
+  }
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -29,6 +67,12 @@ export async function PATCH(
       }),
       ...((body.minimumPayment ?? body.minimum_payment) !== undefined && {
         minimumPayment: body.minimumPayment ?? body.minimum_payment,
+      }),
+      ...((body.minPaymentPercent ?? body.min_payment_percent) !== undefined && {
+        minPaymentPercent: body.minPaymentPercent ?? body.min_payment_percent,
+      }),
+      ...((body.minPaymentFloor ?? body.min_payment_floor) !== undefined && {
+        minPaymentFloor: body.minPaymentFloor ?? body.min_payment_floor,
       }),
       ...((body.paymentDayOfMonth ?? body.payment_day_of_month) !== undefined && {
         paymentDayOfMonth: body.paymentDayOfMonth ?? body.payment_day_of_month,

@@ -392,8 +392,13 @@ export const debtsCredits = pgTable(
     lender: text("lender"), // e.g. "Barclays", "Halifax"
     currentBalance: decimal("current_balance", { precision: 12, scale: 2 }).notNull(),
     creditLimit: decimal("credit_limit", { precision: 12, scale: 2 }), // for credit cards
-    interestRate: decimal("interest_rate", { precision: 5, scale: 2 }), // APR %
+    interestRate: decimal("interest_rate", { precision: 5, scale: 2 }), // APR as advertised (EAR basis) %
     minimumPayment: decimal("minimum_payment", { precision: 10, scale: 2 }),
+    // Rule used only to forecast the next minimum when no statement exists yet.
+    // FCA CONC 6.7.5R shape: interest + fees + percent% of outstanding, floored.
+    // No default floor: it is currency-specific and the workspace may not be GBP.
+    minPaymentPercent: decimal("min_payment_percent", { precision: 5, scale: 2 }).default("1.00"),
+    minPaymentFloor: decimal("min_payment_floor", { precision: 10, scale: 2 }),
     paymentDayOfMonth: integer("payment_day_of_month"), // 1-31
     startDate: date("start_date", { mode: "string" }), // when the loan/credit started
     endDate: date("end_date", { mode: "string" }), // expected payoff date
@@ -411,7 +416,9 @@ export const debtsCredits = pgTable(
   ],
 );
 
-// Balance snapshots – log how the balance changes over time
+// Ad-hoc balance snapshots – "I checked my balance today". Payments live in
+// `debt_payments` and statements in `debt_statements`; this table stays a pure
+// point-in-time reading so nothing double-counts.
 export const debtBalanceLogs = pgTable(
   "debt_balance_logs",
   {
@@ -423,7 +430,6 @@ export const debtBalanceLogs = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     balance: decimal("balance", { precision: 12, scale: 2 }).notNull(),
-    paymentMade: decimal("payment_made", { precision: 10, scale: 2 }), // optional
     notes: text("notes"),
     loggedAt: date("logged_at", { mode: "string" }).notNull(), // the date this snapshot is for
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -431,6 +437,88 @@ export const debtBalanceLogs = pgTable(
   (t) => [
     index("idx_debt_balance_logs_debt").on(t.debtId, t.loggedAt),
     index("idx_debt_balance_logs_user").on(t.userId),
+  ],
+);
+
+// ─── Debt Payments ───────────────────────────────────────────────────────────
+
+/**
+ * One row per actual payment made against a debt. Single source of truth for
+ * money paid out, so statements can reconcile against it without duplicating it.
+ * Replaces the old `debt_balance_logs.payment_made` column.
+ */
+export const debtPayments = pgTable(
+  "debt_payments",
+  {
+    id: text("id").primaryKey(),
+    debtId: text("debt_id")
+      .notNull()
+      .references(() => debtsCredits.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    paidAt: date("paid_at", { mode: "string" }).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_debt_payments_debt").on(t.debtId, t.paidAt),
+    index("idx_debt_payments_user").on(t.userId, t.paidAt),
+  ],
+);
+
+// ─── Debt Statements ─────────────────────────────────────────────────────────
+
+/**
+ * One row per billing cycle. Revolving debts (credit card, overdraft) fill
+ * `new_spending` and `minimum_payment`; amortising debts (loan, mortgage) fill
+ * `principal_paid` and `interest_paid` instead.
+ *
+ * `closing_balance` is authoritative for `debts_credits.current_balance` when it
+ * is the newest record. `balance_subject_to_interest` mirrors Plaid's
+ * `balance_subject_to_apr`: issuers charge on an average daily balance, so when
+ * the statement prints that figure the derived rate is exact rather than
+ * estimated.
+ */
+export const debtStatements = pgTable(
+  "debt_statements",
+  {
+    id: text("id").primaryKey(),
+    debtId: text("debt_id")
+      .notNull()
+      .references(() => debtsCredits.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    periodStart: date("period_start", { mode: "string" }).notNull(),
+    periodEnd: date("period_end", { mode: "string" }).notNull(),
+    statementDate: date("statement_date", { mode: "string" }).notNull(),
+    dueDate: date("due_date", { mode: "string" }),
+    openingBalance: decimal("opening_balance", { precision: 12, scale: 2 }).notNull(),
+    closingBalance: decimal("closing_balance", { precision: 12, scale: 2 }).notNull(),
+    interestCharged: decimal("interest_charged", { precision: 10, scale: 2 })
+      .notNull()
+      .default("0"),
+    feesCharged: decimal("fees_charged", { precision: 10, scale: 2 }).notNull().default("0"),
+    newSpending: decimal("new_spending", { precision: 12, scale: 2 }), // revolving only
+    minimumPayment: decimal("minimum_payment", { precision: 10, scale: 2 }), // revolving only
+    balanceSubjectToInterest: decimal("balance_subject_to_interest", {
+      precision: 12,
+      scale: 2,
+    }),
+    principalPaid: decimal("principal_paid", { precision: 10, scale: 2 }), // amortising only
+    interestPaid: decimal("interest_paid", { precision: 10, scale: 2 }), // amortising only
+    interestBreakdown: jsonb("interest_breakdown"), // reserved for per-APR buckets
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_debt_statements_debt").on(t.debtId, t.periodEnd),
+    index("idx_debt_statements_user").on(t.userId, t.dueDate),
+    uniqueIndex("uq_debt_statements_debt_period").on(t.debtId, t.periodEnd),
+    check("chk_debt_statements_period", sql`${t.periodEnd} >= ${t.periodStart}`),
   ],
 );
 
