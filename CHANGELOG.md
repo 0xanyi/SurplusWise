@@ -2,7 +2,83 @@
 
 All notable changes to Sika will be documented in this file.
 
-## [Unreleased] - Open Source Release
+## [Unreleased]
+
+## [1.0.0] - 2026-08-11 - Open Source Release
+
+Sika is now open source under the MIT license, renamed from SurplusWise, and
+settled on a single-account-per-instance model. Version 1.0.0 marks that the
+license, the name, the security posture and the visual direction are all
+commitments rather than works in progress.
+
+> ### ⚠️ Read before upgrading
+>
+> **1. Set `SIKA_SETUP_TOKEN`.** Registration is now closed by default. An empty
+> instance is claimed once by whoever knows this server-side token; after that
+> account exists, signup is refused at the auth API, not just hidden in the UI.
+> A deployment without the variable set cannot create its first account.
+>
+> **2. Reconcile down to one account first.** The migration that enables the lock
+> aborts if the `users` table holds more than one row, and the application
+> container waits on migrations completing successfully — so on a multi-account
+> instance the upgrade stops and the app does not start. Back up, reduce to the
+> single account you intend to keep, then upgrade.
+>
+> **3. Database rename** — see the note under *Renamed* below.
+
+### Debts: statements, interest, and the cost of borrowing 💳
+
+- **Billing cycles are now records.** A new statement holds the period, opening
+  and closing balance, interest and fees charged, the minimum payment, and
+  optionally the balance the issuer charged interest against
+- **The rate each cycle implies** is derived and shown against the APR on file,
+  which is what surfaces an expired promotional rate or a differently-priced
+  cash advance
+  - Exact when the statement prints the balance subject to interest; otherwise
+    estimated from the opening/closing midpoint and labelled **est.**, because
+    issuers charge on an average daily balance rather than the closing figure
+  - Annualised by compounding over the actual period length, so it is an EAR
+    comparable to an advertised APR rather than a nominal ×12 figure
+- **Interest is never counted as an expense.** The debt payment already is, and
+  the interest sits inside it. It is reported separately as *cost of borrowing*
+  — on the debt page, in analytics, and as its own row type in the CSV export
+- **Minimum payments** prefer the statement's own figure, then the one you
+  recorded, then a forecast in the shape FCA CONC 6.7.5R requires of UK issuers.
+  The forecast applies only to credit cards and overdrafts; amortising debts are
+  set by their agreement, not by a percentage of the balance
+- **Payments settle a statement.** Money paid after a cycle closes counts towards
+  what is owed, and a debt leaves the due-date panels once covered
+- **New debt detail page** at `/dashboard/debts/[id]` — statement table, payments,
+  balance snapshots, and a cost-of-borrowing summary. Closing a cycle prefills
+  from the previous statement and asks for three numbers
+- **Debts now appear in *Needs your attention* and *Coming up***, using the
+  latest statement's due date and minimum. A card minimum was previously
+  invisible in both while a small subscription was not
+- Payments moved out of balance logs into their own table; balance logs are now
+  purely point-in-time snapshots
+
+### Registration: one account per instance 🔐
+
+- Public self-registration is closed. The first account is claimed with the
+  operator's `SIKA_SETUP_TOKEN`; afterwards signup is refused at the auth API
+- A unique index enforces the single account at the database level
+- There is no admin tier — the first account is an ordinary user, and the setup
+  token is bootstrap authority rather than a product role
+
+### Redesign: The Quiet Ledger 🎨
+
+- Dark canvas is now the default theme, with light as a derived counterpart
+- The eight-item top bar becomes a grouped left sidebar (*Money in & out* /
+  *Balance sheet*), with a five-slot tab bar on small screens
+- The dashboard becomes five bands, leading with net position and pairing
+  *Needs your attention* against *Coming up*
+- Transactions, debts, investments and outgoings are rebuilt as tables so the
+  figures that matter line up down the page
+- Money colours are semantic tokens — income, expense, giving and obligations —
+  rather than raw palette values
+- Typography moves to Bricolage Grotesque for figures and headings with Geist for
+  everything else, both self-hosted
+- Sika brand identity: new logo, icon set, and PWA icons
 
 ### Renamed 🏷️
 
@@ -20,6 +96,8 @@ All notable changes to Sika will be documented in this file.
 
 ### Added
 
+- **Installable PWA** with a service worker that caches only static assets —
+  icons, manifest, favicon — and never authenticated pages or financial data
 - MIT `LICENSE` file — the project previously claimed MIT in the README without
   granting it, which left it all-rights-reserved
 - `CONTRIBUTING.md`, `SECURITY.md`, and `CODE_OF_CONDUCT.md`
@@ -33,6 +111,25 @@ All notable changes to Sika will be documented in this file.
 - README restructured for self-hosters, with a Docker Compose quick start and an
   explicit note that receipt scanning and S3 storage are optional
 - Dashboard footer now links to the MIT license instead of reserving all rights
+
+### Fixed
+
+- **Accessibility**
+  - Nineteen selects, one switch and fourteen icon-only buttons reached screen
+    readers with no accessible name; all now carry explicit labels. Radix renders
+    these as `<button>`, which a `<label for>` does not name
+  - Pinch zoom restored
+  - Budget progress exposed to assistive technology
+  - The giving token no longer stands in for "positive" or "success" — gains,
+    settled statuses and under-budget states use neutral or semantic colours
+- Authentication now works behind supervised portal origins
+- The Tailwind v4 styling layer, which was silently loading no configuration
+
+### Internal
+
+- The test suite runs on every pull request
+- `PRODUCT.md` and `DESIGN.md` document the product and visual direction
+- Coding agents no longer write generated files into the repository root
 
 ### Configurable AI Provider 🤖
 
@@ -103,6 +200,10 @@ All notable changes to Sika will be documented in this file.
 ---
 
 ## [0.10.0] - 2026-02-25
+
+> **Never tagged.** This entry documents work that shipped on the main branch but
+> was not released; `v0.9.2` was the last tag before `v1.0.0`. There is no
+> `v0.10.0` to check out.
 
 ### Finance Workspaces 🏢
 
