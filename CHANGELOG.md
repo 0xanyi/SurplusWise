@@ -2,7 +2,14 @@
 
 All notable changes to Sika will be documented in this file.
 
-## [Unreleased] - Open Source Release
+## [Unreleased]
+
+## [1.0.0] - 2026-08-11 - Open Source Release
+
+Sika is now open source under the MIT license, renamed from SurplusWise, and
+settled on a single-account-per-instance model. Version 1.0.0 marks that the
+license, the name, the security posture and the visual direction are all
+commitments rather than works in progress.
 
 > ### ⚠️ Read before upgrading
 >
@@ -193,6 +200,10 @@ All notable changes to Sika will be documented in this file.
 ---
 
 ## [0.10.0] - 2026-02-25
+
+> **Never tagged.** This entry documents work that shipped on the main branch but
+> was not released; `v0.9.2` was the last tag before `v1.0.0`. There is no
+> `v0.10.0` to check out.
 
 ### Finance Workspaces 🏢
 
