@@ -268,6 +268,10 @@ export interface ApiUpcomingDebtPayment {
   amount: number | null
   /** True when `amount` came from a statement rather than a forecast. */
   amount_is_actual: boolean
+  /** Paid since the last statement closed, or this month when there is none. */
+  paid_towards_next: number
+  /** Nothing further owed right now; the due-date panels drop it. */
+  settled: boolean
 }
 
 // ─── Loans Given ─────────────────────────────────────────────────────────────

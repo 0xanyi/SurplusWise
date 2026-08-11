@@ -51,6 +51,8 @@ export async function GET() {
         payment_day_of_month: row.paymentDayOfMonth,
         amount: row.amount,
         amount_is_actual: row.amountIsActual,
+        paid_towards_next: row.paidTowardsNext,
+        settled: row.settled,
       })),
     });
   } catch (error) {

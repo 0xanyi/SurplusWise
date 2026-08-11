@@ -24,7 +24,8 @@ export interface DebtDueItem {
  *
  * A statement's exact due date is preferred; a debt with no statement falls back
  * to its configured payment day so it still appears. Debts with nothing owed, no
- * amount, and no date at all drop out rather than showing a blank row.
+ * amount, and no date at all drop out rather than showing a blank row, and so do
+ * debts already settled — mirroring how a paid outgoing leaves these panels.
  */
 export function useDebtDueDates() {
   const { data, loading, error } = useApiQuery<DebtsResponse>("/api/debts-credits");
@@ -36,6 +37,7 @@ export function useDebtDueDates() {
       .flatMap((debt) => {
         if (debt.amount == null || debt.amount <= 0) return [];
         if (debt.current_balance <= 0) return [];
+        if (debt.settled) return [];
 
         const due = debt.due_date
           ? getDueStateForDate(debt.due_date, now)

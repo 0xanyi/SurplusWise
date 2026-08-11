@@ -3,11 +3,13 @@ import assert from "node:assert/strict";
 import {
   deriveRate,
   forecastMinimumPayment,
+  getPaymentWindowStart,
   getPeriodDays,
   getRateVariance,
   getStatementResidual,
   getUtilisation,
   isResidualSignificant,
+  isRevolvingDebt,
 } from "./debt-interest";
 
 // ─── getPeriodDays ───────────────────────────────────────────────────────────
@@ -221,6 +223,53 @@ describe("forecastMinimumPayment", () => {
 
   it("returns null when nothing is owed", () => {
     assert.strictEqual(forecastMinimumPayment(0, 0, 0, { percent: 1 }), null);
+  });
+});
+
+// ─── isRevolvingDebt ────────────────────────────────────────────────────
+
+describe("isRevolvingDebt", () => {
+  it("accepts the types that carry a percentage-of-balance minimum", () => {
+    assert.strictEqual(isRevolvingDebt("credit_card"), true);
+    assert.strictEqual(isRevolvingDebt("overdraft"), true);
+  });
+
+  it("rejects amortising debt, whose instalment is set by its agreement", () => {
+    // 1% of a mortgage balance is not a mortgage payment.
+    assert.strictEqual(isRevolvingDebt("mortgage"), false);
+    assert.strictEqual(isRevolvingDebt("loan"), false);
+    assert.strictEqual(isRevolvingDebt("other"), false);
+  });
+});
+
+// ─── getPaymentWindowStart ─────────────────────────────────────────────
+
+describe("getPaymentWindowStart", () => {
+  const reference = new Date(2026, 7, 11); // 11 August 2026, local
+
+  it("starts the day after the statement closed", () => {
+    // Money paid during the cycle settled the previous statement, not this one.
+    assert.strictEqual(getPaymentWindowStart("2026-05-31", reference), "2026-06-01");
+  });
+
+  it("rolls across a month end", () => {
+    assert.strictEqual(getPaymentWindowStart("2026-02-28", reference), "2026-03-01");
+  });
+
+  it("rolls across a year end", () => {
+    assert.strictEqual(getPaymentWindowStart("2026-12-31", reference), "2027-01-01");
+  });
+
+  it("falls back to the current month when no statement exists", () => {
+    assert.strictEqual(getPaymentWindowStart(null, reference), "2026-08-01");
+  });
+
+  it("pads a single-digit month in the fallback", () => {
+    assert.strictEqual(getPaymentWindowStart(null, new Date(2026, 0, 5)), "2026-01-01");
+  });
+
+  it("falls back rather than throwing on an unparseable period end", () => {
+    assert.strictEqual(getPaymentWindowStart("nonsense", reference), "2026-08-01");
   });
 });
 

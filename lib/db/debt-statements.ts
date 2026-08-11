@@ -4,6 +4,7 @@ import { debtsCredits, debtStatements, debtPayments } from "@/db/schema";
 import {
   userIdSchema,
   idSchema,
+  workspaceIdSchema,
   debtStatementCreateSchema,
   debtStatementUpdateSchema,
   debtPaymentCreateSchema,
@@ -11,8 +12,10 @@ import {
 import {
   deriveRate,
   forecastMinimumPayment,
+  getPaymentWindowStart,
   getStatementResidual,
   isResidualSignificant,
+  isRevolvingDebt,
 } from "@/lib/debt-interest";
 import { syncCurrentBalance } from "./debts-credits";
 
@@ -443,9 +446,19 @@ export async function getCostOfBorrowing(
  * Prefers the latest statement's due date and actual minimum. Falls back to the
  * debt's `payment_day_of_month` and a forecast minimum, so a debt that has never
  * had a statement recorded still surfaces in the due-date views.
+ *
+ * Also reports how much has been paid towards that amount, because a due date
+ * with no notion of settlement would leave every past-due statement reading as
+ * overdue forever — recurring outgoings have `payment_status.paid` for exactly
+ * this reason.
  */
-export async function listUpcomingDebtPayments(userId: string, workspaceId: string) {
+export async function listUpcomingDebtPayments(
+  userId: string,
+  workspaceId: string,
+  reference: Date = new Date(),
+) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
 
   const debts = await db
     .select({
@@ -473,6 +486,7 @@ export async function listUpcomingDebtPayments(userId: string, workspaceId: stri
   const latestStatements = await db
     .selectDistinctOn([debtStatements.debtId], {
       debtId: debtStatements.debtId,
+      periodEnd: debtStatements.periodEnd,
       dueDate: debtStatements.dueDate,
       minimumPayment: debtStatements.minimumPayment,
       closingBalance: debtStatements.closingBalance,
@@ -485,19 +499,54 @@ export async function listUpcomingDebtPayments(userId: string, workspaceId: stri
 
   const byDebt = new Map(latestStatements.map((s) => [s.debtId, s]));
 
+  // Each debt counts payments from its own window, but one query covers them
+  // all: fetch from the earliest window start and bucket in memory.
+  const windowStarts = new Map(
+    debts.map((debt) => [
+      debt.id,
+      getPaymentWindowStart(byDebt.get(debt.id)?.periodEnd ?? null, reference),
+    ]),
+  );
+  const earliestWindow = [...windowStarts.values()].sort()[0];
+
+  const paymentRows = await db
+    .select({ debtId: debtPayments.debtId, amount: debtPayments.amount, paidAt: debtPayments.paidAt })
+    .from(debtPayments)
+    .innerJoin(debtsCredits, eq(debtPayments.debtId, debtsCredits.id))
+    .where(
+      and(
+        eq(debtPayments.userId, userId),
+        eq(debtsCredits.workspaceId, workspaceId),
+        gte(debtPayments.paidAt, earliestWindow),
+      ),
+    );
+
+  const paidByDebt = new Map<string, number>();
+  for (const row of paymentRows) {
+    const windowStart = windowStarts.get(row.debtId);
+    if (!windowStart || row.paidAt < windowStart) continue;
+    paidByDebt.set(row.debtId, (paidByDebt.get(row.debtId) ?? 0) + Number(row.amount));
+  }
+
   return debts.map((debt) => {
     const statement = byDebt.get(debt.id);
     const balance = Number(debt.currentBalance);
 
-    const forecast = forecastMinimumPayment(
-      balance,
-      Number(statement?.interestCharged ?? 0),
-      Number(statement?.feesCharged ?? 0),
-      { percent: num(debt.minPaymentPercent), floor: num(debt.minPaymentFloor) },
-    );
+    // Only revolving debt has a percentage-of-balance minimum. A mortgage's
+    // instalment is set by its agreement, and 1% of the balance is not it.
+    const forecast = isRevolvingDebt(debt.debtType)
+      ? forecastMinimumPayment(
+          balance,
+          Number(statement?.interestCharged ?? 0),
+          Number(statement?.feesCharged ?? 0),
+          { percent: num(debt.minPaymentPercent), floor: num(debt.minPaymentFloor) },
+        )
+      : null;
 
     const statementMinimum = statement ? num(statement.minimumPayment) : null;
-    const amount = statementMinimum ?? num(debt.minimumPayment) ?? forecast;
+    const configuredMinimum = num(debt.minimumPayment);
+    const amount = statementMinimum ?? configuredMinimum ?? forecast;
+    const paidTowardsNext = paidByDebt.get(debt.id) ?? 0;
 
     return {
       id: debt.id,
@@ -507,8 +556,16 @@ export async function listUpcomingDebtPayments(userId: string, workspaceId: stri
       dueDate: statement?.dueDate ?? null,
       paymentDayOfMonth: debt.paymentDayOfMonth,
       amount,
-      /** True when `amount` came from a statement rather than a forecast. */
-      amountIsActual: statementMinimum != null,
+      /**
+       * True when `amount` is a figure someone stated — off a statement, or
+       * typed into the debt. Only the CONC forecast is our own estimate, and
+       * only it should be labelled as one.
+       */
+      amountIsActual: statementMinimum != null || configuredMinimum != null,
+      /** Paid since the last statement closed, or this month when there is none. */
+      paidTowardsNext,
+      /** Nothing further is owed right now, so the due-date panels can drop it. */
+      settled: amount != null && paidTowardsNext >= amount,
     };
   });
 }

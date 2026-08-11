@@ -102,6 +102,18 @@ export function getRateVariance(
   return derived.annualisedPercent - advertisedApr;
 }
 
+export type RevolvingDebtType = "credit_card" | "overdraft";
+
+/**
+ * Whether a debt revolves, and so has a percentage-of-balance minimum at all.
+ *
+ * Loans and mortgages are amortising: the instalment is fixed by the agreement,
+ * not derived from the balance. Applying the card rule to them invents a figure.
+ */
+export function isRevolvingDebt(debtType: string): debtType is RevolvingDebtType {
+  return debtType === "credit_card" || debtType === "overdraft";
+}
+
 export interface MinimumPaymentRule {
   percent?: number | null;
   floor?: number | null;
@@ -114,6 +126,9 @@ export interface MinimumPaymentRule {
  * at no less than the interest, fees and charges applied in the period plus 1%
  * of the outstanding balance. Used only when no statement has been recorded
  * yet — a statement's own `minimumPayment` is a fact and always wins.
+ *
+ * Callers must check `isRevolvingDebt` first. This rule is a credit-card rule;
+ * 1% of a mortgage balance is not a mortgage payment.
  */
 export function forecastMinimumPayment(
   closingBalance: number,
@@ -164,6 +179,31 @@ export function isResidualSignificant(residual: number, closingBalance: number):
   if (magnitude === 0) return false;
   const relativeThreshold = Math.abs(closingBalance) * 0.005;
   return magnitude > Math.max(1, relativeThreshold);
+}
+
+/**
+ * First day from which a payment counts towards the *next* amount due.
+ *
+ * After a statement closes, money paid during that cycle settled the previous
+ * statement; only payments dated after the period end reduce what is now owed.
+ * With no statement recorded, the debt falls back to a monthly cadence, so the
+ * window is the current calendar month.
+ */
+export function getPaymentWindowStart(
+  latestPeriodEnd: string | null,
+  reference: Date = new Date(),
+): string {
+  if (latestPeriodEnd) {
+    const dayAfter = new Date(`${latestPeriodEnd}T00:00:00Z`);
+    if (!Number.isNaN(dayAfter.getTime())) {
+      dayAfter.setUTCDate(dayAfter.getUTCDate() + 1);
+      return dayAfter.toISOString().slice(0, 10);
+    }
+  }
+
+  const year = reference.getFullYear();
+  const month = `${reference.getMonth() + 1}`.padStart(2, "0");
+  return `${year}-${month}-01`;
 }
 
 /** Credit utilisation as a percentage, or null when there is no limit to measure against. */
