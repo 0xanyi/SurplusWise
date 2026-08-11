@@ -73,9 +73,17 @@ today; it is a position, not a measured market finding.)*
 - Users switch workspaces mid-session; the active workspace is a persistent, visible
   piece of state, and being wrong about which one is active corrupts the record.
 - Reporting has real deadlines behind it: tax year, financial year-end, annual giving
-  summaries. CSV and PDF export exist so the numbers can leave the app.
-- The instance is a single-user deployment today. Multi-user and household support are
-  roadmap, not present.
+  summaries. CSV export exists so the numbers can leave the app.
+- The instance is a **single-account deployment**. One Sika instance supports one
+  account; that account may own many personal and business workspaces. Multi-user
+  (isolated accounts on one server) and household sharing (several people on one
+  ledger) are roadmap and are deliberately distinct — neither is present.
+- Security posture (shipped in v1.0.0): public self-registration is not open. An
+  empty instance is claimed once via a server-side setup token
+  (`SIKA_SETUP_TOKEN`); after the first account exists, signup is closed at the
+  auth API, not only in the UI, and a database constraint enforces the single
+  account. There is no admin tier — the first account is an ordinary user; the
+  setup token is bootstrap authority, not a product role.
 - Deployment is Docker Compose or Dokploy on the user's own server; migrations run at
   startup.
 
@@ -94,25 +102,32 @@ today; it is a position, not a measured market finding.)*
   per workspace.
 - Budgets: monthly / quarterly / yearly, per category, with live spent-vs-allocated
   progress.
-- Recurring outgoings with payment logs; debts and credits (credit card, loan,
-  mortgage, overdraft, other) with balance logs; loans given with repayments and
-  status; investments (stock, crypto, forex, property, business, savings, other) with
+- Recurring outgoings with payment logs; loans given with repayments and status;
+  investments (stock, crypto, forex, property, business, savings, other) with
   return/dividend/sale/loss/fee events; goals; net-worth rollup.
-- Analytics: trend and category charts (Recharts), period filters, CSV export, PDF
-  report generation.
+- Debts and credits (credit card, loan, mortgage, overdraft, other) with balance
+  snapshots, payments, and per-cycle **statements**: opening and closing balance,
+  interest and fees charged, minimum payment, and the interest rate that cycle
+  implies shown against the APR on file. Statement interest is reported as cost of
+  borrowing and is deliberately never added to expense totals — the payment is
+  already counted and the interest sits inside it.
+- Analytics: trend and category charts (Recharts), period filters, CSV export.
 - Receipt scanning via any OpenAI-compatible vision endpoint, configured per user in
   Settings, disabled by default; receipt images stored in S3-compatible storage when
   configured.
 - First-run onboarding card: workspace currency, optional first budget, optional first
   transaction.
-- Light/dark/system theming, toast notifications, `prefers-reduced-motion` honored.
+- Light/dark/system theming with dark as the default, toast notifications,
+  `prefers-reduced-motion` honored.
+- Installable PWA; the service worker caches only static assets (icons, manifest,
+  favicon) and never authenticated pages or financial data.
 
 **Constraints:**
 
 - Next.js 16 App Router, React 19, TypeScript, PostgreSQL + Drizzle, Tailwind v4 with
   `@theme` tokens in `app/globals.css`, shadcn/ui + Radix primitives, lucide-react
-  icons, Plus Jakarta Sans. New UI works within this system rather than adding a
-  parallel one.
+  icons, Bricolage Grotesque and Geist via `next/font` (self-hosted at build time).
+  New UI works within this system rather than adding a parallel one.
 - **A default install must remain fully functional with no third-party API keys.** Any
   feature depending on an external service degrades to an explicit, non-blocking
   opt-in. This is a product commitment, not a current convenience.
@@ -124,9 +139,26 @@ today; it is a position, not a measured market finding.)*
 - MIT licensed and public at `github.com/tickideasintl/sika`. Anything shipped is
   readable by self-hosters and contributors.
 
+**Decided — registration and multi-person access (2026-08-09, shipped in v1.0.0):**
+
+- **v1 contract:** exactly one account per instance. Not “open until you flip a
+  switch,” and not household sharing.
+- **Bootstrap:** operator sets `SIKA_SETUP_TOKEN` at deploy; first visitor who
+  knows the token creates the only account. Empty-DB open signup is rejected
+  because a public instance could be claimed by a bot before the operator arrives.
+- **Subsequent users in v1:** none. No invite UI, no registration toggle, no
+  user-admin screen, no SMTP requirement.
+- **Vocabulary for later work (do not conflate):**
+  - *Isolated multi-user* = several private accounts on one server, each with their
+    own workspaces (Firefly-style). Still not shared books.
+  - *Household sharing* = several identities on one workspace via memberships and
+    roles. Requires a real sharing model; must not be faked by extra accounts.
+- Workspaces remain one person’s personal/business isolation, not multi-person access.
+
 **Undecided:**
 
-- Whether multi-user / household sharing changes the single-user assumptions above.
+- When (if ever) isolated multi-user is offered before household sharing, and what
+  the mail-free provisioning path is (likely operator CLI, not open registration).
 - Whether bank integration, when it arrives, is allowed to break the zero-third-party
   default (it would need to be opt-in to comply).
 
@@ -145,13 +177,21 @@ today; it is a position, not a measured market finding.)*
 
 **Explicitly not binding:**
 
-- The wallet glyph, the `#3b82f6` blue theme color, Plus Jakarta Sans, and the current
-  shadcn default look. These are inherited scaffold defaults, not chosen identity, and
-  a future visual direction may replace all of them. `public/icon-192.png`,
-  `public/icon-512.png`, and `manifest.json` `theme_color` would need regenerating with
-  any such change.
+- The current visual direction — the Sika mark in `public/brand/`, the `#0B0B0D`
+  dark canvas recorded as `manifest.json` `theme_color`, the Bricolage Grotesque
+  and Geist pairing, and the semantic money palette. A future direction may replace
+  all of it.
 
-*(Decided during init at the user's request.)*
+  These are **chosen, not inherited**: the mark was approved against a specific
+  direction and the rest is documented in `DESIGN.md`. Not binding means a
+  deliberate redesign may replace them — it does not mean they are free to drift.
+  Changing any of them means regenerating `public/icon-192.png`,
+  `public/icon-512.png`, `public/apple-touch-icon.png`, `public/og-image.png` and
+  `manifest.json` `theme_color` together.
+
+*(Decided during init at the user's request; updated after the Sika brand and the
+Quiet Ledger redesign shipped, which replaced the original scaffold defaults — a
+wallet glyph, `#3b82f6` blue, and Plus Jakarta Sans.)*
 
 ## Evidence on Hand
 
@@ -165,8 +205,9 @@ today; it is a position, not a measured market finding.)*
   satisfaction) are **stated goals, never measured**. They may not appear anywhere
   user-facing as achievements.
 - There is no pricing, no plans, and no paid tier. Sika is free and self-hosted.
-- `/og-image.png` and `/apple-touch-icon.png` are referenced in `app/layout.tsx` but do
-  not exist in `public/`. Treat as a known asset gap, not as available evidence.
+- `jspdf` is a dependency but is imported nowhere. There is no PDF export; CSV is
+  the only way numbers leave the app. Do not describe PDF reporting as a feature
+  until it exists.
 
 ## Product Principles
 
