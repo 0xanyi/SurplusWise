@@ -1,5 +1,6 @@
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as debtsService from "@/lib/db/debts-credits";
+import * as statementsService from "@/lib/db/debt-statements";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
@@ -13,6 +14,8 @@ function toDebt(row: Record<string, unknown>) {
     credit_limit: row.creditLimit != null ? Number(row.creditLimit) : null,
     interest_rate: row.interestRate != null ? Number(row.interestRate) : null,
     minimum_payment: row.minimumPayment != null ? Number(row.minimumPayment) : null,
+    min_payment_percent: row.minPaymentPercent != null ? Number(row.minPaymentPercent) : null,
+    min_payment_floor: row.minPaymentFloor != null ? Number(row.minPaymentFloor) : null,
     payment_day_of_month: row.paymentDayOfMonth,
     start_date: row.startDate,
     end_date: row.endDate,
@@ -26,14 +29,29 @@ function toDebt(row: Record<string, unknown>) {
 export async function GET() {
   try {
     const { userId, workspaceId } = await requireAuthWithWorkspace();
-    const debts = await debtsService.list(userId, workspaceId);
-    const summary = await debtsService.getSummary(userId, workspaceId);
+    const [debts, summary, upcoming] = await Promise.all([
+      debtsService.list(userId, workspaceId),
+      debtsService.getSummary(userId, workspaceId),
+      statementsService.listUpcomingDebtPayments(userId, workspaceId),
+    ]);
 
     return NextResponse.json({
       debts: debts.map(toDebt),
       total_balance: summary.totalBalance,
       total_min_payment: summary.totalMinPayment,
       active_count: summary.count,
+      // What each active debt is next expected to ask for, so the dashboard
+      // due-date panels can include debts alongside recurring outgoings.
+      upcoming: upcoming.map((row) => ({
+        id: row.id,
+        name: row.name,
+        debt_type: row.debtType,
+        current_balance: row.currentBalance,
+        due_date: row.dueDate,
+        payment_day_of_month: row.paymentDayOfMonth,
+        amount: row.amount,
+        amount_is_actual: row.amountIsActual,
+      })),
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
@@ -60,6 +78,8 @@ export async function POST(request: NextRequest) {
       creditLimit: body.creditLimit ?? body.credit_limit,
       interestRate: body.interestRate ?? body.interest_rate,
       minimumPayment: body.minimumPayment ?? body.minimum_payment,
+      minPaymentPercent: body.minPaymentPercent ?? body.min_payment_percent,
+      minPaymentFloor: body.minPaymentFloor ?? body.min_payment_floor,
       paymentDayOfMonth: body.paymentDayOfMonth ?? body.payment_day_of_month,
       startDate: body.startDate ?? body.start_date,
       endDate: body.endDate ?? body.end_date,

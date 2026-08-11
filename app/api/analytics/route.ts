@@ -56,6 +56,7 @@ export async function GET(request: NextRequest) {
       comparisons: result.comparisons,
       outgoingPaymentsTotal: result.outgoingPaymentsTotal,
       debtPaymentsTotal: result.debtPaymentsTotal,
+      costOfBorrowing: result.costOfBorrowing,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

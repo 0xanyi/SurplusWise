@@ -27,6 +27,8 @@ export interface DebtFormData {
   creditLimit: string;
   interestRate: string;
   minimumPayment: string;
+  minPaymentPercent: string;
+  minPaymentFloor: string;
   paymentDayOfMonth: string;
   startDate: string;
   endDate: string;
@@ -113,7 +115,7 @@ export function DebtFormFields({ formData, onChange }: DebtFormFieldsProps) {
           </div>
         )}
         <div className="space-y-2">
-          <Label htmlFor="debt-rate">APR %</Label>
+          <Label htmlFor="debt-rate">APR % (as advertised)</Label>
           <Input
             id="debt-rate"
             type="number"
@@ -150,6 +152,41 @@ export function DebtFormFields({ formData, onChange }: DebtFormFieldsProps) {
           />
         </div>
       </div>
+
+      {(formData.debtType === "credit_card" || formData.debtType === "overdraft") && (
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-2">
+            <Label htmlFor="debt-minpct">Minimum % of balance</Label>
+            <Input
+              id="debt-minpct"
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              placeholder="1.00"
+              value={formData.minPaymentPercent}
+              onChange={(e) => onChange({ minPaymentPercent: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="debt-minfloor">Minimum floor</Label>
+            <Input
+              id="debt-minfloor"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="e.g. 25.00"
+              value={formData.minPaymentFloor}
+              onChange={(e) => onChange({ minPaymentFloor: e.target.value })}
+            />
+          </div>
+          <p className="col-span-2 text-[11.5px] text-muted-foreground">
+            Used to estimate the next minimum before a statement is recorded:
+            interest and fees plus this percentage of the balance, never below the
+            floor. A statement&apos;s own minimum always wins.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">

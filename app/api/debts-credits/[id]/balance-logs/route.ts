@@ -8,7 +8,6 @@ function toLog(row: Record<string, unknown>) {
     id: row.id,
     debt_id: row.debtId,
     balance: Number(row.balance),
-    payment_made: row.paymentMade != null ? Number(row.paymentMade) : null,
     notes: row.notes,
     logged_at: row.loggedAt,
     created_at: row.createdAt,
@@ -55,7 +54,6 @@ export async function POST(
 
     const log = await debtsService.addBalanceLog(userId, id, {
       balance: body.balance,
-      paymentMade: body.paymentMade ?? body.payment_made,
       notes: body.notes,
       loggedAt: body.loggedAt ?? body.logged_at,
     });

@@ -1,6 +1,7 @@
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { transactions, outgoingPaymentLogs, debtBalanceLogs, recurringOutgoings, debtsCredits, goals } from "@/db/schema";
+import { transactions, outgoingPaymentLogs, debtPayments, debtStatements, recurringOutgoings, debtsCredits, goals } from "@/db/schema";
+import { getCostOfBorrowing } from "./debt-statements";
 import {
   userIdSchema,
   analyticsQuerySchema,
@@ -76,6 +77,21 @@ export interface AnalyticsResult {
   outgoingPaymentsTotal: number;
   /** Debt payments logged this period (included in totalExpenses) */
   debtPaymentsTotal: number;
+  /**
+   * Interest and fees charged on statements closing this period.
+   *
+   * Deliberately NOT part of totalExpenses: the debt payment is already counted
+   * as the expense and the interest is inside it. This is the cost of carrying
+   * the debt, reported on its own line.
+   */
+  costOfBorrowing: CostOfBorrowing;
+}
+
+export interface CostOfBorrowing {
+  interest: number;
+  fees: number;
+  total: number;
+  statements: number;
 }
 
 interface TotalsSummary {
@@ -143,24 +159,23 @@ async function getTotalsForRange(
     0,
   );
 
-  const debtPayments = await db
+  const debtPaymentRows = await db
     .select({
-      paymentMade: debtBalanceLogs.paymentMade,
+      amount: debtPayments.amount,
     })
-    .from(debtBalanceLogs)
-    .innerJoin(debtsCredits, eq(debtBalanceLogs.debtId, debtsCredits.id))
+    .from(debtPayments)
+    .innerJoin(debtsCredits, eq(debtPayments.debtId, debtsCredits.id))
     .where(
       and(
-        eq(debtBalanceLogs.userId, userId),
+        eq(debtPayments.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
-        gte(debtBalanceLogs.loggedAt, range.startDate),
-        lte(debtBalanceLogs.loggedAt, range.endDate),
-        sql`${debtBalanceLogs.paymentMade} IS NOT NULL AND ${debtBalanceLogs.paymentMade} > 0`,
+        gte(debtPayments.paidAt, range.startDate),
+        lte(debtPayments.paidAt, range.endDate),
       ),
     );
 
-  const debtPaymentsTotal = debtPayments.reduce(
-    (sum, row) => sum + Number(row.paymentMade ?? 0),
+  const debtPaymentsTotal = debtPaymentRows.reduce(
+    (sum, row) => sum + Number(row.amount),
     0,
   );
 
@@ -237,24 +252,23 @@ async function getHistoricalMonthlyAverages(
       ),
     );
 
-  const debtPayments = await db
+  const debtPaymentTotals = await db
     .select({
-      paymentMade: sql<string>`coalesce(sum(${debtBalanceLogs.paymentMade}), 0)`,
+      paid: sql<string>`coalesce(sum(${debtPayments.amount}), 0)`,
     })
-    .from(debtBalanceLogs)
-    .innerJoin(debtsCredits, eq(debtBalanceLogs.debtId, debtsCredits.id))
+    .from(debtPayments)
+    .innerJoin(debtsCredits, eq(debtPayments.debtId, debtsCredits.id))
     .where(
       and(
-        eq(debtBalanceLogs.userId, userId),
+        eq(debtPayments.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
-        gte(debtBalanceLogs.loggedAt, range.startDate),
-        lte(debtBalanceLogs.loggedAt, range.endDate),
-        sql`${debtBalanceLogs.paymentMade} IS NOT NULL`,
+        gte(debtPayments.paidAt, range.startDate),
+        lte(debtPayments.paidAt, range.endDate),
       ),
     );
 
   totalExpenses += Number(outgoingPayments[0]?.amount ?? 0);
-  totalExpenses += Number(debtPayments[0]?.paymentMade ?? 0);
+  totalExpenses += Number(debtPaymentTotals[0]?.paid ?? 0);
 
   return {
     avgIncome: totalIncome / monthsBack,
@@ -365,12 +379,24 @@ async function getCommittedMonthlyExpenses(
 
   const totalOutgoings = outgoings.reduce((sum, o) => sum + Number(o.amount), 0);
 
-  // Get minimum debt payments
+  // Minimum debt payments, preferring the latest statement's actual figure over
+  // the estimate typed in at setup so this matches the debts page total.
+  const latestStatement = db
+    .selectDistinctOn([debtStatements.debtId], {
+      debtId: debtStatements.debtId,
+      minimumPayment: debtStatements.minimumPayment,
+    })
+    .from(debtStatements)
+    .where(eq(debtStatements.userId, userId))
+    .orderBy(desc(debtStatements.debtId), desc(debtStatements.periodEnd))
+    .as("latest_statement");
+
   const debts = await db
     .select({
-      minimumPayment: debtsCredits.minimumPayment,
+      minimumPayment: sql<string | null>`coalesce(${latestStatement.minimumPayment}, ${debtsCredits.minimumPayment})`,
     })
     .from(debtsCredits)
+    .leftJoin(latestStatement, eq(latestStatement.debtId, debtsCredits.id))
     .where(
       and(
         eq(debtsCredits.userId, userId),
@@ -395,7 +421,8 @@ async function getCommittedMonthlyExpenses(
  *
  * Now also includes:
  * - Logged outgoing payments as expenses (category: "Recurring Outgoings" or their outgoing category)
- * - Debt balance-log payments as expenses (category: "Debt Payments")
+ * - Debt payments as expenses (category: "Debt Payments")
+ * - Cost of borrowing (statement interest + fees), reported beside expenses, never inside them
  */
 export async function getAnalytics(
   userId: string,
@@ -507,30 +534,31 @@ export async function getAnalytics(
   }
   totalExpenses += outgoingPaymentsTotal;
 
-  // 4. Debt balance-log payments as expenses
-  const debtPayments = await db
+  // 4. Debt payments as expenses.
+  //
+  // The payment is the expense, not the interest on the statement. Sika counts
+  // cash leaving the bank; the interest charged is already inside that figure,
+  // so adding it here would double-count. Interest is reported separately as
+  // cost of borrowing (see `getCostOfBorrowing` in lib/db/debt-statements.ts).
+  const debtPaymentRows = await db
     .select({
-      paymentMade: debtBalanceLogs.paymentMade,
-      loggedAt: debtBalanceLogs.loggedAt,
-      debtName: debtsCredits.name,
+      amount: debtPayments.amount,
+      paidAt: debtPayments.paidAt,
     })
-    .from(debtBalanceLogs)
-    .innerJoin(debtsCredits, eq(debtBalanceLogs.debtId, debtsCredits.id))
+    .from(debtPayments)
+    .innerJoin(debtsCredits, eq(debtPayments.debtId, debtsCredits.id))
     .where(
       and(
-        eq(debtBalanceLogs.userId, userId),
+        eq(debtPayments.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
-        gte(debtBalanceLogs.loggedAt, range.startDate),
-        lte(debtBalanceLogs.loggedAt, range.endDate),
-        sql`${debtBalanceLogs.paymentMade} IS NOT NULL AND ${debtBalanceLogs.paymentMade} > 0`,
+        gte(debtPayments.paidAt, range.startDate),
+        lte(debtPayments.paidAt, range.endDate),
       ),
     );
 
   let debtPaymentsTotal = 0;
-  for (const row of debtPayments) {
-    if (row.paymentMade) {
-      debtPaymentsTotal += Number(row.paymentMade);
-    }
+  for (const row of debtPaymentRows) {
+    debtPaymentsTotal += Number(row.amount);
   }
 
   if (debtPaymentsTotal > 0) {
@@ -585,16 +613,14 @@ export async function getAnalytics(
   }
 
   // Merge debt payments into daily trends
-  for (const row of debtPayments) {
-    if (row.paymentMade) {
-      const date = row.loggedAt;
-      let entry = dailyMap.get(date);
-      if (!entry) {
-        entry = { date, expenses: 0, givings: 0, income: 0 };
-        dailyMap.set(date, entry);
-      }
-      entry.expenses += Number(row.paymentMade);
+  for (const row of debtPaymentRows) {
+    const date = row.paidAt;
+    let entry = dailyMap.get(date);
+    if (!entry) {
+      entry = { date, expenses: 0, givings: 0, income: 0 };
+      dailyMap.set(date, entry);
     }
+    entry.expenses += Number(row.amount);
   }
 
   const dailyTrends = Array.from(dailyMap.values()).sort((a, b) =>
@@ -637,6 +663,8 @@ export async function getAnalytics(
     daysInPeriod,
   );
 
+  const costOfBorrowing = await getCostOfBorrowing(userId, workspaceId, range);
+
   // Calculate safe-to-spend breakdown
   const committedExpenses = await getCommittedMonthlyExpenses(userId, workspaceId);
   const activeGoalsAllocation = await getActiveGoalsAllocation(userId, workspaceId);
@@ -673,5 +701,6 @@ export async function getAnalytics(
     },
     outgoingPaymentsTotal,
     debtPaymentsTotal,
+    costOfBorrowing,
   };
 }

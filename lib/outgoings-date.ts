@@ -127,6 +127,33 @@ export function getDueState(
 }
 
 /**
+ * The same due picture for an absolute date rather than a repeating day.
+ *
+ * Statement due dates are exact calendar dates, not "the 15th of every month",
+ * so they cannot roll forward the way a recurring bill does: a statement due on
+ * the 3rd and still unpaid on the 20th is overdue, not due again next month.
+ */
+export function getDueStateForDate(
+  dueDate: string,
+  reference: Date = new Date(),
+): DueState | null {
+  const parts = dueDate.split("-").map(Number);
+  if (parts.length !== 3 || parts.some(Number.isNaN)) return null;
+
+  const [year, month, day] = parts;
+  const parsed = new Date(year, month - 1, day);
+  const daysUntilDue = getDaysUntilDue(parsed, reference);
+  const urgency = getDueUrgency(daysUntilDue);
+
+  return {
+    dueDate: parsed,
+    daysUntilDue,
+    urgency,
+    isDueNow: urgency === "overdue" || urgency === "today",
+  };
+}
+
+/**
  * Get urgency level for a due date.
  */
 export type DueUrgency = "overdue" | "today" | "soon" | "upcoming" | "future";

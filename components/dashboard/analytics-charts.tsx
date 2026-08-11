@@ -65,6 +65,12 @@ interface AnalyticsData {
   period: DateRange;
   previousPeriod: DateRange;
   comparisons: AnalyticsComparisons;
+  costOfBorrowing?: {
+    interest: number;
+    fees: number;
+    total: number;
+    statements: number;
+  };
 }
 
 // Every slice is an expense category, so the palette varies Outflow Rose without
@@ -361,11 +367,21 @@ export function AnalyticsCharts() {
   const exportCsv = () => {
     if (!analytics) return;
 
+    const cost = analytics.costOfBorrowing;
+
     const rows = [
       ["Category", "Type", "Amount"],
       ...analytics.incomeByCategoryArray.map((item) => [item.name, "Income", item.value.toString()]),
       ...analytics.expensesByCategoryArray.map((item) => [item.name, "Expense", item.value.toString()]),
       ...analytics.givingsByCategoryArray.map((item) => [item.name, "Giving", item.value.toString()]),
+      // Typed as its own row type, not Expense: the debt payment is already
+      // counted above and this interest sits inside it.
+      ...(cost && cost.interest > 0
+        ? [["Interest charged", "Cost of borrowing", cost.interest.toString()]]
+        : []),
+      ...(cost && cost.fees > 0
+        ? [["Fees charged", "Cost of borrowing", cost.fees.toString()]]
+        : []),
     ];
 
     const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");

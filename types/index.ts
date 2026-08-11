@@ -183,8 +183,11 @@ export interface ApiDebtCredit {
   lender: string | null
   current_balance: number
   credit_limit: number | null
+  /** APR as advertised, on an EAR basis. */
   interest_rate: number | null
   minimum_payment: number | null
+  min_payment_percent: number | null
+  min_payment_floor: number | null
   payment_day_of_month: number | null
   start_date: string | null
   end_date: string | null
@@ -198,10 +201,73 @@ export interface ApiBalanceLog {
   id: string
   debt_id: string
   balance: number
-  payment_made: number | null
   notes: string | null
   logged_at: string
   created_at: string | null
+}
+
+export interface ApiDebtPayment {
+  id: string
+  debt_id: string
+  amount: number
+  paid_at: string
+  notes: string | null
+  created_at: string | null
+}
+
+/** Rate implied by a statement's interest charge. Null when it cannot be derived. */
+export interface ApiDerivedRate {
+  period_rate_percent: number
+  annualised_percent: number
+  basis: number
+  /** True when the basis is an opening/closing midpoint, not a printed figure. */
+  estimated: boolean
+  period_days: number
+}
+
+export interface ApiDebtStatement {
+  id: string
+  debt_id: string
+  period_start: string
+  period_end: string
+  statement_date: string
+  due_date: string | null
+  opening_balance: number
+  closing_balance: number
+  interest_charged: number
+  fees_charged: number
+  new_spending: number | null
+  minimum_payment: number | null
+  balance_subject_to_interest: number | null
+  principal_paid: number | null
+  interest_paid: number | null
+  notes: string | null
+  payments_in_period: number
+  residual: number
+  residual_significant: boolean
+  advertised_apr: number | null
+  rate: ApiDerivedRate | null
+  created_at: string | null
+}
+
+export interface ApiStatementDraft {
+  period_start: string | null
+  opening_balance: number
+  suggested_minimum: number | null
+  has_previous: boolean
+}
+
+/** Next expected payment for a debt, for the dashboard due-date panels. */
+export interface ApiUpcomingDebtPayment {
+  id: string
+  name: string
+  debt_type: DebtType
+  current_balance: number
+  due_date: string | null
+  payment_day_of_month: number | null
+  amount: number | null
+  /** True when `amount` came from a statement rather than a forecast. */
+  amount_is_actual: boolean
 }
 
 // ─── Loans Given ─────────────────────────────────────────────────────────────

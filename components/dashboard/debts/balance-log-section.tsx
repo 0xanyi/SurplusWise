@@ -37,7 +37,6 @@ export function BalanceLogSection({ debtId, onChanged }: BalanceLogSectionProps)
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     balance: "",
-    paymentMade: "",
     notes: "",
     loggedAt: new Date().toISOString().split("T")[0],
   });
@@ -50,10 +49,6 @@ export function BalanceLogSection({ debtId, onChanged }: BalanceLogSectionProps)
       return;
     }
 
-    const paymentMade = formData.paymentMade
-      ? Number.parseFloat(formData.paymentMade)
-      : null;
-
     setSaving(true);
     try {
       await apiFetch(`/api/debts-credits/${debtId}/balance-logs`, {
@@ -61,7 +56,6 @@ export function BalanceLogSection({ debtId, onChanged }: BalanceLogSectionProps)
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           balance,
-          paymentMade: paymentMade !== null && !Number.isNaN(paymentMade) ? paymentMade : null,
           notes: formData.notes || null,
           loggedAt: formData.loggedAt,
         }),
@@ -71,7 +65,6 @@ export function BalanceLogSection({ debtId, onChanged }: BalanceLogSectionProps)
       setIsAddOpen(false);
       setFormData({
         balance: "",
-        paymentMade: "",
         notes: "",
         loggedAt: new Date().toISOString().split("T")[0],
       });
@@ -88,11 +81,13 @@ export function BalanceLogSection({ debtId, onChanged }: BalanceLogSectionProps)
   const logs = data?.logs ?? [];
 
   return (
-    <div className="space-y-3 border-t border-border/50 pt-3 mt-3">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
+        {/* "Snapshots", not "Balance history": payments and statements moved out,
+            so these rows are only ever a reading taken on a day. */}
         <h4 className="text-sm font-medium flex items-center gap-1.5">
           <History className="size-3.5" />
-          Balance History
+          Snapshots
         </h4>
         <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
           <DialogTrigger asChild>
@@ -119,20 +114,6 @@ export function BalanceLogSection({ debtId, onChanged }: BalanceLogSectionProps)
                     setFormData((prev) => ({ ...prev, balance: e.target.value }))
                   }
                   required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="log-payment">Payment Made (optional)</Label>
-                <Input
-                  id="log-payment"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={formData.paymentMade}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, paymentMade: e.target.value }))
-                  }
                 />
               </div>
               <div className="space-y-2">
@@ -188,7 +169,7 @@ export function BalanceLogSection({ debtId, onChanged }: BalanceLogSectionProps)
         </div>
       ) : logs.length === 0 ? (
         <p className="text-xs text-muted-foreground text-center py-2">
-          No balance history yet
+          No snapshots yet
         </p>
       ) : (
         <div className="space-y-1.5 max-h-48 overflow-y-auto">
@@ -206,14 +187,6 @@ export function BalanceLogSection({ debtId, onChanged }: BalanceLogSectionProps)
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {new Date(log.logged_at).toLocaleDateString("en-GB")}
-                    {(log.payment_made ?? 0) > 0 && (
-                      <span className="ml-2">
-                        Paid: {formatCurrency(log.payment_made!)}
-                        <span className="ml-1 text-foreground">
-                          → counted as expense
-                        </span>
-                      </span>
-                    )}
                   </p>
                 </div>
                 {change !== null && (
