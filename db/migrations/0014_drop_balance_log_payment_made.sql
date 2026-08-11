@@ -1,0 +1,14 @@
+-- DESTRUCTIVE. Do not merge until a release carrying migration 0013 has shipped.
+--
+-- 0013 created `debt_payments`, backfilled every `payment_made` value into it,
+-- and stopped the application reading or writing this column. That left the
+-- column populated but unused so a rollback to the previous image would still
+-- find its data.
+--
+-- Once the 0013 release is the oldest image anyone would roll back to, the
+-- column is dead weight and this drops it. There is no going back afterwards:
+-- the data lives in `debt_payments` and only there.
+--
+-- The Drizzle snapshot has recorded this column as absent since 0013, so no
+-- schema change accompanies this migration.
+ALTER TABLE "debt_balance_logs" DROP COLUMN IF EXISTS "payment_made";
