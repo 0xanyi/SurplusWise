@@ -51,6 +51,7 @@ export interface ApiTransaction {
   date: string
   type: TransactionType
   category: string
+  client_id: string | null
   notes: string | null
   tags: string[]
   receipt_url: string | null
@@ -139,6 +140,55 @@ export function getErrorMessage(error: unknown): string {
   return 'An unexpected error occurred'
 }
 
+// ─── Clients / People ────────────────────────────────────────────────────────
+
+/**
+ * How a cost carried for a client comes back. `none` is the workspace's own
+ * overhead; `bundled` is covered by a retainer and so expects no separate
+ * recovery. See `lib/rebill.ts`.
+ */
+export type RebillMode = 'none' | 'at_cost' | 'fixed' | 'bundled'
+
+export interface ApiClient {
+  id: string
+  name: string
+  contact_email: string | null
+  notes: string | null
+  is_active: boolean
+  /** Active recurring costs carried for this client. */
+  service_count: number
+  /** What those cost per month at the current schedule. */
+  monthly_fronted: number
+  /** Everything ever paid out on their behalf. */
+  fronted: number
+  /** Everything ever received from them. */
+  received: number
+  /** What the fronted costs were supposed to bring back. */
+  expected_recovery: number
+  /** The shortfall, floored at zero. Cumulative, so timing differences wash out. */
+  not_yet_recovered: number
+  /** Received minus fronted. Negative means they are costing you money. */
+  margin: number
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface ApiClientService {
+  id: string
+  name: string
+  amount: number
+  day_of_month: number
+  frequency: OutgoingFrequency
+  category: string | null
+  vendor: string | null
+  rebill_mode: RebillMode
+  rebill_amount: number | null
+  /** What one cycle is expected to bring back; null when nothing is. */
+  expected_per_cycle: number | null
+  is_pass_through: boolean
+  is_active: boolean
+}
+
 // ─── Recurring Outgoings ─────────────────────────────────────────────────────
 
 export type OutgoingFrequency = 'monthly' | 'quarterly' | 'yearly'
@@ -150,6 +200,11 @@ export interface ApiRecurringOutgoing {
   day_of_month: number
   frequency: OutgoingFrequency
   category: string | null
+  vendor: string | null
+  client_id: string | null
+  client_name: string | null
+  rebill_mode: RebillMode
+  rebill_amount: number | null
   notes: string | null
   is_active: boolean
   created_at: string | null

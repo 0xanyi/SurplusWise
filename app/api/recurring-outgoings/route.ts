@@ -1,9 +1,9 @@
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as outgoingsService from "@/lib/db/recurring-outgoings";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
+import { errorResponse } from "@/lib/api-errors";
 import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
 import { NextRequest, NextResponse } from "next/server";
-import { ZodError } from "zod";
 
 function toOutgoing(row: Record<string, unknown>) {
   return {
@@ -13,6 +13,11 @@ function toOutgoing(row: Record<string, unknown>) {
     day_of_month: row.dayOfMonth,
     frequency: row.frequency,
     category: row.category,
+    vendor: row.vendor ?? null,
+    client_id: row.clientId ?? null,
+    client_name: row.clientName ?? null,
+    rebill_mode: row.rebillMode ?? "none",
+    rebill_amount: row.rebillAmount == null ? null : Number(row.rebillAmount),
     notes: row.notes,
     is_active: row.isActive,
     created_at: row.createdAt,
@@ -53,18 +58,15 @@ export async function GET() {
     return NextResponse.json({
       outgoings: outgoingsWithStatus,
       monthly_total: summary.total,
+      // The two halves of monthly_total: what the workspace carries itself and
+      // what it fronts for someone. Never netted against each other.
+      monthly_overhead: summary.overhead,
+      monthly_pass_through: summary.passThrough,
       active_count: summary.count,
       period_month: periodMonth,
     });
   } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    console.error("Failed to fetch recurring outgoings:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch recurring outgoings" },
-      { status: 500 },
-    );
+    return errorResponse(error, "Failed to fetch recurring outgoings");
   }
 }
 
@@ -79,24 +81,15 @@ export async function POST(request: NextRequest) {
       dayOfMonth: body.dayOfMonth ?? body.day_of_month,
       frequency: body.frequency,
       category: body.category,
+      vendor: body.vendor,
+      clientId: body.clientId ?? body.client_id,
+      rebillMode: body.rebillMode ?? body.rebill_mode,
+      rebillAmount: body.rebillAmount ?? body.rebill_amount,
       notes: body.notes,
     });
 
     return NextResponse.json({ id: row.id });
   } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (error instanceof ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0]?.message ?? "Validation error" },
-        { status: 400 },
-      );
-    }
-    console.error("Failed to create recurring outgoing:", error);
-    return NextResponse.json(
-      { error: "Failed to create recurring outgoing" },
-      { status: 500 },
-    );
+    return errorResponse(error, "Failed to create recurring outgoing");
   }
 }
