@@ -5,6 +5,7 @@
  * but adds runtime constraints (min lengths, positive amounts, date formats, etc.).
  */
 import { z } from "zod";
+import { INTEREST_BUCKET_TYPES, MAX_INTEREST_BUCKETS } from "@/lib/debt-interest";
 
 // ─── Shared primitives ───────────────────────────────────────────────────────
 
@@ -363,6 +364,42 @@ export const debtPaymentCreateSchema = z.object({
   notes: z.string().nullish(),
 });
 
+// ─── Per-APR interest buckets ────────────────────────────────────────────────
+//
+// A statement may carry several APR lines (a 0% balance transfer next to
+// purchases). Buckets accept camelCase or snake_case keys, matching the
+// statement routes' convention of accepting both for top-level fields.
+
+export const interestBucketSchema = z.preprocess(
+  (value) => {
+    if (value && typeof value === "object" && !Array.isArray(value)) {
+      const v = value as Record<string, unknown>;
+      return {
+        type: v.type,
+        label: v.label,
+        balanceSubjectToInterest:
+          v.balanceSubjectToInterest ?? v.balance_subject_to_interest,
+        interestCharged: v.interestCharged ?? v.interest_charged,
+        apr: v.apr,
+      };
+    }
+    return value;
+  },
+  z.object({
+    type: z.enum(INTEREST_BUCKET_TYPES),
+    // Trim before the length check so trailing space cannot reject a label.
+    label: z.string().trim().max(60).nullish(),
+    balanceSubjectToInterest: z.number().min(0),
+    interestCharged: z.number().min(0),
+    apr: z.number().min(0).nullish(),
+  }),
+);
+
+const interestBreakdownSchema = z
+  .array(interestBucketSchema)
+  .max(MAX_INTEREST_BUCKETS)
+  .nullish();
+
 const debtStatementFields = {
   periodStart: dateStringSchema,
   periodEnd: dateStringSchema,
@@ -375,6 +412,7 @@ const debtStatementFields = {
   newSpending: z.number().min(0).nullish(),
   minimumPayment: z.number().min(0).nullish(),
   balanceSubjectToInterest: z.number().min(0).nullish(),
+  interestBreakdown: interestBreakdownSchema,
   principalPaid: z.number().min(0).nullish(),
   interestPaid: z.number().min(0).nullish(),
   notes: z.string().nullish(),
@@ -400,6 +438,7 @@ export const debtStatementUpdateSchema = z
     newSpending: z.number().min(0).nullish(),
     minimumPayment: z.number().min(0).nullish(),
     balanceSubjectToInterest: z.number().min(0).nullish(),
+    interestBreakdown: interestBreakdownSchema,
     principalPaid: z.number().min(0).nullish(),
     interestPaid: z.number().min(0).nullish(),
     notes: z.string().nullish(),

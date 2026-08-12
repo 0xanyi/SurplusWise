@@ -19,6 +19,8 @@ import {
   budgetUpdateSchema,
   analyticsPeriodSchema,
   analyticsQuerySchema,
+  debtStatementCreateSchema,
+  debtStatementUpdateSchema,
 } from "./validation";
 
 // ─── Shared primitives ───────────────────────────────────────────────────────
@@ -472,5 +474,155 @@ describe("analyticsQuerySchema", () => {
         endDate: "2025-05-15",
       }),
     );
+  });
+});
+
+// ─── Debt statement interest breakdown ───────────────────────────────────────
+
+const validStatement = {
+  periodStart: "2026-05-01",
+  periodEnd: "2026-05-31",
+  statementDate: "2026-05-31",
+  openingBalance: 1000,
+  closingBalance: 900,
+};
+
+const btBucket = {
+  type: "balance_transfer",
+  balanceSubjectToInterest: 2000,
+  interestCharged: 0,
+  apr: 0,
+};
+
+describe("debtStatementCreateSchema interestBreakdown", () => {
+  it("accepts a statement without a breakdown", () => {
+    const parsed = debtStatementCreateSchema.parse(validStatement);
+    assert.strictEqual(parsed.interestBreakdown, undefined);
+  });
+
+  it("accepts a valid breakdown", () => {
+    const parsed = debtStatementCreateSchema.parse({
+      ...validStatement,
+      interestBreakdown: [
+        btBucket,
+        {
+          type: "purchases",
+          label: "Everyday spend",
+          balanceSubjectToInterest: 500,
+          interestCharged: 10.5,
+        },
+      ],
+    });
+    assert.strictEqual(parsed.interestBreakdown?.length, 2);
+  });
+
+  it("accepts snake_case bucket keys and normalises them to camelCase", () => {
+    const parsed = debtStatementCreateSchema.parse({
+      ...validStatement,
+      interestBreakdown: [
+        {
+          type: "purchases",
+          balance_subject_to_interest: 500,
+          interest_charged: 10.5,
+        },
+      ],
+    });
+    const bucket = parsed.interestBreakdown?.[0];
+    assert.strictEqual(bucket?.type, "purchases");
+    assert.strictEqual(bucket?.balanceSubjectToInterest, 500);
+    assert.strictEqual(bucket?.interestCharged, 10.5);
+  });
+
+  it("rejects a bad bucket type", () => {
+    assert.throws(() =>
+      debtStatementCreateSchema.parse({
+        ...validStatement,
+        interestBreakdown: [
+          { type: "mortgage", balanceSubjectToInterest: 1, interestCharged: 1 },
+        ],
+      }),
+    );
+  });
+
+  it("rejects negative and non-finite bucket figures", () => {
+    assert.throws(() =>
+      debtStatementCreateSchema.parse({
+        ...validStatement,
+        interestBreakdown: [
+          { type: "purchases", balanceSubjectToInterest: -1, interestCharged: 1 },
+        ],
+      }),
+    );
+    assert.throws(() =>
+      debtStatementCreateSchema.parse({
+        ...validStatement,
+        interestBreakdown: [
+          {
+            type: "purchases",
+            balanceSubjectToInterest: 100,
+            interestCharged: Number.POSITIVE_INFINITY,
+          },
+        ],
+      }),
+    );
+  });
+
+  it("rejects more than 8 buckets", () => {
+    const bucket = { type: "other", balanceSubjectToInterest: 1, interestCharged: 1 };
+    assert.throws(() =>
+      debtStatementCreateSchema.parse({
+        ...validStatement,
+        interestBreakdown: Array.from({ length: 9 }, () => bucket),
+      }),
+    );
+    assert.doesNotThrow(() =>
+      debtStatementCreateSchema.parse({
+        ...validStatement,
+        interestBreakdown: Array.from({ length: 8 }, () => bucket),
+      }),
+    );
+  });
+
+  it("trims labels before the 60-char limit and rejects overlong ones", () => {
+    const padded = `${"x".repeat(59)}   `;
+    const parsed = debtStatementCreateSchema.parse({
+      ...validStatement,
+      interestBreakdown: [
+        { type: "other", label: padded, balanceSubjectToInterest: 1, interestCharged: 1 },
+      ],
+    });
+    assert.strictEqual(parsed.interestBreakdown?.[0].label, "x".repeat(59));
+
+    assert.throws(() =>
+      debtStatementCreateSchema.parse({
+        ...validStatement,
+        interestBreakdown: [
+          {
+            type: "other",
+            label: "x".repeat(61),
+            balanceSubjectToInterest: 1,
+            interestCharged: 1,
+          },
+        ],
+      }),
+    );
+  });
+
+  it("update schema distinguishes omitted, null (clear), and replace", () => {
+    assert.strictEqual(
+      debtStatementUpdateSchema.parse({ notes: "x" }).interestBreakdown,
+      undefined,
+    );
+    assert.strictEqual(
+      debtStatementUpdateSchema.parse({ interestBreakdown: null }).interestBreakdown,
+      null,
+    );
+    assert.strictEqual(
+      debtStatementUpdateSchema.parse({ interestBreakdown: [btBucket] })
+        .interestBreakdown?.length,
+      1,
+    );
+    // An empty patch is still rejected
+    assert.throws(() => debtStatementUpdateSchema.parse({}));
   });
 });
