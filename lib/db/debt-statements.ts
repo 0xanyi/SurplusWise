@@ -11,11 +11,16 @@ import {
 } from "./validation";
 import {
   deriveRate,
+  deriveBucketRate,
   forecastMinimumPayment,
   getPaymentWindowStart,
+  getRateVariance,
   getStatementResidual,
   isResidualSignificant,
   isRevolvingDebt,
+  normaliseInterestBreakdown,
+  sumInterestBreakdown,
+  type InterestBucket,
 } from "@/lib/debt-interest";
 import { syncCurrentBalance } from "./debts-credits";
 
@@ -33,6 +38,7 @@ export interface StatementInput {
   newSpending?: number | null;
   minimumPayment?: number | null;
   balanceSubjectToInterest?: number | null;
+  interestBreakdown?: InterestBucket[] | null;
   principalPaid?: number | null;
   interestPaid?: number | null;
   notes?: string | null;
@@ -44,6 +50,14 @@ export interface PaymentInput {
   amount: number;
   paidAt: string;
   notes?: string | null;
+}
+
+/** A stored bucket enriched with the rate it implies for the statement period. */
+export interface EnrichedInterestBucket extends InterestBucket {
+  label: string | null;
+  apr: number | null;
+  rate: ReturnType<typeof deriveBucketRate>;
+  rateVariance: number | null;
 }
 
 function genId() {
@@ -121,6 +135,18 @@ export async function listStatements(userId: string, debtId: string) {
       paymentsInPeriod,
     });
 
+    const interestBreakdown: EnrichedInterestBucket[] | null =
+      row.interestBreakdown?.map((bucket) => {
+        const bucketRate = deriveBucketRate(bucket, row.periodStart, row.periodEnd);
+        return {
+          ...bucket,
+          label: bucket.label ?? null,
+          apr: bucket.apr ?? null,
+          rate: bucketRate,
+          rateVariance: getRateVariance(bucketRate, bucket.apr),
+        };
+      }) ?? null;
+
     return {
       ...row,
       openingBalance,
@@ -130,6 +156,7 @@ export async function listStatements(userId: string, debtId: string) {
       newSpending: num(row.newSpending),
       minimumPayment: num(row.minimumPayment),
       balanceSubjectToInterest: num(row.balanceSubjectToInterest),
+      interestBreakdown,
       principalPaid: num(row.principalPaid),
       interestPaid: num(row.interestPaid),
       paymentsInPeriod,
@@ -198,6 +225,11 @@ export async function createStatement(userId: string, debtId: string, input: Sta
   const parsed = debtStatementCreateSchema.parse(input);
   await assertOwnership(userId, debtId);
 
+  // When a split is supplied the buckets are the source of truth: statement
+  // totals are their sums, whatever the client sent.
+  const breakdown = normaliseInterestBreakdown(parsed.interestBreakdown);
+  const sums = breakdown ? sumInterestBreakdown(breakdown) : null;
+
   const now = new Date();
   return db.transaction(async (tx) => {
     const [inserted] = await tx
@@ -212,14 +244,17 @@ export async function createStatement(userId: string, debtId: string, input: Sta
         dueDate: parsed.dueDate ?? null,
         openingBalance: String(parsed.openingBalance),
         closingBalance: String(parsed.closingBalance),
-        interestCharged: String(parsed.interestCharged),
+        interestCharged: String(sums?.interestCharged ?? parsed.interestCharged),
         feesCharged: String(parsed.feesCharged),
         newSpending: parsed.newSpending != null ? String(parsed.newSpending) : null,
         minimumPayment: parsed.minimumPayment != null ? String(parsed.minimumPayment) : null,
         balanceSubjectToInterest:
-          parsed.balanceSubjectToInterest != null
-            ? String(parsed.balanceSubjectToInterest)
-            : null,
+          sums != null
+            ? String(sums.balanceSubjectToInterest)
+            : parsed.balanceSubjectToInterest != null
+              ? String(parsed.balanceSubjectToInterest)
+              : null,
+        interestBreakdown: breakdown,
         principalPaid: parsed.principalPaid != null ? String(parsed.principalPaid) : null,
         interestPaid: parsed.interestPaid != null ? String(parsed.interestPaid) : null,
         notes: parsed.notes ?? null,
@@ -270,6 +305,14 @@ export async function updateStatement(
     throw new Error("period end must not be before period start");
   }
 
+  // A provided breakdown replaces the whole split; null or [] clears it. When
+  // a split is supplied its sums win over any totals in the same patch.
+  const breakdownProvided = parsed.interestBreakdown !== undefined;
+  const breakdown = breakdownProvided
+    ? normaliseInterestBreakdown(parsed.interestBreakdown)
+    : undefined;
+  const sums = breakdown ? sumInterestBreakdown(breakdown) : null;
+
   const str = (v: number | null | undefined) => (v != null ? String(v) : null);
 
   return db.transaction(async (tx) => {
@@ -296,6 +339,12 @@ export async function updateStatement(
         }),
         ...(parsed.balanceSubjectToInterest !== undefined && {
           balanceSubjectToInterest: str(parsed.balanceSubjectToInterest),
+        }),
+        // After the plain totals so bucket sums win when both are patched.
+        ...(breakdownProvided && { interestBreakdown: breakdown ?? null }),
+        ...(sums != null && { interestCharged: String(sums.interestCharged) }),
+        ...(sums != null && {
+          balanceSubjectToInterest: String(sums.balanceSubjectToInterest),
         }),
         ...(parsed.principalPaid !== undefined && { principalPaid: str(parsed.principalPaid) }),
         ...(parsed.interestPaid !== undefined && { interestPaid: str(parsed.interestPaid) }),
