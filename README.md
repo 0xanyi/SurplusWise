@@ -89,7 +89,7 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - ✅ Date range filtering with database-level optimization
 - ✅ Optional financial account assignment with pending/cleared/reconciled status
 - ✅ Asset and liability balances, transfers, and statement reconciliation
-- ✅ Bank-style CSV import with reusable account mappings, payees, and duplicate review
+- ✅ CSV, OFX/QFX, QIF, and CAMT.053 imports with payees and duplicate review
 - 🤖 AI-powered receipt scanning with OpenAI Vision
 - ✅ Receipt upload and storage via S3-compatible storage
 

@@ -10,6 +10,8 @@ All notable changes to Sika will be documented in this file.
   notes, including manual entry, receipt scanning, search, and CSV import
 - CSV mappings can now be saved per financial account and reused or updated on
   later imports
+- Bank statements can now be imported directly from OFX/QFX, QIF, and CAMT.053
+  files through the same duplicate review and reconciliation safeguards as CSV
 
 ### Bank-friendly transaction imports
 

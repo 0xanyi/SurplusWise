@@ -4,10 +4,12 @@ import * as txService from "@/lib/db/transactions";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   analyzeTransactionImport,
+  detectTransactionImportFormat,
   type TransactionImportField,
   type TransactionImportMapping,
   UNMAPPED_IMPORT_COLUMN,
 } from "@/lib/transaction-import";
+import { analyzeStructuredTransactionImport } from "@/lib/structured-transaction-import";
 
 function getMappingValue(formData: FormData, field: TransactionImportField) {
   const value = formData.get(`mapping:${field}`);
@@ -37,10 +39,11 @@ export async function POST(request: NextRequest) {
     const action = formData.get("action") === "preview" ? "preview" : "commit";
 
     if (!file || !(file instanceof File)) {
-      return NextResponse.json({ error: "No CSV file provided" }, { status: 400 });
+      return NextResponse.json({ error: "No transaction file provided" }, { status: 400 });
     }
 
     const text = await file.text();
+    const format = detectTransactionImportFormat(file.name, text);
     const mapping: TransactionImportMapping = {
       date: getMappingValue(formData, "date"),
       amount: getMappingValue(formData, "amount"),
@@ -54,7 +57,9 @@ export async function POST(request: NextRequest) {
       externalId: getMappingValue(formData, "externalId"),
     };
 
-    const analysis = analyzeTransactionImport(text, mapping);
+    const analysis = format === "csv"
+      ? analyzeTransactionImport(text, mapping)
+      : analyzeStructuredTransactionImport(text, format);
 
     if (analysis.missingRequiredMappings.length > 0) {
       return NextResponse.json(
@@ -108,7 +113,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to import CSV" },
+      { error: error instanceof Error ? error.message : "Failed to import transactions" },
       { status: 500 },
     );
   }
