@@ -10,6 +10,8 @@ function toTransaction(row: NonNullable<Awaited<ReturnType<typeof txService.getB
     amount: Number(row.amount),
     date: row.date,
     type: row.type,
+    account_id: row.accountId ?? null,
+    status: row.status,
     category: row.category,
     client_id: row.clientId ?? null,
     notes: row.notes ?? null,
@@ -68,6 +70,9 @@ export async function PATCH(
       ...(body.amount !== undefined && { amount: body.amount }),
       ...(body.date !== undefined && { date: body.date }),
       ...(body.type !== undefined && { type: body.type }),
+      ...("accountId" in body && { accountId: body.accountId }),
+      ...("account_id" in body && { accountId: body.account_id }),
+      ...(body.status !== undefined && { status: body.status }),
       ...(body.category !== undefined && { category: body.category }),
       // `in` rather than `??` so an explicit null clears the attribution.
       ...("clientId" in body && { clientId: body.clientId }),

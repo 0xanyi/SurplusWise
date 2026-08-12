@@ -43,6 +43,16 @@ export const dateStringSchema = z
 export const amountSchema = z.number().positive("amount must be positive");
 
 export const transactionTypeSchema = z.enum(["expense", "giving", "income"]);
+export const transactionStatusSchema = z.enum(["pending", "cleared", "reconciled"]);
+export const financialAccountClassSchema = z.enum(["asset", "liability"]);
+export const financialAccountTypeSchema = z.enum([
+  "checking",
+  "savings",
+  "cash",
+  "credit_card",
+  "loan",
+  "other",
+]);
 
 // ─── Pagination primitives ────────────────────────────────────────────────────
 
@@ -125,10 +135,56 @@ export const clientUpdateSchema = z
 
 // ─── Transactions ────────────────────────────────────────────────────────────
 
+export const financialAccountCreateSchema = z
+  .object({
+    name: z.string().trim().min(1, "name is required").max(100),
+    accountClass: financialAccountClassSchema,
+    accountType: financialAccountTypeSchema,
+    currency: currencySchema,
+    openingBalance: z.number().min(0, "openingBalance cannot be negative"),
+    openingDate: dateStringSchema,
+  })
+  .refine(
+    (data) =>
+      data.accountType === "other" ||
+      (["checking", "savings", "cash"].includes(data.accountType)
+        ? data.accountClass === "asset"
+        : data.accountClass === "liability"),
+    { message: "account type does not match its asset or liability class" },
+  );
+
+export const financialAccountUpdateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100).optional(),
+    isActive: z.boolean().optional(),
+  })
+  .refine((data) => data.name !== undefined || data.isActive !== undefined, {
+    message: "At least one field must be provided for update",
+  });
+
+export const accountTransferCreateSchema = z
+  .object({
+    fromAccountId: idSchema,
+    toAccountId: idSchema,
+    amount: amountSchema,
+    date: dateStringSchema,
+    notes: z.string().max(2000).nullish(),
+  })
+  .refine((data) => data.fromAccountId !== data.toAccountId, {
+    message: "Transfer accounts must be different",
+  });
+
+export const accountReconciliationSchema = z.object({
+  statementDate: dateStringSchema,
+  statementBalance: z.number().min(0, "statementBalance cannot be negative"),
+});
+
 export const transactionCreateSchema = z.object({
   amount: amountSchema,
   date: dateStringSchema,
   type: transactionTypeSchema,
+  accountId: idSchema.nullish(),
+  status: transactionStatusSchema.optional().default("cleared"),
   category: z.string().min(1, "category is required"),
   clientId: idSchema.nullish(),
   notes: z.string().nullish(),
@@ -140,6 +196,8 @@ export const transactionUpdateSchema = z.object({
   amount: amountSchema.optional(),
   date: dateStringSchema.optional(),
   type: transactionTypeSchema.optional(),
+  accountId: idSchema.nullish(),
+  status: transactionStatusSchema.optional(),
   category: z.string().min(1).optional(),
   clientId: idSchema.nullish(),
   notes: z.string().nullish(),
@@ -150,6 +208,8 @@ export const transactionUpdateSchema = z.object({
 export const transactionListFiltersSchema = z
   .object({
     type: transactionTypeSchema.optional(),
+    accountId: idSchema.optional(),
+    status: transactionStatusSchema.optional(),
     category: z.string().optional(),
     clientId: idSchema.optional(),
     tag: z.string().trim().min(1).max(30).optional(),

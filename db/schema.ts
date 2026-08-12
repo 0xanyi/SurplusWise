@@ -28,6 +28,26 @@ export const transactionTypeEnum = pgEnum("transaction_type", [
   "giving",
 ]);
 
+export const transactionStatusEnum = pgEnum("transaction_status", [
+  "pending",
+  "cleared",
+  "reconciled",
+]);
+
+export const financialAccountClassEnum = pgEnum("financial_account_class", [
+  "asset",
+  "liability",
+]);
+
+export const financialAccountTypeEnum = pgEnum("financial_account_type", [
+  "checking",
+  "savings",
+  "cash",
+  "credit_card",
+  "loan",
+  "other",
+]);
+
 export const budgetPeriodEnum = pgEnum("budget_period", [
   "monthly",
   "quarterly",
@@ -296,6 +316,75 @@ export const clients = pgTable(
 
 // ─── Domain tables ───────────────────────────────────────────────────────────
 
+export const financialAccounts = pgTable(
+  "financial_accounts",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    accountClass: financialAccountClassEnum("account_class").notNull(),
+    accountType: financialAccountTypeEnum("account_type").notNull(),
+    currency: text("currency").notNull(),
+    openingBalance: decimal("opening_balance", { precision: 14, scale: 2 })
+      .notNull()
+      .default("0"),
+    openingDate: date("opening_date", { mode: "string" }).notNull(),
+    reconciledBalance: decimal("reconciled_balance", { precision: 14, scale: 2 }),
+    reconciledAt: date("reconciled_at", { mode: "string" }),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_financial_accounts_workspace_active").on(t.workspaceId, t.isActive),
+    uniqueIndex("idx_financial_accounts_workspace_name").on(t.workspaceId, t.name),
+  ],
+);
+
+/**
+ * Transfers are deliberately separate from transactions. Moving money between
+ * accounts changes balances but is neither income, expense, nor giving, so it
+ * must never enter those reports or budgets.
+ */
+export const accountTransfers = pgTable(
+  "account_transfers",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    fromAccountId: text("from_account_id")
+      .notNull()
+      .references(() => financialAccounts.id, { onDelete: "restrict" }),
+    toAccountId: text("to_account_id")
+      .notNull()
+      .references(() => financialAccounts.id, { onDelete: "restrict" }),
+    amount: decimal("amount", { precision: 14, scale: 2 }).notNull(),
+    date: date("date", { mode: "string" }).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_account_transfers_workspace_date").on(t.workspaceId, t.date),
+    index("idx_account_transfers_from_date").on(t.fromAccountId, t.date),
+    index("idx_account_transfers_to_date").on(t.toAccountId, t.date),
+    check(
+      "chk_account_transfers_different_accounts",
+      sql`${t.fromAccountId} <> ${t.toAccountId}`,
+    ),
+    check("chk_account_transfers_positive_amount", sql`${t.amount} > 0`),
+  ],
+);
+
 export const transactions = pgTable(
   "transactions",
   {
@@ -305,9 +394,13 @@ export const transactions = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id")
       .references(() => workspaces.id, { onDelete: "cascade" }),
+    accountId: text("account_id").references(() => financialAccounts.id, {
+      onDelete: "set null",
+    }),
     amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
     date: date("date", { mode: "string" }).notNull(),
     type: transactionTypeEnum("type").notNull(),
+    status: transactionStatusEnum("status").notNull().default("cleared"),
     category: text("category").notNull(),
     // Attributes a one-off movement to a client: a project fee invoiced once, a
     // licence bought for them that will never recur. Recurring money lives on
@@ -317,13 +410,19 @@ export const transactions = pgTable(
     notes: text("notes"),
     tags: jsonb("tags").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     receiptStorageId: text("receipt_storage_id"),
+    importFingerprint: text("import_fingerprint"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("idx_transactions_user_date").on(t.userId, t.date.desc()),
     index("idx_transactions_user_type_date").on(t.userId, t.type, t.date.desc()),
+    index("idx_transactions_account_date").on(t.accountId, t.date.desc()),
     index("idx_transactions_workspace_client").on(t.workspaceId, t.clientId),
+    uniqueIndex("idx_transactions_workspace_import_fingerprint").on(
+      t.workspaceId,
+      t.importFingerprint,
+    ),
   ],
 );
 

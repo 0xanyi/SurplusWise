@@ -4,6 +4,32 @@ All notable changes to Sika will be documented in this file.
 
 ## [Unreleased]
 
+### Bank-friendly transaction imports
+
+- CSV imports now accept either signed amounts or separate debit and credit
+  columns, infer income and expense direction, and default missing categories to
+  `Uncategorized`
+- Added bank-reference mapping and stable, account-scoped import fingerprints
+- Imports now have an explicit duplicate-check step and skip both repeated rows
+  in one file and transactions imported previously
+
+### Financial accounts and reconciliation
+
+- Added workspace-scoped asset and liability accounts with opening balances,
+  cleared balances, and projected balances that include pending transactions
+- Transactions can be assigned to an account and marked pending, cleared, or
+  reconciled; existing transactions remain unassigned rather than being guessed
+  into a fabricated account
+- Added linked transfers. They update both account balances but never enter
+  income, expense, giving, budget, or report totals
+- Added statement reconciliation. A reconciliation succeeds only when the
+  cleared ledger agrees with the statement, then locks the reconciled money from
+  edits and deletion
+- Added an Accounts page, transaction account/status filters, import targeting,
+  and account balances in the net-worth rollup
+
+See `docs/PRODUCT_ROADMAP.md` for the dependency-ordered programme this begins.
+
 ### Clients, and the costs you carry for them
 
 - **New Clients page** at `/dashboard/clients` — everyone you front costs for,

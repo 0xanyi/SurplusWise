@@ -1,0 +1,2 @@
+ALTER TABLE "transactions" ADD COLUMN "import_fingerprint" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_transactions_workspace_import_fingerprint" ON "transactions" USING btree ("workspace_id","import_fingerprint");

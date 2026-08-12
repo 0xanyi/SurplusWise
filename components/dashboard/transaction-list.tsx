@@ -2,15 +2,21 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, FileText, Pencil, Search, Trash2, TrendingUp } from "lucide-react";
-import type { TransactionType, ApiTransaction } from "@/types";
+import type {
+  ApiFinancialAccount,
+  ApiTransaction,
+  TransactionStatus,
+  TransactionType,
+} from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
-import { apiFetch } from "@/hooks/use-api";
+import { apiFetch, useApiQuery } from "@/hooks/use-api";
 import { formatCurrency, cn } from "@/lib/utils";
 import { formatSignedAmount, moneyTypeTone } from "@/lib/money-type";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TransactionForm } from "./transaction-form";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -18,6 +24,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 const PAGE_SIZE = 20;
 
 type TypeFilter = "all" | TransactionType;
+type StatusFilter = "all" | TransactionStatus;
 
 const typeFilterOptions: { label: string; value: TypeFilter }[] = [
   { label: "All", value: "all" },
@@ -48,6 +55,14 @@ const TX_COLUMNS = "minmax(0,1fr) 130px 100px 110px 84px";
 
 export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   const { toast } = useToast();
+  const { data: accountData } = useApiQuery<{ accounts: ApiFinancialAccount[] }>(
+    "/api/financial-accounts",
+  );
+  const accounts = useMemo(() => accountData?.accounts ?? [], [accountData?.accounts]);
+  const accountNames = useMemo(
+    () => new Map(accounts.map((account) => [account.id, account.name])),
+    [accounts],
+  );
 
   const [transactions, setTransactions] = useState<ApiTransaction[]>([]);
   const [page, setPage] = useState(0);
@@ -60,6 +75,8 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [accountFilter, setAccountFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [tagFilter, setTagFilter] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -72,11 +89,13 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
       params.set("page", String(pageNum));
       params.set("pageSize", String(PAGE_SIZE));
       if (typeFilter !== "all") params.set("type", typeFilter);
+      if (accountFilter !== "all") params.set("accountId", accountFilter);
+      if (statusFilter !== "all") params.set("status", statusFilter);
       if (tagFilter.trim()) params.set("tag", tagFilter.trim());
       if (debouncedSearch) params.set("search", debouncedSearch);
       return `/api/transactions?${params.toString()}`;
     },
-    [typeFilter, tagFilter, debouncedSearch],
+    [typeFilter, accountFilter, statusFilter, tagFilter, debouncedSearch],
   );
 
   const loadPage = useCallback(
@@ -102,7 +121,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   useEffect(() => {
     setPage(0);
     loadPage(0, true);
-  }, [typeFilter, tagFilter, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [typeFilter, accountFilter, statusFilter, tagFilter, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (refreshKey > 0) {
@@ -214,6 +233,30 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
           className="h-[38px] bg-card min-[860px]:w-[190px]"
         />
 
+        <Select value={accountFilter} onValueChange={setAccountFilter}>
+          <SelectTrigger className="h-[38px] min-[860px]:w-[190px]" aria-label="Filter by account">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All accounts</SelectItem>
+            {accounts.map((account) => (
+              <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as StatusFilter)}>
+          <SelectTrigger className="h-[38px] min-[860px]:w-[150px]" aria-label="Filter by status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="cleared">Cleared</SelectItem>
+            <SelectItem value="reconciled">Reconciled</SelectItem>
+          </SelectContent>
+        </Select>
+
         <div className="grid grid-cols-4 gap-1.5">
           {typeFilterOptions.map((option) => (
             <Button
@@ -293,12 +336,18 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                           <p className="truncate text-[13.5px] font-medium">
                             {transaction.category}
                           </p>
-                          {transaction.notes && (
+                          {(transaction.account_id || transaction.status !== "cleared" || transaction.notes) && (
                             <p
                               className="truncate text-xs text-muted-foreground"
-                              title={transaction.notes}
+                              title={transaction.notes ?? undefined}
                             >
-                              {transaction.notes}
+                              {[
+                                transaction.account_id
+                                  ? accountNames.get(transaction.account_id) ?? "Archived account"
+                                  : null,
+                                transaction.status !== "cleared" ? transaction.status : null,
+                                transaction.notes,
+                              ].filter(Boolean).join(" · ")}
                             </p>
                           )}
                         </div>
@@ -343,6 +392,8 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                           className="size-8"
                           aria-label={`Edit ${transaction.category}`}
                           onClick={() => handleEdit(transaction)}
+                          disabled={transaction.status === "reconciled"}
+                          title={transaction.status === "reconciled" ? "Reconciled transactions are locked" : undefined}
                         >
                           <Pencil className="size-3.5" />
                         </Button>
@@ -353,6 +404,8 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                           className="size-8 text-destructive hover:text-destructive"
                           aria-label={`Delete ${transaction.category}`}
                           onClick={() => handleDelete(transaction.id)}
+                          disabled={transaction.status === "reconciled"}
+                          title={transaction.status === "reconciled" ? "Reconciled transactions are locked" : undefined}
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
