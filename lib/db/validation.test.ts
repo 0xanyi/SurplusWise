@@ -11,6 +11,7 @@ import {
   transactionTypeSchema,
   transactionCreateSchema,
   transactionUpdateSchema,
+  transactionBulkUpdateSchema,
   transactionListFiltersSchema,
   financialAccountCreateSchema,
   accountTransferCreateSchema,
@@ -308,6 +309,27 @@ describe("transactionUpdateSchema", () => {
   it("rejects impossible calendar date in update", () => {
     assert.throws(() =>
       transactionUpdateSchema.parse({ date: "2025-06-31" }),
+    );
+  });
+});
+
+describe("transactionBulkUpdateSchema", () => {
+  it("accepts metadata and review updates", () => {
+    assert.doesNotThrow(() =>
+      transactionBulkUpdateSchema.parse({
+        ids: ["transaction-1", "transaction-2"],
+        category: "Groceries",
+        needsReview: false,
+      }),
+    );
+  });
+
+  it("rejects an empty change or an empty selection", () => {
+    assert.throws(() =>
+      transactionBulkUpdateSchema.parse({ ids: ["transaction-1"] }),
+    );
+    assert.throws(() =>
+      transactionBulkUpdateSchema.parse({ ids: [], needsReview: false }),
     );
   });
 });

@@ -431,6 +431,7 @@ export const transactions = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     type: transactionTypeEnum("type").notNull(),
     status: transactionStatusEnum("status").notNull().default("cleared"),
+    needsReview: boolean("needs_review").notNull().default(false),
     category: text("category").notNull(),
     payee: text("payee"),
     // Attributes a one-off movement to a client: a project fee invoiced once, a
@@ -449,6 +450,7 @@ export const transactions = pgTable(
     index("idx_transactions_user_date").on(t.userId, t.date.desc()),
     index("idx_transactions_user_type_date").on(t.userId, t.type, t.date.desc()),
     index("idx_transactions_account_date").on(t.accountId, t.date.desc()),
+    index("idx_transactions_workspace_review").on(t.workspaceId, t.needsReview, t.date.desc()),
     index("idx_transactions_workspace_client").on(t.workspaceId, t.clientId),
     uniqueIndex("idx_transactions_workspace_import_fingerprint").on(
       t.workspaceId,

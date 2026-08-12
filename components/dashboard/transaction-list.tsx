@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, FileText, Pencil, Search, Trash2, TrendingUp } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, CheckCheck, FileText, Pencil, Search, Trash2, TrendingUp } from "lucide-react";
 import type {
   ApiFinancialAccount,
   ApiTransaction,
@@ -25,6 +25,7 @@ const PAGE_SIZE = 20;
 
 type TypeFilter = "all" | TransactionType;
 type StatusFilter = "all" | TransactionStatus;
+type ReviewFilter = "all" | "needs_review" | "reviewed";
 
 const typeFilterOptions: { label: string; value: TypeFilter }[] = [
   { label: "All", value: "all" },
@@ -77,7 +78,12 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [accountFilter, setAccountFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
   const [tagFilter, setTagFilter] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkCategory, setBulkCategory] = useState("");
+  const [bulkPayee, setBulkPayee] = useState("");
+  const [bulkSaving, setBulkSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -91,11 +97,14 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
       if (typeFilter !== "all") params.set("type", typeFilter);
       if (accountFilter !== "all") params.set("accountId", accountFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
+      if (reviewFilter !== "all") {
+        params.set("needsReview", reviewFilter === "needs_review" ? "true" : "false");
+      }
       if (tagFilter.trim()) params.set("tag", tagFilter.trim());
       if (debouncedSearch) params.set("search", debouncedSearch);
       return `/api/transactions?${params.toString()}`;
     },
-    [typeFilter, accountFilter, statusFilter, tagFilter, debouncedSearch],
+    [typeFilter, accountFilter, statusFilter, reviewFilter, tagFilter, debouncedSearch],
   );
 
   const loadPage = useCallback(
@@ -106,6 +115,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
       try {
         const data = await apiFetch<TransactionsResponse>(buildUrl(pageNum));
         setTransactions(data.transactions);
+        setSelectedIds(new Set());
         setPage(data.page);
         setHasMore(data.hasMore);
       } catch (error) {
@@ -121,7 +131,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   useEffect(() => {
     setPage(0);
     loadPage(0, true);
-  }, [typeFilter, accountFilter, statusFilter, tagFilter, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [typeFilter, accountFilter, statusFilter, reviewFilter, tagFilter, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (refreshKey > 0) {
@@ -201,6 +211,43 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
     }
   };
 
+  const applyBulkUpdate = async (changes: {
+    needsReview?: boolean;
+    category?: string;
+    payee?: string | null;
+  }) => {
+    if (selectedIds.size === 0) return;
+    setBulkSaving(true);
+    try {
+      const result = await apiFetch<{ updated: number }>("/api/transactions/bulk", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: [...selectedIds], ...changes }),
+      });
+      toast({ title: "Transactions updated", description: `${result.updated} transaction${result.updated === 1 ? "" : "s"} changed` });
+      setBulkCategory("");
+      setBulkPayee("");
+      await loadPage(page);
+    } catch (error) {
+      toast({
+        title: "Bulk update failed",
+        description: error instanceof Error ? error.message : "Unable to update transactions",
+        variant: "destructive",
+      });
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   /** Glyph is the one thing that varies by direction; colour comes from the
    *  shared map, so a tile and its amount can never disagree. */
   const getIcon = (type: TransactionType) => {
@@ -257,6 +304,17 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
           </SelectContent>
         </Select>
 
+        <Select value={reviewFilter} onValueChange={(value) => setReviewFilter(value as ReviewFilter)}>
+          <SelectTrigger className="h-[38px] min-[860px]:w-[160px]" aria-label="Filter by review state">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All review states</SelectItem>
+            <SelectItem value="needs_review">Needs review</SelectItem>
+            <SelectItem value="reviewed">Reviewed</SelectItem>
+          </SelectContent>
+        </Select>
+
         <div className="grid grid-cols-4 gap-1.5">
           {typeFilterOptions.map((option) => (
             <Button
@@ -272,6 +330,35 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
           ))}
         </div>
       </div>
+
+      {selectedIds.size > 0 && (
+        <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-card p-3 sm:flex-row sm:items-center">
+          <span className="text-sm font-medium tabular-nums">{selectedIds.size} selected</span>
+          <Input
+            value={bulkCategory}
+            onChange={(event) => setBulkCategory(event.target.value)}
+            placeholder="Set category"
+            maxLength={100}
+            className="h-9 sm:max-w-[190px]"
+          />
+          <Button type="button" size="sm" variant="outline" disabled={bulkSaving || !bulkCategory.trim()} onClick={() => void applyBulkUpdate({ category: bulkCategory.trim() })}>
+            Apply category
+          </Button>
+          <Input
+            value={bulkPayee}
+            onChange={(event) => setBulkPayee(event.target.value)}
+            placeholder="Set payee"
+            maxLength={200}
+            className="h-9 sm:max-w-[190px]"
+          />
+          <Button type="button" size="sm" variant="outline" disabled={bulkSaving || !bulkPayee.trim()} onClick={() => void applyBulkUpdate({ payee: bulkPayee.trim() })}>
+            Apply payee
+          </Button>
+          <Button type="button" size="sm" disabled={bulkSaving} onClick={() => void applyBulkUpdate({ needsReview: false })}>
+            <CheckCheck className="size-4" /> Mark reviewed
+          </Button>
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         <CardContent className="p-0">
@@ -304,7 +391,16 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                 className="hidden gap-4 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground sm:grid sm:grid-cols-[var(--cols)] sm:px-6"
                 style={{ "--cols": TX_COLUMNS } as React.CSSProperties}
               >
-                <span>Payee / category</span>
+                <span className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all transactions on this page"
+                    checked={transactions.length > 0 && transactions.every((transaction) => selectedIds.has(transaction.id))}
+                    onChange={(event) => setSelectedIds(event.target.checked ? new Set(transactions.map((transaction) => transaction.id)) : new Set())}
+                    className="size-4 accent-primary"
+                  />
+                  Payee / category
+                </span>
                 <span>Tags</span>
                 <span>Date</span>
                 <span className="text-right">Amount</span>
@@ -324,6 +420,13 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                       style={{ "--cols": TX_COLUMNS } as React.CSSProperties}
                     >
                       <div className="flex min-w-0 items-center gap-3">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${transaction.payee || transaction.category}`}
+                          checked={selectedIds.has(transaction.id)}
+                          onChange={() => toggleSelected(transaction.id)}
+                          className="size-4 shrink-0 accent-primary"
+                        />
                         <div
                           className={cn(
                             "flex size-7 shrink-0 items-center justify-center rounded-[9px]",
@@ -335,6 +438,9 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                         <div className="min-w-0">
                           <p className="truncate text-[13.5px] font-medium">
                             {transaction.payee || transaction.category}
+                            {transaction.needs_review && (
+                              <span className="ml-2 rounded-full bg-obligation-surface px-2 py-0.5 text-[10px] font-semibold text-obligation">Review</span>
+                            )}
                           </p>
                           {(transaction.payee || transaction.account_id || transaction.status !== "cleared" || transaction.notes) && (
                             <p

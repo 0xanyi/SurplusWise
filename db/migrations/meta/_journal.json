@@ -134,6 +134,13 @@
       "when": 1786560281441,
       "tag": "0018_colossal_phil_sheldon",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786565259774,
+      "tag": "0019_brave_the_professor",
+      "breakpoints": true
     }
   ]
 }

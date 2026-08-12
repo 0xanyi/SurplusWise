@@ -117,12 +117,52 @@ describe(
         assert.equal(firstImport.importedIds.length, 2);
         assert.deepEqual(firstImport.duplicateLineNumbers, [3]);
         const importedRows = await db
-          .select({ payee: transactions.payee })
+          .select({ id: transactions.id, payee: transactions.payee, needsReview: transactions.needsReview })
           .from(transactions)
           .where(eq(transactions.workspaceId, workspaceId));
         assert.deepEqual(
           new Set(importedRows.flatMap((row) => (row.payee ? [row.payee] : []))),
           new Set(["Corner Shop", "Cafe", "Employer"]),
+        );
+        assert.equal(importedRows.find((row) => row.id === manual.id)?.needsReview, false);
+        assert.ok(
+          importedRows
+            .filter((row) => firstImport.importedIds.includes(row.id))
+            .every((row) => row.needsReview),
+        );
+        assert.deepEqual(
+          (await transactionsService.list(userId, workspaceId, { needsReview: true }))
+            .map((row) => row.id)
+            .sort(),
+          firstImport.importedIds.toSorted(),
+        );
+
+        await assert.rejects(
+          () =>
+            transactionsService.bulkUpdateMetadata(userId, workspaceId, {
+              ids: [manual.id, crypto.randomUUID()],
+              category: "Changed",
+            }),
+          /not found in this workspace/,
+        );
+        assert.equal((await transactionsService.getById(userId, manual.id))?.category, "Food");
+
+        await transactionsService.bulkUpdateMetadata(userId, workspaceId, {
+          ids: firstImport.importedIds,
+          category: "Reviewed import",
+          needsReview: false,
+        });
+        assert.deepEqual(
+          await transactionsService.list(userId, workspaceId, { needsReview: true }),
+          [],
+        );
+        const reviewedRows = await transactionsService.list(userId, workspaceId, {
+          needsReview: false,
+          category: "Reviewed import",
+        });
+        assert.deepEqual(
+          reviewedRows.map((row) => row.id).sort(),
+          firstImport.importedIds.toSorted(),
         );
 
         const repeatReview = await transactionsService.reviewImport(

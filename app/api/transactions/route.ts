@@ -24,6 +24,7 @@ function toTransaction(row: Awaited<ReturnType<typeof txService.list>>[number]) 
     type: row.type,
     account_id: row.accountId ?? null,
     status: row.status,
+    needs_review: row.needsReview,
     category: row.category,
     payee: row.payee ?? null,
     client_id: row.clientId ?? null,
@@ -45,6 +46,7 @@ export async function GET(request: NextRequest) {
     const type = sp.get("type") as txService.ListFilters["type"] | null;
     const accountId = sp.get("accountId") ?? undefined;
     const status = sp.get("status") as txService.ListFilters["status"] | null;
+    const needsReview = sp.get("needsReview");
     const category = sp.get("category") ?? undefined;
     const clientId = sp.get("clientId") ?? undefined;
     const tag = sp.get("tag") ?? undefined;
@@ -52,10 +54,19 @@ export async function GET(request: NextRequest) {
     const endDate = sp.get("endDate") ?? undefined;
     const search = sp.get("search") ?? undefined;
 
+    if (needsReview !== null && needsReview !== "true" && needsReview !== "false") {
+      return NextResponse.json(
+        { error: "Invalid needsReview filter: expected true or false" },
+        { status: 400 },
+      );
+    }
+
     const filters: txService.ListFilters = {
       ...(type && { type }),
       ...(accountId && { accountId }),
       ...(status && { status }),
+      ...(needsReview === "true" && { needsReview: true }),
+      ...(needsReview === "false" && { needsReview: false }),
       ...(category && { category }),
       ...(clientId && { clientId }),
       ...(tag && { tag }),

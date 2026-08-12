@@ -97,6 +97,7 @@ export interface ApiTransaction {
   type: TransactionType
   account_id: string | null
   status: TransactionStatus
+  needs_review: boolean
   category: string
   payee: string | null
   client_id: string | null

@@ -11,6 +11,7 @@ import {
   pageSchema,
   pageSizeSchema,
   transactionCreateSchema,
+  transactionBulkUpdateSchema,
   transactionUpdateSchema,
   transactionListFiltersSchema,
   workspaceIdSchema,
@@ -25,6 +26,7 @@ export interface ListFilters {
   type?: TransactionType;
   accountId?: string;
   status?: TransactionStatus;
+  needsReview?: boolean;
   category?: string;
   clientId?: string;
   tag?: string;
@@ -58,6 +60,7 @@ export interface UpdateInput {
   type?: TransactionType;
   accountId?: string | null;
   status?: TransactionStatus;
+  needsReview?: boolean;
   category?: string;
   payee?: string | null;
   clientId?: string | null;
@@ -160,6 +163,9 @@ function buildWhere(userId: string, workspaceId: string, filters: ListFilters) {
   if (filters.type) conditions.push(eq(transactions.type, filters.type));
   if (filters.accountId) conditions.push(eq(transactions.accountId, filters.accountId));
   if (filters.status) conditions.push(eq(transactions.status, filters.status));
+  if (filters.needsReview !== undefined) {
+    conditions.push(eq(transactions.needsReview, filters.needsReview));
+  }
   if (filters.category) conditions.push(eq(transactions.category, filters.category));
   if (filters.clientId) conditions.push(eq(transactions.clientId, filters.clientId));
   if (filters.tag) conditions.push(sql`${transactions.tags} @> ${JSON.stringify([filters.tag])}::jsonb`);
@@ -374,6 +380,7 @@ export async function importRows(
         date: row.date,
         type: row.type,
         status: "cleared" as const,
+        needsReview: true,
         category: row.category,
         payee: row.payee,
         notes: row.notes,
@@ -401,6 +408,50 @@ export async function importRows(
     importedIds: inserted.map((row) => row.id),
     duplicateLineNumbers: duplicateLineNumbers.sort((a, b) => a - b),
   };
+}
+
+export async function bulkUpdateMetadata(
+  userId: string,
+  workspaceId: string,
+  input: {
+    ids: string[];
+    needsReview?: boolean;
+    category?: string;
+    payee?: string | null;
+  },
+) {
+  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
+  const validInput = transactionBulkUpdateSchema.parse(input);
+  const ids = [...new Set(validInput.ids)];
+  return db.transaction(async (tx) => {
+    const owned = await tx
+      .select({ id: transactions.id })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.workspaceId, workspaceId),
+          inArray(transactions.id, ids),
+        ),
+      );
+    if (owned.length !== ids.length) {
+      throw new Error("One or more transactions were not found in this workspace");
+    }
+    const rows = await tx
+      .update(transactions)
+      .set({
+        ...(validInput.needsReview !== undefined && {
+          needsReview: validInput.needsReview,
+        }),
+        ...(validInput.category !== undefined && { category: validInput.category }),
+        ...(validInput.payee !== undefined && { payee: validInput.payee || null }),
+        updatedAt: new Date(),
+      })
+      .where(inArray(transactions.id, ids))
+      .returning({ id: transactions.id });
+    return rows.map((row) => row.id);
+  });
 }
 
 /** Partial update. Throws if not found / unauthorized. */
@@ -470,6 +521,7 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       ...(input.type !== undefined && { type: input.type }),
       ...(input.accountId !== undefined && { accountId: input.accountId ?? null }),
       ...(input.status !== undefined && { status: input.status }),
+      ...(input.needsReview !== undefined && { needsReview: input.needsReview }),
       ...(input.category !== undefined && { category: input.category }),
       ...(input.payee !== undefined && { payee: input.payee?.trim() || null }),
       ...(input.clientId !== undefined && { clientId: input.clientId ?? null }),
