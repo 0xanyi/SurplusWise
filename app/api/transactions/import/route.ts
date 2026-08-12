@@ -48,6 +48,7 @@ export async function POST(request: NextRequest) {
       credit: getMappingValue(formData, "credit"),
       type: getMappingValue(formData, "type"),
       category: getMappingValue(formData, "category"),
+      payee: getMappingValue(formData, "payee"),
       notes: getMappingValue(formData, "notes"),
       tags: getMappingValue(formData, "tags"),
       externalId: getMappingValue(formData, "externalId"),

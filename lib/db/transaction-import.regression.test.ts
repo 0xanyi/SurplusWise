@@ -10,6 +10,7 @@ type ImportInput = import("./transactions").ImportInput;
 let db: Db;
 let users: Schema["users"];
 let workspaces: Schema["workspaces"];
+let transactions: Schema["transactions"];
 let transactionsService: TransactionsService;
 
 before(async () => {
@@ -21,6 +22,7 @@ before(async () => {
   db = client.db;
   users = schema.users;
   workspaces = schema.workspaces;
+  transactions = schema.transactions;
   transactionsService = service;
 });
 
@@ -52,6 +54,7 @@ describe(
           date: "2026-03-01",
           type: "expense",
           category: "Uncategorized",
+          payee: "Cafe",
           notes: "Lunch",
           tags: [],
           externalId: "bank-row-1",
@@ -62,6 +65,7 @@ describe(
           date: "2026-03-01",
           type: "expense",
           category: "Food",
+          payee: "Cafe",
           notes: "Lunch",
           tags: [],
           externalId: "bank-row-1",
@@ -72,6 +76,7 @@ describe(
           date: "2026-03-02",
           type: "income",
           category: "Uncategorized",
+          payee: "Employer",
           notes: "Pay",
           tags: [],
           externalId: null,
@@ -79,6 +84,19 @@ describe(
       ];
 
       try {
+        const manual = await transactionsService.create(userId, workspaceId, {
+          amount: 8.75,
+          date: "2026-02-28",
+          type: "expense",
+          category: "Food",
+          payee: "Corner Shop",
+        });
+        assert.equal(manual.payee, "Corner Shop");
+        const searchResult = await transactionsService.list(userId, workspaceId, {
+          search: "corner shop",
+        });
+        assert.deepEqual(searchResult.map((row) => row.id), [manual.id]);
+
         const initialReview = await transactionsService.reviewImport(
           userId,
           workspaceId,
@@ -98,12 +116,22 @@ describe(
         );
         assert.equal(firstImport.importedIds.length, 2);
         assert.deepEqual(firstImport.duplicateLineNumbers, [3]);
+        const importedRows = await db
+          .select({ payee: transactions.payee })
+          .from(transactions)
+          .where(eq(transactions.workspaceId, workspaceId));
+        assert.deepEqual(
+          new Set(importedRows.flatMap((row) => (row.payee ? [row.payee] : []))),
+          new Set(["Corner Shop", "Cafe", "Employer"]),
+        );
 
         const repeatReview = await transactionsService.reviewImport(
           userId,
           workspaceId,
           null,
-          rows,
+          rows.map((row) =>
+            row.lineNumber === 4 ? { ...row, payee: "Employer Limited" } : row,
+          ),
         );
         assert.equal(repeatReview.ready, 0);
         assert.deepEqual(repeatReview.duplicateLineNumbers, [2, 3, 4]);

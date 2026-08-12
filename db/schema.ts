@@ -346,6 +346,36 @@ export const financialAccounts = pgTable(
   ],
 );
 
+export const transactionImportProfiles = pgTable(
+  "transaction_import_profiles",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    financialAccountId: text("financial_account_id")
+      .notNull()
+      .references(() => financialAccounts.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    mapping: jsonb("mapping")
+      .$type<Record<string, string | null>>()
+      .notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_transaction_import_profiles_account").on(t.financialAccountId),
+    uniqueIndex("idx_transaction_import_profiles_account_name").on(
+      t.workspaceId,
+      t.financialAccountId,
+      t.name,
+    ),
+  ],
+);
+
 /**
  * Transfers are deliberately separate from transactions. Moving money between
  * accounts changes balances but is neither income, expense, nor giving, so it
@@ -402,6 +432,7 @@ export const transactions = pgTable(
     type: transactionTypeEnum("type").notNull(),
     status: transactionStatusEnum("status").notNull().default("cleared"),
     category: text("category").notNull(),
+    payee: text("payee"),
     // Attributes a one-off movement to a client: a project fee invoiced once, a
     // licence bought for them that will never recur. Recurring money lives on
     // `recurring_outgoings.client_id` instead. Deleting the client keeps the

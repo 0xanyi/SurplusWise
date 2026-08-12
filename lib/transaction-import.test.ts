@@ -65,21 +65,22 @@ not-a-date,-3,expense,Food,Bad row,
   });
 
   it("infers expense and income from signed amounts without type or category", () => {
-    const result = analyzeTransactionImport(`posted date,amount,description,transaction id
-2026-03-01,-45.50,Lunch,bank-1
-2026-03-02,"£1,200.00",Salary,bank-2`);
+    const result = analyzeTransactionImport(`posted date,amount,merchant,description,transaction id
+2026-03-01,-45.50,Cafe,Lunch,bank-1
+2026-03-02,"£1,200.00",Employer,Salary,bank-2`);
 
     assert.strictEqual(result.validRowCount, 2);
     assert.deepStrictEqual(
-      result.validRows.map(({ amount, type, category, externalId }) => ({
+      result.validRows.map(({ amount, type, category, payee, externalId }) => ({
         amount,
         type,
         category,
+        payee,
         externalId,
       })),
       [
-        { amount: 45.5, type: "expense", category: "Uncategorized", externalId: "bank-1" },
-        { amount: 1200, type: "income", category: "Uncategorized", externalId: "bank-2" },
+        { amount: 45.5, type: "expense", category: "Uncategorized", payee: "Cafe", externalId: "bank-1" },
+        { amount: 1200, type: "income", category: "Uncategorized", payee: "Employer", externalId: "bank-2" },
       ],
     );
   });

@@ -45,6 +45,7 @@ export interface CreateInput {
   accountId?: string | null;
   status?: TransactionStatus;
   category: string;
+  payee?: string | null;
   clientId?: string | null;
   notes?: string | null;
   tags?: string[];
@@ -58,6 +59,7 @@ export interface UpdateInput {
   accountId?: string | null;
   status?: TransactionStatus;
   category?: string;
+  payee?: string | null;
   clientId?: string | null;
   notes?: string | null;
   tags?: string[];
@@ -70,6 +72,7 @@ export interface ImportInput {
   date: string;
   type: TransactionType;
   category: string;
+  payee: string | null;
   notes: string | null;
   tags: string[];
   externalId: string | null;
@@ -167,6 +170,7 @@ function buildWhere(userId: string, workspaceId: string, filters: ListFilters) {
     conditions.push(
       or(
         ilike(transactions.category, pattern),
+        ilike(transactions.payee, pattern),
         ilike(transactions.notes, pattern),
         sql`EXISTS (
           SELECT 1
@@ -282,6 +286,7 @@ export async function create(userId: string, workspaceId: string, input: CreateI
       accountId: input.accountId ?? null,
       status: input.status ?? "cleared",
       category: input.category,
+      payee: input.payee?.trim() || null,
       clientId: input.clientId ?? null,
       notes: input.notes ?? null,
       tags: input.tags ?? [],
@@ -370,6 +375,7 @@ export async function importRows(
         type: row.type,
         status: "cleared" as const,
         category: row.category,
+        payee: row.payee,
         notes: row.notes,
         tags: row.tags,
         receiptStorageId: null,
@@ -465,6 +471,7 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       ...(input.accountId !== undefined && { accountId: input.accountId ?? null }),
       ...(input.status !== undefined && { status: input.status }),
       ...(input.category !== undefined && { category: input.category }),
+      ...(input.payee !== undefined && { payee: input.payee?.trim() || null }),
       ...(input.clientId !== undefined && { clientId: input.clientId ?? null }),
       ...(input.notes !== undefined && { notes: input.notes }),
       ...(input.tags !== undefined && { tags: input.tags }),

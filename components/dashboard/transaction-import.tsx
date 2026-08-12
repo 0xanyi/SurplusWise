@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { Download, FileSpreadsheet, Upload } from "lucide-react";
+import { Download, FileSpreadsheet, Save, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,11 +12,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiFetch, useApiQuery } from "@/hooks/use-api";
 import { formatCurrency } from "@/lib/utils";
-import type { ApiFinancialAccount } from "@/types";
+import type { ApiFinancialAccount, ApiTransactionImportProfile } from "@/types";
 import {
   analyzeTransactionImport,
   type TransactionImportField,
@@ -35,10 +36,10 @@ interface ImportReview {
   invalid: number;
 }
 
-const SAMPLE_CSV = `date,amount,type,category,notes
-2026-03-01,45.50,expense,Food & Dining,Lunch
-2026-03-02,1200.00,income,Salary,Monthly salary
-2026-03-03,100.00,giving,Tithe,Sunday giving`;
+const SAMPLE_CSV = `date,amount,type,payee,category,notes
+2026-03-01,45.50,expense,Corner Cafe,Food & Dining,Lunch
+2026-03-02,1200.00,income,Employer,Salary,Monthly salary
+2026-03-03,100.00,giving,Community Church,Tithe,Sunday giving`;
 
 const FIELD_OPTIONS: { value: TransactionImportField; label: string; required?: boolean }[] = [
   { value: "date", label: "Date", required: true },
@@ -47,12 +48,14 @@ const FIELD_OPTIONS: { value: TransactionImportField; label: string; required?: 
   { value: "credit", label: "Credit / money in" },
   { value: "type", label: "Type" },
   { value: "category", label: "Category" },
+  { value: "payee", label: "Payee / merchant" },
   { value: "notes", label: "Notes" },
   { value: "tags", label: "Tags" },
   { value: "externalId", label: "Bank reference" },
 ];
 
 const NO_ACCOUNT = "__unassigned__";
+const NO_PROFILE = "__no_profile__";
 
 export function TransactionImport({ onImported }: TransactionImportProps) {
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -62,12 +65,23 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
   const [open, setOpen] = useState(false);
   const [mapping, setMapping] = useState<TransactionImportMapping>({});
   const [accountId, setAccountId] = useState(NO_ACCOUNT);
+  const [activeProfileId, setActiveProfileId] = useState(NO_PROFILE);
+  const [profileName, setProfileName] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
   const [review, setReview] = useState<ImportReview | null>(null);
   const { toast } = useToast();
   const { data: accountData } = useApiQuery<{ accounts: ApiFinancialAccount[] }>(
     "/api/financial-accounts",
   );
   const accounts = accountData?.accounts ?? [];
+  const profileQuery = useApiQuery<{ profiles: ApiTransactionImportProfile[] }>(
+    accountId === NO_ACCOUNT
+      ? null
+      : `/api/transaction-import-profiles?accountId=${encodeURIComponent(accountId)}`,
+  );
+  const profiles = (profileQuery.data?.profiles ?? []).filter(
+    (profile) => profile.account_id === accountId,
+  );
 
   const analysis = useMemo(() => {
     if (!fileText) return null;
@@ -125,6 +139,8 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
       setSelectedFile(null);
       setFileText("");
       setMapping({});
+      setActiveProfileId(NO_PROFILE);
+      setProfileName("");
       setReview(null);
       onImported?.();
     } catch (error) {
@@ -146,6 +162,8 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
       setSelectedFile(file);
       setFileText(text);
       setMapping(initialAnalysis.mappings);
+      setActiveProfileId(NO_PROFILE);
+      setProfileName("");
       setReview(null);
       setOpen(true);
     } catch (error) {
@@ -165,6 +183,75 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
       next[field] = value === UNMAPPED_IMPORT_COLUMN ? null : value;
       return next;
     });
+  };
+
+  const selectProfile = (profileId: string) => {
+    setActiveProfileId(profileId);
+    setReview(null);
+    if (profileId === NO_PROFILE) return;
+    const profile = profiles.find((item) => item.id === profileId);
+    if (profile) {
+      setMapping(profile.mapping as TransactionImportMapping);
+      setProfileName(profile.name);
+    }
+  };
+
+  const saveProfile = async () => {
+    if (accountId === NO_ACCOUNT || !profileName.trim() || !analysis) return;
+    if (analysis.missingRequiredMappings.length > 0) {
+      toast({
+        title: "Cannot save mapping",
+        description: "Map a date and an amount or debit/credit column first.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSavingProfile(true);
+    try {
+      const result = await apiFetch<{ profile: ApiTransactionImportProfile }>(
+        "/api/transaction-import-profiles",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: profileName.trim(),
+            accountId,
+            mapping,
+          }),
+        },
+      );
+      setActiveProfileId(result.profile.id);
+      setProfileName(result.profile.name);
+      profileQuery.refresh();
+      toast({ title: "Mapping saved", description: "This account can reuse it next time." });
+    } catch (error) {
+      toast({
+        title: "Could not save mapping",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const deleteProfile = async () => {
+    if (activeProfileId === NO_PROFILE) return;
+    try {
+      await apiFetch(`/api/transaction-import-profiles/${activeProfileId}`, {
+        method: "DELETE",
+      });
+      setActiveProfileId(NO_PROFILE);
+      setProfileName("");
+      profileQuery.refresh();
+      toast({ title: "Saved mapping deleted" });
+    } catch (error) {
+      toast({
+        title: "Could not delete mapping",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
+    }
   };
 
   const previewRows = analysis?.previewRows.slice(0, 6) ?? [];
@@ -239,7 +326,12 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <div className="space-y-2">
                   <Label>Import into account</Label>
-                  <Select value={accountId} onValueChange={(value) => { setAccountId(value); setReview(null); }}>
+                  <Select value={accountId} onValueChange={(value) => {
+                    setAccountId(value);
+                    setActiveProfileId(NO_PROFILE);
+                    setProfileName("");
+                    setReview(null);
+                  }}>
                     <SelectTrigger aria-label="Import account">
                       <SelectValue />
                     </SelectTrigger>
@@ -248,6 +340,26 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                       {accounts.map((account) => (
                         <SelectItem key={account.id} value={account.id}>
                           {account.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Saved mapping</Label>
+                  <Select
+                    value={activeProfileId}
+                    onValueChange={selectProfile}
+                    disabled={accountId === NO_ACCOUNT}
+                  >
+                    <SelectTrigger aria-label="Saved import mapping">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NO_PROFILE}>Choose mapping</SelectItem>
+                      {profiles.map((profile) => (
+                        <SelectItem key={profile.id} value={profile.id}>
+                          {profile.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -276,6 +388,39 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                 ))}
               </div>
 
+              {accountId !== NO_ACCOUNT && (
+                <div className="flex flex-col gap-2 rounded-xl border border-border/60 p-4 sm:flex-row sm:items-end">
+                  <div className="flex-1 space-y-2">
+                    <Label htmlFor="profile-name">Mapping name</Label>
+                    <Input
+                      id="profile-name"
+                      value={profileName}
+                      onChange={(event) => setProfileName(event.target.value)}
+                      placeholder="e.g. Current account export"
+                      maxLength={100}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => void saveProfile()}
+                    disabled={savingProfile || !profileName.trim()}
+                  >
+                    <Save className="size-4" /> Save mapping
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    aria-label="Delete saved mapping"
+                    onClick={() => void deleteProfile()}
+                    disabled={activeProfileId === NO_PROFILE}
+                  >
+                    <Trash2 className="size-4" />
+                  </Button>
+                </div>
+              )}
+
               {missingRequiredMappings.length > 0 && (
                 <p className="text-sm text-expense">
                   Map required fields before importing: {missingRequiredMappings.join(", ")}
@@ -295,6 +440,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                         <th className="px-3 py-2">Date</th>
                         <th className="px-3 py-2">Amount</th>
                         <th className="px-3 py-2">Type</th>
+                        <th className="px-3 py-2">Payee</th>
                         <th className="px-3 py-2">Category</th>
                         <th className="px-3 py-2">Status</th>
                       </tr>
@@ -306,6 +452,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                           <td className="px-3 py-2">{row.normalized?.date || row.mapped.date || "-"}</td>
                           <td className="px-3 py-2 tabular-nums">{row.normalized ? formatCurrency(row.normalized.amount) : "-"}</td>
                           <td className="px-3 py-2">{row.normalized?.type || "-"}</td>
+                          <td className="px-3 py-2">{row.normalized?.payee || "-"}</td>
                           <td className="px-3 py-2">{row.normalized?.category || "-"}</td>
                           <td className={`px-3 py-2 ${row.valid ? "text-foreground" : "text-expense"}`}>
                             {review?.duplicate_rows.includes(row.lineNumber)

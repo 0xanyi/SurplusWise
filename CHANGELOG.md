@@ -4,6 +4,13 @@ All notable changes to Sika will be documented in this file.
 
 ## [Unreleased]
 
+### Reusable imports and payees
+
+- Transactions now store payees and merchants separately from categories and
+  notes, including manual entry, receipt scanning, search, and CSV import
+- CSV mappings can now be saved per financial account and reused or updated on
+  later imports
+
 ### Bank-friendly transaction imports
 
 - CSV imports now accept either signed amounts or separate debit and credit

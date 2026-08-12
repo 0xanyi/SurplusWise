@@ -38,17 +38,17 @@ Follow-up work in this phase:
 
 ## Phase 2 — Reliable intake
 
-**Status: first vertical slice implemented**
+**Status: reliable CSV intake implemented**
 
 - Bank-shaped CSVs with debit/credit columns and signed amounts — implemented
 - Stable, account-scoped import fingerprints and duplicate review — implemented
 - Bank-reference mapping with a deterministic fallback when no ID is present — implemented
+- Saved import profiles per financial account — implemented
+- Merchant/payee as a first-class field — implemented
 
 Follow-up work in this phase:
 
-- Saved import profiles per institution
 - OFX, QFX, QIF, and CAMT.053 import
-- Merchant/payee as a first-class field
 - Needs-review inbox and bulk actions
 - Transaction rules for categorization, tags, clients, and review status
 

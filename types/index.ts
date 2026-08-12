@@ -50,6 +50,14 @@ export interface ApiAccountTransfer {
   created_at: string | null
 }
 
+export interface ApiTransactionImportProfile {
+  id: string
+  name: string
+  account_id: string
+  mapping: Partial<Record<string, string | null>>
+  updated_at: string
+}
+
 export interface Category {
   _id: string
   userId: string
@@ -90,6 +98,7 @@ export interface ApiTransaction {
   account_id: string | null
   status: TransactionStatus
   category: string
+  payee: string | null
   client_id: string | null
   notes: string | null
   tags: string[]

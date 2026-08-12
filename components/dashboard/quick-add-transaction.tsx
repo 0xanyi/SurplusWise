@@ -49,6 +49,7 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
+  const [payee, setPayee] = useState("");
   const [accountId, setAccountId] = useState(NO_ACCOUNT);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
@@ -92,11 +93,13 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
           date,
           type,
           category,
+          payee: payee || null,
           accountId: accountId === NO_ACCOUNT ? null : accountId,
         }),
       });
       toast({ title: "Saved", description: "Transaction added" });
       setAmount("");
+      setPayee("");
       onTransactionAdded?.();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to add transaction";
@@ -163,6 +166,19 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
+            />
+          </div>
+
+          <div className="min-w-[150px] flex-1 space-y-1.5">
+            <Label htmlFor="quick-payee" className="text-xs font-medium text-muted-foreground">
+              Payee
+            </Label>
+            <Input
+              id="quick-payee"
+              placeholder="Optional"
+              value={payee}
+              onChange={(e) => setPayee(e.target.value)}
+              maxLength={200}
             />
           </div>
 

@@ -15,6 +15,7 @@ import {
   financialAccountCreateSchema,
   accountTransferCreateSchema,
   accountReconciliationSchema,
+  transactionImportProfileCreateSchema,
   categoryCreateSchema,
   categoryUpdateSchema,
   budgetPeriodSchema,
@@ -156,6 +157,36 @@ describe("financial account schemas", () => {
       accountReconciliationSchema.parse({
         statementDate: "2026-01-31",
         statementBalance: 0,
+      }),
+    );
+  });
+});
+
+describe("transaction import profile schema", () => {
+  const profile = {
+    name: "Current account",
+    accountId: "account-1",
+    mapping: { date: "Posted date", amount: "Amount", payee: "Merchant" },
+  };
+
+  it("accepts a signed-amount mapping", () => {
+    assert.doesNotThrow(() => transactionImportProfileCreateSchema.parse(profile));
+  });
+
+  it("accepts separate debit and credit mappings", () => {
+    assert.doesNotThrow(() =>
+      transactionImportProfileCreateSchema.parse({
+        ...profile,
+        mapping: { date: "Date", debit: "Money out", credit: "Money in" },
+      }),
+    );
+  });
+
+  it("rejects mappings that mix signed and split amounts", () => {
+    assert.throws(() =>
+      transactionImportProfileCreateSchema.parse({
+        ...profile,
+        mapping: { date: "Date", amount: "Amount", debit: "Debit" },
       }),
     );
   });
