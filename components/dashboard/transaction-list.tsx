@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, CheckCheck, FileText, Pencil, Search, Trash2, TrendingUp } from "lucide-react";
 import type {
   ApiFinancialAccount,
+  ApiGivingRecipient,
   ApiTransaction,
   TransactionStatus,
   TransactionType,
@@ -64,6 +65,20 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
     () => new Map(accounts.map((account) => [account.id, account.name])),
     [accounts],
   );
+  const { data: givingData } = useApiQuery<{ recipients: ApiGivingRecipient[] }>(
+    "/api/giving-recipients",
+  );
+  const givingNames = useMemo(() => {
+    const recipients = givingData?.recipients ?? [];
+    return {
+      recipients: new Map(recipients.map((recipient) => [recipient.id, recipient.name])),
+      designations: new Map(
+        recipients.flatMap((recipient) =>
+          recipient.designations.map((designation) => [designation.id, designation.name] as const),
+        ),
+      ),
+    };
+  }, [givingData?.recipients]);
 
   const [transactions, setTransactions] = useState<ApiTransaction[]>([]);
   const [page, setPage] = useState(0);
@@ -442,7 +457,12 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                               <span className="ml-2 rounded-full bg-obligation-surface px-2 py-0.5 text-[10px] font-semibold text-obligation">Review</span>
                             )}
                           </p>
-                          {(transaction.payee || transaction.account_id || transaction.status !== "cleared" || transaction.notes) && (
+                          {(transaction.payee ||
+                            transaction.account_id ||
+                            transaction.status !== "cleared" ||
+                            transaction.giving_recipient_id ||
+                            transaction.giving_designation_id ||
+                            transaction.notes) && (
                             <p
                               className="truncate text-xs text-muted-foreground"
                               title={transaction.notes ?? undefined}
@@ -453,6 +473,14 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                                   ? accountNames.get(transaction.account_id) ?? "Archived account"
                                   : null,
                                 transaction.status !== "cleared" ? transaction.status : null,
+                                transaction.giving_recipient_id
+                                  ? givingNames.recipients.get(transaction.giving_recipient_id) ??
+                                    "Archived recipient"
+                                  : null,
+                                transaction.giving_designation_id
+                                  ? givingNames.designations.get(transaction.giving_designation_id) ??
+                                    "Archived fund"
+                                  : null,
                                 transaction.notes,
                               ].filter(Boolean).join(" · ")}
                             </p>

@@ -52,7 +52,7 @@ Follow-up work in this phase:
 
 ## Phase 3 — Giving workspace
 
-- Giving recipients and fund/designation
+- Giving recipients and fund/designation — implemented
 - Recurring commitments and pledges
 - Expected versus recorded giving by period
 - Optional giving-to-income consistency view

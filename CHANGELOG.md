@@ -4,6 +4,14 @@ All notable changes to Sika will be documented in this file.
 
 ## [Unreleased]
 
+### Giving recipients and funds
+
+- Added workspace-scoped giving recipients and recipient-specific funds or
+  designations, with archive controls that preserve historical gift records
+- Giving transactions can now carry recipient and designation attribution
+  separately from their broad category; client attribution remains unavailable
+  for giving because recipients are a distinct relationship
+
 ### Reusable imports and payees
 
 - Transactions now store payees and merchants separately from categories and

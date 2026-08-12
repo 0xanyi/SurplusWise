@@ -28,6 +28,8 @@ function toTransaction(row: Awaited<ReturnType<typeof txService.list>>[number]) 
     category: row.category,
     payee: row.payee ?? null,
     client_id: row.clientId ?? null,
+    giving_recipient_id: row.givingRecipientId ?? null,
+    giving_designation_id: row.givingDesignationId ?? null,
     notes: row.notes ?? null,
     tags: Array.isArray(row.tags) ? row.tags : [],
     receipt_url: row.receiptStorageId ?? null,
@@ -153,6 +155,8 @@ export async function POST(request: NextRequest) {
       category: body.category,
       payee: body.payee ?? null,
       clientId: body.clientId ?? body.client_id ?? null,
+      givingRecipientId: body.givingRecipientId ?? body.giving_recipient_id ?? null,
+      givingDesignationId: body.givingDesignationId ?? body.giving_designation_id ?? null,
       notes: body.notes ?? null,
       tags: Array.isArray(body.tags) ? body.tags : [],
       receiptStorageId,
@@ -171,6 +175,12 @@ export async function POST(request: NextRequest) {
         { error: error.issues[0]?.message ?? "Validation error" },
         { status: 400 },
       );
+    }
+    if (error instanceof txService.GivingAttributionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof Error && error.message.includes("not found")) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
     }
     console.error("Failed to create transaction:", error);
     return NextResponse.json(
