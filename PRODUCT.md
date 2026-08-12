@@ -105,6 +105,16 @@ today; it is a position, not a measured market finding.)*
 - Recurring outgoings with payment logs; loans given with repayments and status;
   investments (stock, crypto, forex, property, business, savings, other) with
   return/dividend/sale/loss/fee events; goals; net-worth rollup.
+- Clients (business workspaces) / people (personal), with the costs carried on
+  their behalf. A recurring outgoing can name the vendor it is paid to and the
+  client it is really for, on one of four terms: **own cost**, **at cost**,
+  **fixed price**, or **in retainer**. Transactions can be attributed to a client
+  so money coming back is matched against money fronted. Recovery accrues when a
+  cost is actually paid, not when it is scheduled, and the shortfall is
+  cumulative and floored at zero so a renewal settled late does not read as a
+  permanent leak. A recovered cost is still an expense and its recovery is still
+  income: the two are never netted in the ledger, only in the client view and in
+  the overhead split on the outgoings page.
 - Debts and credits (credit card, loan, mortgage, overdraft, other) with balance
   snapshots, payments, and per-cycle **statements**: opening and closing balance,
   interest and fees charged, minimum payment, and the interest rate that cycle
