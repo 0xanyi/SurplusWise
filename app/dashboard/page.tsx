@@ -18,6 +18,7 @@ import { UpcomingBills } from "@/components/dashboard/upcoming-bills";
 import { BudgetOverview } from "@/components/dashboard/budget-overview";
 import { GoalsOverview } from "@/components/dashboard/goals-overview";
 import { NetWorthOverview } from "@/components/dashboard/net-worth-overview";
+import { ClientsOverview } from "@/components/dashboard/clients/clients-overview";
 import { OnboardingCard } from "@/components/dashboard/onboarding-card";
 import { useWorkspace } from "@/contexts/workspace-context";
 import type { ApiTransaction } from "@/types";
@@ -288,6 +289,9 @@ export default function DashboardPage() {
 
       {/* Band 5 — the balance sheet, in one figure */}
       <NetWorthOverview />
+
+      {/* Band 5b — what is carried for other people, if anything is */}
+      <ClientsOverview />
 
       {/* Band 6 — goals */}
       <GoalsOverview />
