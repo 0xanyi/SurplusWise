@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Plus,
   Edit2,
@@ -13,6 +14,7 @@ import {
   Circle,
   Clock,
   Undo2,
+  Users,
 } from "lucide-react";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
 import type { ApiRecurringOutgoing } from "@/types";
@@ -42,6 +44,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  EMPTY_REBILL,
+  NO_CLIENT,
+  RebillFields,
+  type RebillFormData,
+} from "@/components/dashboard/clients/rebill-fields";
+import { RebillModeBadge } from "@/components/dashboard/clients/rebill-mode-badge";
+import { usePartyLabels } from "@/hooks/use-party-labels";
 
 const OUTGOING_CATEGORIES = [
   "Housing",
@@ -72,12 +82,16 @@ function getCurrentMonthLabel() {
 interface OutgoingsResponse {
   outgoings: ApiRecurringOutgoing[];
   monthly_total: number;
+  /** The two halves of monthly_total, never netted against each other. */
+  monthly_overhead: number;
+  monthly_pass_through: number;
   active_count: number;
   period_month: string;
 }
 
 export function RecurringOutgoingsManagement() {
   const { toast } = useToast();
+  const partyLabels = usePartyLabels();
   const {
     data,
     loading,
@@ -87,6 +101,8 @@ export function RecurringOutgoingsManagement() {
 
   const outgoings = data?.outgoings;
   const monthlyTotal = data?.monthly_total ?? 0;
+  const overhead = data?.monthly_overhead ?? 0;
+  const passThrough = data?.monthly_pass_through ?? 0;
 
   // Share of income is the one figure this endpoint cannot answer on its own.
   const { data: analytics } = useApiQuery<{ totalIncome: number }>(
@@ -106,6 +122,7 @@ export function RecurringOutgoingsManagement() {
     dayOfMonth: "",
     category: "",
     notes: "",
+    ...EMPTY_REBILL,
   });
 
   const resetForm = () => {
@@ -115,8 +132,26 @@ export function RecurringOutgoingsManagement() {
       dayOfMonth: "",
       category: "",
       notes: "",
+      ...EMPTY_REBILL,
     });
     setEditingItem(null);
+  };
+
+  /** The rebill half of the form, in the shape the API takes. */
+  const rebillPayload = (form: RebillFormData) => {
+    const clientId = form.clientId === NO_CLIENT ? null : form.clientId;
+    const rebillAmount = Number.parseFloat(form.rebillAmount);
+    return {
+      vendor: form.vendor.trim() || null,
+      clientId,
+      // A mode without a client cannot mean anything, so the pair is forced
+      // consistent here as well as in the form and the CHECK constraint.
+      rebillMode: clientId ? form.rebillMode : "none",
+      rebillAmount:
+        clientId && form.rebillMode === "fixed" && !Number.isNaN(rebillAmount)
+          ? rebillAmount
+          : null,
+    };
   };
 
   const handleLogPayment = async (item: ApiRecurringOutgoing) => {
@@ -187,6 +222,7 @@ export function RecurringOutgoingsManagement() {
           frequency: "monthly",
           category: formData.category || null,
           notes: formData.notes || null,
+          ...rebillPayload(formData),
         }),
       });
       toast({ title: "Success", description: "Outgoing added" });
@@ -229,6 +265,7 @@ export function RecurringOutgoingsManagement() {
           frequency: "monthly",
           category: formData.category || null,
           notes: formData.notes || null,
+          ...rebillPayload(formData),
         }),
       });
       toast({ title: "Success", description: "Outgoing updated" });
@@ -263,6 +300,10 @@ export function RecurringOutgoingsManagement() {
       dayOfMonth: item.day_of_month.toString(),
       category: item.category ?? "",
       notes: item.notes ?? "",
+      vendor: item.vendor ?? "",
+      clientId: item.client_id ?? NO_CLIENT,
+      rebillMode: item.rebill_mode,
+      rebillAmount: item.rebill_amount?.toString() ?? "",
     });
     setIsEditOpen(true);
   };
@@ -368,6 +409,11 @@ export function RecurringOutgoingsManagement() {
         </Select>
       </div>
 
+      <RebillFields
+        value={formData}
+        onChange={(updates) => setFormData((prev) => ({ ...prev, ...updates }))}
+      />
+
       <div className="space-y-2">
         <Label htmlFor="outgoing-notes">Notes (optional)</Label>
         <Input
@@ -383,7 +429,17 @@ export function RecurringOutgoingsManagement() {
   return (
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-3">
-        <StatTile label="Committed each month" value={formatCurrency(monthlyTotal)} />
+        <StatTile
+          label="Committed each month"
+          value={formatCurrency(monthlyTotal)}
+          // The split is stated only when some of it is carried for someone;
+          // an install that never uses clients sees the tile it always had.
+          note={
+            passThrough > 0
+              ? `${formatCurrency(overhead)} yours · ${formatCurrency(passThrough)} carried`
+              : undefined
+          }
+        />
         <StatTile
           label="Still unpaid"
           value={formatCurrency(unpaidTotal)}
@@ -392,34 +448,46 @@ export function RecurringOutgoingsManagement() {
         <StatTile
           label="Share of income"
           value={shareOfIncome === null ? "—" : `${shareOfIncome}%`}
+          note={passThrough > 0 ? "of gross, before recovery" : undefined}
         />
       </div>
 
-      {/* Add button + dialogs */}
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogTrigger asChild>
-          <Button className="w-full sm:w-auto">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Outgoing
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Regular Outgoing</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleAdd} className="space-y-4">
-            {formFields}
-            <div className="flex gap-2 pt-2">
-              <Button type="submit" className="flex-1" disabled={saving}>
-                {saving ? "Adding..." : "Add Outgoing"}
-              </Button>
-              <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Add button + dialogs. The Clients link lives here because the sidebar
+          is desktop-only and Clients has no slot in the five-item tab bar, so
+          this is the one place a phone can reach it before any client exists. */}
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+          <DialogTrigger asChild>
+            <Button className="w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Outgoing
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Regular Outgoing</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleAdd} className="space-y-4">
+              {formFields}
+              <div className="flex gap-2 pt-2">
+                <Button type="submit" className="flex-1" disabled={saving}>
+                  {saving ? "Adding..." : "Add Outgoing"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setIsAddOpen(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+
+        <Button variant="outline" asChild className="w-full sm:w-auto">
+          <Link href="/dashboard/clients">
+            <Users className="mr-2 size-4" />
+            {partyLabels.plural}
+          </Link>
+        </Button>
+      </div>
 
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent>
@@ -527,12 +595,16 @@ export function RecurringOutgoingsManagement() {
                     >
                       {item.name}
                     </span>
-                    {item.category && (
-                      <span className="block truncate text-[11.5px] text-muted-foreground">
-                        {item.category}
-                        {item.frequency !== "monthly" && ` · ${item.frequency}`}
-                      </span>
-                    )}
+                    <span className="flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-muted-foreground">
+                      {item.category && <span>{item.category}</span>}
+                      {item.frequency !== "monthly" && <span>· {item.frequency}</span>}
+                      {item.client_name && (
+                        <>
+                          <span>· for {item.client_name}</span>
+                          <RebillModeBadge mode={item.rebill_mode} />
+                        </>
+                      )}
+                    </span>
                   </span>
 
                   <span className="flex w-full flex-wrap items-center justify-end gap-x-3.5 gap-y-2 sm:w-auto sm:flex-nowrap">

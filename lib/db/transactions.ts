@@ -1,6 +1,7 @@
 import { and, desc, eq, gte, ilike, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { transactions } from "@/db/schema";
+import * as clientsService from "./clients";
 import {
   userIdSchema,
   idSchema,
@@ -20,6 +21,7 @@ type TransactionType = "expense" | "giving" | "income";
 export interface ListFilters {
   type?: TransactionType;
   category?: string;
+  clientId?: string;
   tag?: string;
   startDate?: string;
   endDate?: string;
@@ -36,6 +38,7 @@ export interface CreateInput {
   date: string;
   type: TransactionType;
   category: string;
+  clientId?: string | null;
   notes?: string | null;
   tags?: string[];
   receiptStorageId?: string | null;
@@ -46,6 +49,7 @@ export interface UpdateInput {
   date?: string;
   type?: TransactionType;
   category?: string;
+  clientId?: string | null;
   notes?: string | null;
   tags?: string[];
   receiptStorageId?: string | null;
@@ -65,6 +69,7 @@ function buildWhere(userId: string, workspaceId: string, filters: ListFilters) {
 
   if (filters.type) conditions.push(eq(transactions.type, filters.type));
   if (filters.category) conditions.push(eq(transactions.category, filters.category));
+  if (filters.clientId) conditions.push(eq(transactions.clientId, filters.clientId));
   if (filters.tag) conditions.push(sql`${transactions.tags} @> ${JSON.stringify([filters.tag])}::jsonb`);
   if (filters.startDate) conditions.push(gte(transactions.date, filters.startDate));
   if (filters.endDate) conditions.push(lte(transactions.date, filters.endDate));
@@ -160,6 +165,9 @@ export async function create(userId: string, workspaceId: string, input: CreateI
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   transactionCreateSchema.parse(input);
+  if (input.clientId) {
+    await clientsService.assertInWorkspace(userId, workspaceId, input.clientId);
+  }
   const id = genId();
   const now = new Date();
   const [row] = await db
@@ -172,6 +180,7 @@ export async function create(userId: string, workspaceId: string, input: CreateI
       date: input.date,
       type: input.type,
       category: input.category,
+      clientId: input.clientId ?? null,
       notes: input.notes ?? null,
       tags: input.tags ?? [],
       receiptStorageId: input.receiptStorageId ?? null,
@@ -190,6 +199,15 @@ export async function update(userId: string, id: string, input: UpdateInput) {
   const existing = await getById(userId, id);
   if (!existing) throw new Error("Transaction not found or unauthorized");
 
+  if (input.clientId && input.clientId !== existing.clientId) {
+    // Checked against the row's own workspace, so a client from another
+    // workspace cannot be attached to this money.
+    if (!existing.workspaceId) {
+      throw new Error("This transaction has no workspace, so it cannot be attributed");
+    }
+    await clientsService.assertInWorkspace(userId, existing.workspaceId, input.clientId);
+  }
+
   const [row] = await db
     .update(transactions)
     .set({
@@ -197,6 +215,7 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       ...(input.date !== undefined && { date: input.date }),
       ...(input.type !== undefined && { type: input.type }),
       ...(input.category !== undefined && { category: input.category }),
+      ...(input.clientId !== undefined && { clientId: input.clientId ?? null }),
       ...(input.notes !== undefined && { notes: input.notes }),
       ...(input.tags !== undefined && { tags: input.tags }),
       ...(input.receiptStorageId !== undefined && { receiptStorageId: input.receiptStorageId }),

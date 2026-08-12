@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/auth-server";
 import * as outgoingsService from "@/lib/db/recurring-outgoings";
+import { errorResponse } from "@/lib/api-errors";
 import { NextRequest, NextResponse } from "next/server";
-import { ZodError } from "zod";
 
 export async function PATCH(
   request: NextRequest,
@@ -20,6 +20,16 @@ export async function PATCH(
       }),
       ...(body.frequency !== undefined && { frequency: body.frequency }),
       ...(body.category !== undefined && { category: body.category }),
+      ...(body.vendor !== undefined && { vendor: body.vendor }),
+      // Read with `in` rather than `??` so an explicit null still detaches the
+      // client; `??` would treat clearing the field as not mentioning it.
+      ...("clientId" in body && { clientId: body.clientId }),
+      ...("client_id" in body && { clientId: body.client_id }),
+      ...((body.rebillMode ?? body.rebill_mode) !== undefined && {
+        rebillMode: body.rebillMode ?? body.rebill_mode,
+      }),
+      ...("rebillAmount" in body && { rebillAmount: body.rebillAmount }),
+      ...("rebill_amount" in body && { rebillAmount: body.rebill_amount }),
       ...(body.notes !== undefined && { notes: body.notes }),
       ...(body.isActive !== undefined && { isActive: body.isActive }),
       ...(body.is_active !== undefined && { isActive: body.is_active }),
@@ -29,26 +39,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (error instanceof ZodError) {
-      return NextResponse.json(
-        { error: error.issues[0]?.message ?? "Validation error" },
-        { status: 400 },
-      );
-    }
-    if (
-      error instanceof Error &&
-      (error.message.includes("not found") || error.message.includes("unauthorized"))
-    ) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
-    }
-    console.error("Failed to update recurring outgoing:", error);
-    return NextResponse.json(
-      { error: "Failed to update recurring outgoing" },
-      { status: 500 },
-    );
+    return errorResponse(error, "Failed to update recurring outgoing");
   }
 }
 
@@ -64,19 +55,6 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    if (error instanceof Error && error.message === "Unauthorized") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (
-      error instanceof Error &&
-      (error.message.includes("not found") || error.message.includes("unauthorized"))
-    ) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
-    }
-    console.error("Failed to delete recurring outgoing:", error);
-    return NextResponse.json(
-      { error: "Failed to delete recurring outgoing" },
-      { status: 500 },
-    );
+    return errorResponse(error, "Failed to delete recurring outgoing");
   }
 }

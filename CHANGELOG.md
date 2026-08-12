@@ -4,6 +4,30 @@ All notable changes to Sika will be documented in this file.
 
 ## [Unreleased]
 
+### Clients, and the costs you carry for them
+
+- **New Clients page** at `/dashboard/clients` — everyone you front costs for,
+  what those costs come to each month, what has come back, and what has not.
+  Labelled **People** in a personal workspace, where the same shape covers a
+  cost you cover for someone who reimburses you
+- **A recurring outgoing can name who it is really for.** Alongside the vendor it
+  is paid to, each outgoing carries one of four terms: *own cost* (nobody else
+  pays), *at cost*, *fixed price* (you charge your own figure), or *in retainer*
+  (already covered, so no separate recovery is expected). The outgoings page now
+  splits its monthly commitment into what you carry yourself and what you carry
+  for someone
+- **Transactions can be attributed to a client**, which is how money coming back
+  is matched against money fronted
+- **Recovery accrues when a cost is actually paid, not when it falls due** — a
+  domain renewing in November is not owed to you in August. An at-cost line
+  recovers what was really paid, so a bill that went up recovers the real figure
+- **Nothing is netted in the ledger.** A recovered cost is still an expense and
+  its recovery is still income; totals, budgets and CSV export see both sides in
+  full. Netting happens only in the client view and in the overhead split. This
+  is the same discipline as the debt-interest rule
+- Amounts owed to you use the obligation token, as loans given already do, and
+  every rebill mode states its terms in words rather than by colour
+
 ### Debts: per-APR interest buckets
 
 - A statement's interest can now be recorded as multiple APR lines — a 0%

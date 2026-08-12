@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { RebillShapeError } from "@/lib/rebill";
 
 /**
  * Map a thrown error to the response shape the API already uses: 401 for auth,
@@ -22,7 +23,12 @@ function getPostgresCode(error: unknown): string | null {
   return null;
 }
 
-export function errorResponse(error: unknown, fallbackMessage: string) {
+export function errorResponse(
+  error: unknown,
+  fallbackMessage: string,
+  /** What a uniqueness clash means for this resource. */
+  conflictMessage = "A statement already covers this period",
+) {
   if (error instanceof Error && error.message === "Unauthorized") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -32,6 +38,11 @@ export function errorResponse(error: unknown, fallbackMessage: string) {
       { error: error.issues[0]?.message ?? "Validation error" },
       { status: 400 },
     );
+  }
+
+  // Carries a sentence written for the user, so it answers 400 rather than 500.
+  if (error instanceof RebillShapeError) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
   if (error instanceof Error) {
@@ -44,12 +55,9 @@ export function errorResponse(error: unknown, fallbackMessage: string) {
     }
   }
 
-  // Postgres unique_violation: a statement already covers this period.
+  // Postgres unique_violation.
   if (getPostgresCode(error) === "23505") {
-    return NextResponse.json(
-      { error: "A statement already covers this period" },
-      { status: 409 },
-    );
+    return NextResponse.json({ error: conflictMessage }, { status: 409 });
   }
 
   console.error(`${fallbackMessage}:`, error);

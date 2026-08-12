@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReceiptScanner } from "./receipt-scanner";
+import { ClientPicker, NO_CLIENT } from "./clients/client-picker";
 import { useToast } from "@/hooks/use-toast";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
 import type { TransactionType, ApiTransaction } from "@/types";
@@ -68,6 +69,7 @@ export function TransactionForm({
     date: new Date().toISOString().split("T")[0],
     type: defaultType,
     category: "",
+    clientId: NO_CLIENT,
     notes: "",
     tags: "",
   });
@@ -81,6 +83,7 @@ export function TransactionForm({
         date: transaction.date,
         type: transaction.type,
         category: transaction.category,
+        clientId: transaction.client_id ?? NO_CLIENT,
         notes: transaction.notes ?? "",
         tags: transaction.tags.join(", "),
       });
@@ -94,6 +97,7 @@ export function TransactionForm({
       date: new Date().toISOString().split("T")[0],
       type: defaultType,
       category: "",
+      clientId: NO_CLIENT,
       notes: "",
       tags: "",
     });
@@ -142,6 +146,9 @@ export function TransactionForm({
         date: formData.date,
         type: formData.type,
         category: formData.category,
+        // Explicit null rather than undefined so clearing the field on an edit
+        // actually detaches the client instead of being read as "unchanged".
+        clientId: formData.clientId === NO_CLIENT ? null : formData.clientId,
         notes: formData.notes || undefined,
         tags: formData.tags
           .split(",")
@@ -282,6 +289,11 @@ export function TransactionForm({
                 </Select>
               </div>
             </div>
+
+            <ClientPicker
+              value={formData.clientId}
+              onChange={(value) => setFormData((prev) => ({ ...prev, clientId: value }))}
+            />
 
             <div className="space-y-2">
               <Label htmlFor="notes">Notes (optional)</Label>

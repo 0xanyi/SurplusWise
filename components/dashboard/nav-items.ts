@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Repeat,
   Settings,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,6 +21,12 @@ export interface NavItem {
   mobileTab?: boolean;
   /** Carries the count of outgoings that are due or overdue. */
   showsDueBadge?: boolean;
+  /**
+   * Label comes from the workspace vocabulary rather than `label`: "Clients"
+   * in a business workspace, "People" in a personal one. See
+   * `lib/party-labels.ts`.
+   */
+  usesPartyLabel?: boolean;
 }
 
 export interface NavGroup {
@@ -29,10 +36,9 @@ export interface NavGroup {
 }
 
 /**
- * The eight destinations, grouped. The flat eight-item bar this replaced gave
- * every destination equal weight; splitting them into "what moved" and "what
- * you hold" means the sidebar can be read as two short lists instead of one
- * long one.
+ * The destinations, grouped. The flat bar this replaced gave every destination
+ * equal weight; splitting them into "what moved" and "what you hold" means the
+ * sidebar can be read as two short lists instead of one long one.
  */
 export const navGroups: NavGroup[] = [
   {
@@ -57,6 +63,14 @@ export const navGroups: NavGroup[] = [
         label: "Outgoings",
         mobileTab: true,
         showsDueBadge: true,
+      },
+      {
+        href: "/dashboard/clients",
+        icon: Users,
+        // Overridden per workspace type; this is the fallback and the value the
+        // mobile tab bar would use if it ever earned a slot.
+        label: "Clients",
+        usesPartyLabel: true,
       },
       { href: "/dashboard/reports", icon: BarChart3, label: "Reports", mobileTab: true },
     ],

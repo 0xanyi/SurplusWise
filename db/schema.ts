@@ -74,6 +74,23 @@ export const investmentEventTypeEnum = pgEnum("investment_event_type", [
   "fee",
 ]);
 
+/**
+ * How a cost carried for a client is expected to come back.
+ *
+ * `none` is the default and means the cost is the workspace's own overhead — an
+ * AI subscription, an accountant, a tool nobody else pays for. Everything else
+ * names a client and says what recovery to expect: `at_cost` the same figure,
+ * `fixed` a marked-up `rebill_amount`, and `bundled` nothing separate because a
+ * retainer already covers it. `bundled` still attributes the cost to the client
+ * for margin; it just never reports the cost as unrecovered.
+ */
+export const rebillModeEnum = pgEnum("rebill_mode", [
+  "none",
+  "at_cost",
+  "fixed",
+  "bundled",
+]);
+
 // ─── Better Auth tables ──────────────────────────────────────────────────────
 
 export const users = pgTable(
@@ -243,6 +260,40 @@ export const goals = pgTable(
   ],
 );
 
+// ─── Clients / People ────────────────────────────────────────────────────────
+
+/**
+ * A party money moves *for*: a client in a business workspace, a person you
+ * cover costs for in a personal one. One table, labelled by workspace type —
+ * see `lib/party-labels.ts`.
+ *
+ * `workspace_id` is NOT NULL here, unlike the domain tables that predate
+ * workspaces and had to stay nullable through the backfill. Nothing in this
+ * feature has ever existed outside a workspace.
+ */
+export const clients = pgTable(
+  "clients",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    contactEmail: text("contact_email"),
+    notes: text("notes"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_clients_workspace_active").on(t.workspaceId, t.isActive),
+    uniqueIndex("idx_clients_workspace_name").on(t.workspaceId, t.name),
+  ],
+);
+
 // ─── Domain tables ───────────────────────────────────────────────────────────
 
 export const transactions = pgTable(
@@ -258,6 +309,11 @@ export const transactions = pgTable(
     date: date("date", { mode: "string" }).notNull(),
     type: transactionTypeEnum("type").notNull(),
     category: text("category").notNull(),
+    // Attributes a one-off movement to a client: a project fee invoiced once, a
+    // licence bought for them that will never recur. Recurring money lives on
+    // `recurring_outgoings.client_id` instead. Deleting the client keeps the
+    // money in the ledger and only drops the attribution.
+    clientId: text("client_id").references(() => clients.id, { onDelete: "set null" }),
     notes: text("notes"),
     tags: jsonb("tags").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     receiptStorageId: text("receipt_storage_id"),
@@ -267,6 +323,7 @@ export const transactions = pgTable(
   (t) => [
     index("idx_transactions_user_date").on(t.userId, t.date.desc()),
     index("idx_transactions_user_type_date").on(t.userId, t.type, t.date.desc()),
+    index("idx_transactions_workspace_client").on(t.workspaceId, t.clientId),
   ],
 );
 
@@ -331,6 +388,12 @@ export const recurringOutgoings = pgTable(
     dayOfMonth: integer("day_of_month").notNull(), // 1-31
     frequency: outgoingFrequencyEnum("frequency").notNull().default("monthly"),
     category: text("category"), // optional grouping e.g. "Housing", "Utilities"
+    vendor: text("vendor"), // who is paid, e.g. "Namecheap", "Anthropic"
+    // Null client means this is the workspace's own overhead. A client plus a
+    // rebill mode means the cost is fronted on their behalf.
+    clientId: text("client_id").references(() => clients.id, { onDelete: "set null" }),
+    rebillMode: rebillModeEnum("rebill_mode").notNull().default("none"),
+    rebillAmount: decimal("rebill_amount", { precision: 10, scale: 2 }), // required when mode is 'fixed'
     notes: text("notes"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -338,7 +401,19 @@ export const recurringOutgoings = pgTable(
   },
   (t) => [
     index("idx_recurring_outgoings_user").on(t.userId, t.isActive),
+    index("idx_recurring_outgoings_client").on(t.clientId),
     check("chk_recurring_outgoings_day_of_month", sql`${t.dayOfMonth} BETWEEN 1 AND 31`),
+    // A rebill mode without a client would claim a recovery from nobody. The
+    // ON DELETE SET NULL on client_id would violate this, so deleting a client
+    // has to reset the mode first — see `clients.remove`.
+    check(
+      "chk_recurring_outgoings_rebill_client",
+      sql`${t.rebillMode} = 'none' OR ${t.clientId} IS NOT NULL`,
+    ),
+    check(
+      "chk_recurring_outgoings_rebill_amount",
+      sql`${t.rebillMode} <> 'fixed' OR ${t.rebillAmount} IS NOT NULL`,
+    ),
   ],
 );
 
