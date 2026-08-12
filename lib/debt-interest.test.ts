@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
+  deriveBucketRate,
   deriveRate,
   forecastMinimumPayment,
   getPaymentWindowStart,
@@ -8,8 +9,12 @@ import {
   getRateVariance,
   getStatementResidual,
   getUtilisation,
+  INTEREST_BUCKET_LABELS,
   isResidualSignificant,
   isRevolvingDebt,
+  normaliseInterestBreakdown,
+  sumInterestBreakdown,
+  type InterestBucket,
 } from "./debt-interest";
 
 // ─── getPeriodDays ───────────────────────────────────────────────────────────
@@ -365,5 +370,162 @@ describe("getUtilisation", () => {
 
   it("reports over-limit balances above 100", () => {
     assert.ok((getUtilisation(2500, 2000) ?? 0) > 100);
+  });
+});
+
+// ─── sumInterestBreakdown ────────────────────────────────────────────────────
+
+describe("sumInterestBreakdown", () => {
+  it("returns null for null, undefined, or an empty array", () => {
+    assert.strictEqual(sumInterestBreakdown(null), null);
+    assert.strictEqual(sumInterestBreakdown(undefined), null);
+    assert.strictEqual(sumInterestBreakdown([]), null);
+  });
+
+  it("sums interest and bases across buckets", () => {
+    const sums = sumInterestBreakdown([
+      { type: "balance_transfer", balanceSubjectToInterest: 2000, interestCharged: 0 },
+      { type: "purchases", balanceSubjectToInterest: 500, interestCharged: 10.5 },
+    ]);
+    assert.deepStrictEqual(sums, {
+      interestCharged: 10.5,
+      balanceSubjectToInterest: 2500,
+    });
+  });
+
+  it("rounds float drift to 2dp", () => {
+    const sums = sumInterestBreakdown([
+      { type: "purchases", balanceSubjectToInterest: 0.1, interestCharged: 0.1 },
+      { type: "other", balanceSubjectToInterest: 0.2, interestCharged: 0.2 },
+    ]);
+    assert.deepStrictEqual(sums, {
+      interestCharged: 0.3,
+      balanceSubjectToInterest: 0.3,
+    });
+  });
+});
+
+// ─── normaliseInterestBreakdown ─────────────────────────────────────────────
+
+describe("normaliseInterestBreakdown", () => {
+  it("returns null for null, undefined, or an empty array", () => {
+    assert.strictEqual(normaliseInterestBreakdown(null), null);
+    assert.strictEqual(normaliseInterestBreakdown(undefined), null);
+    assert.strictEqual(normaliseInterestBreakdown([]), null);
+  });
+
+  it("trims labels and maps blank labels to null", () => {
+    const buckets = normaliseInterestBreakdown([
+      {
+        type: "balance_transfer",
+        label: "  0% until March  ",
+        balanceSubjectToInterest: 2000,
+        interestCharged: 0,
+      },
+      {
+        type: "purchases",
+        label: "   ",
+        balanceSubjectToInterest: 500,
+        interestCharged: 10,
+      },
+      { type: "other", balanceSubjectToInterest: 100, interestCharged: 2 },
+    ]);
+    assert.ok(buckets);
+    assert.strictEqual(buckets[0].label, "0% until March");
+    assert.strictEqual(buckets[1].label, null);
+    assert.strictEqual(buckets[2].label, null);
+  });
+});
+
+// ─── deriveBucketRate ────────────────────────────────────────────────────────
+
+describe("deriveBucketRate", () => {
+  it("derives an exact rate from the printed bucket basis", () => {
+    const rate = deriveBucketRate(
+      { balanceSubjectToInterest: 1000, interestCharged: 15 },
+      "2026-05-01",
+      "2026-05-31",
+    );
+    assert.ok(rate);
+    assert.strictEqual(rate.estimated, false);
+    assert.strictEqual(rate.basis, 1000);
+    assert.ok(Math.abs(rate.periodRatePercent - 1.5) < 1e-9);
+  });
+
+  it("returns a real 0% rate for zero basis and zero interest (0% promo)", () => {
+    const rate = deriveBucketRate(
+      { balanceSubjectToInterest: 0, interestCharged: 0 },
+      "2026-05-01",
+      "2026-05-31",
+    );
+    assert.deepStrictEqual(rate, {
+      periodRatePercent: 0,
+      annualisedPercent: 0,
+      basis: 0,
+      estimated: false,
+      periodDays: 31,
+    });
+  });
+
+  it("returns null for zero basis with positive interest (meaningless)", () => {
+    assert.strictEqual(
+      deriveBucketRate(
+        { balanceSubjectToInterest: 0, interestCharged: 5 },
+        "2026-05-01",
+        "2026-05-31",
+      ),
+      null,
+    );
+  });
+
+  it("returns null for a broken period", () => {
+    assert.strictEqual(
+      deriveBucketRate(
+        { balanceSubjectToInterest: 1000, interestCharged: 15 },
+        "nonsense",
+        "2026-05-31",
+      ),
+      null,
+    );
+  });
+
+  it("blended rate over summed totals matches deriveRate on the sums", () => {
+    const buckets: InterestBucket[] = [
+      { type: "balance_transfer", balanceSubjectToInterest: 2000, interestCharged: 0 },
+      { type: "purchases", balanceSubjectToInterest: 500, interestCharged: 10 },
+    ];
+    const sums = sumInterestBreakdown(buckets)!;
+    const blended = deriveRate({
+      openingBalance: 0,
+      closingBalance: 0,
+      interestCharged: sums.interestCharged,
+      balanceSubjectToInterest: sums.balanceSubjectToInterest,
+      periodStart: "2026-05-01",
+      periodEnd: "2026-05-31",
+    });
+    assert.ok(blended);
+    assert.strictEqual(blended.estimated, false);
+    assert.ok(Math.abs(blended.periodRatePercent - 0.4) < 1e-9);
+  });
+
+  it("per-bucket variance uses the bucket APR; null APR gives null variance", () => {
+    const rate = deriveBucketRate(
+      { balanceSubjectToInterest: 1000, interestCharged: 15 },
+      "2026-05-01",
+      "2026-05-31",
+    );
+    const variance = getRateVariance(rate, 18);
+    assert.ok(variance !== null && variance > 0);
+    assert.strictEqual(getRateVariance(rate, null), null);
+  });
+});
+
+describe("INTEREST_BUCKET_LABELS", () => {
+  it("has a label for every bucket type", () => {
+    assert.strictEqual(INTEREST_BUCKET_LABELS.purchases, "Purchases");
+    assert.strictEqual(INTEREST_BUCKET_LABELS.balance_transfer, "Balance transfer");
+    assert.strictEqual(INTEREST_BUCKET_LABELS.cash_advance, "Cash advance");
+    assert.strictEqual(INTEREST_BUCKET_LABELS.promotional, "Promotional");
+    assert.strictEqual(INTEREST_BUCKET_LABELS.other, "Other");
   });
 });
