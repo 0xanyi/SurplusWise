@@ -17,6 +17,7 @@ import {
   accountTransferCreateSchema,
   accountReconciliationSchema,
   transactionImportProfileCreateSchema,
+  transactionRuleCreateSchema,
   categoryCreateSchema,
   categoryUpdateSchema,
   budgetPeriodSchema,
@@ -188,6 +189,32 @@ describe("transaction import profile schema", () => {
       transactionImportProfileCreateSchema.parse({
         ...profile,
         mapping: { date: "Date", amount: "Amount", debit: "Debit" },
+      }),
+    );
+  });
+});
+
+describe("transaction rule schema", () => {
+  it("accepts a contains match with classification actions", () => {
+    assert.doesNotThrow(() =>
+      transactionRuleCreateSchema.parse({
+        name: "Coffee",
+        matchField: "payee",
+        matchValue: "cafe",
+        transactionType: "expense",
+        category: "Food",
+        tags: ["coffee"],
+        markReviewed: true,
+      }),
+    );
+  });
+
+  it("requires at least one action", () => {
+    assert.throws(() =>
+      transactionRuleCreateSchema.parse({
+        name: "No-op",
+        matchField: "notes",
+        matchValue: "test",
       }),
     );
   });

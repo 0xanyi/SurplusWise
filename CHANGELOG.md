@@ -14,6 +14,9 @@ All notable changes to Sika will be documented in this file.
   files through the same duplicate review and reconciliation safeguards as CSV
 - Imported transactions now enter a dedicated review inbox, where selected
   rows can be classified, assigned a payee, and marked reviewed in bulk
+- Transaction rules can now classify future imports by payee or note text,
+  applying a category, tags, client attribution, or reviewed state without
+  changing ledger amounts, dates, types, accounts, or reconciliation status
 
 ### Bank-friendly transaction imports
 
