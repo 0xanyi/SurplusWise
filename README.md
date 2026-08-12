@@ -90,6 +90,7 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - ✅ Optional financial account assignment with pending/cleared/reconciled status
 - ✅ Asset and liability balances, transfers, and statement reconciliation
 - ✅ CSV, OFX/QFX, QIF, and CAMT.053 imports with payees and duplicate review
+- ✅ Imported-transaction review inbox with safe bulk classification
 - 🤖 AI-powered receipt scanning with OpenAI Vision
 - ✅ Receipt upload and storage via S3-compatible storage
 

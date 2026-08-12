@@ -167,6 +167,7 @@ export function TransactionForm({
         type: formData.type,
         accountId: formData.accountId === NO_ACCOUNT ? null : formData.accountId,
         status: formData.status,
+        ...(transaction && { needsReview: false }),
         category: formData.category,
         payee: formData.payee || null,
         // Explicit null rather than undefined so clearing the field on an edit

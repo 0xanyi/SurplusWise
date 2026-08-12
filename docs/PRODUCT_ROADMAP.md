@@ -46,10 +46,10 @@ Follow-up work in this phase:
 - Saved import profiles per financial account — implemented
 - Merchant/payee as a first-class field — implemented
 - OFX/QFX, QIF, and CAMT.053 import — implemented
+- Needs-review inbox and metadata-only bulk actions — implemented
 
 Follow-up work in this phase:
 
-- Needs-review inbox and bulk actions
 - Transaction rules for categorization, tags, clients, and review status
 
 ## Phase 3 — Giving workspace

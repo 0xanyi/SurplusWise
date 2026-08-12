@@ -1,0 +1,2 @@
+ALTER TABLE "transactions" ADD COLUMN "needs_review" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE INDEX "idx_transactions_workspace_review" ON "transactions" USING btree ("workspace_id","needs_review","date" DESC NULLS LAST);
