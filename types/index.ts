@@ -115,6 +115,8 @@ export interface ApiTransaction {
   category: string
   payee: string | null
   client_id: string | null
+  giving_recipient_id: string | null
+  giving_designation_id: string | null
   notes: string | null
   tags: string[]
   receipt_url: string | null
@@ -234,6 +236,20 @@ export interface ApiClient {
   margin: number
   created_at: string | null
   updated_at: string | null
+}
+
+export interface ApiGivingDesignation {
+  id: string
+  name: string
+  is_active: boolean
+}
+
+export interface ApiGivingRecipient {
+  id: string
+  name: string
+  notes: string | null
+  is_active: boolean
+  designations: ApiGivingDesignation[]
 }
 
 export interface ApiClientService {

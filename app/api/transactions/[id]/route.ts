@@ -16,6 +16,8 @@ function toTransaction(row: NonNullable<Awaited<ReturnType<typeof txService.getB
     category: row.category,
     payee: row.payee ?? null,
     client_id: row.clientId ?? null,
+    giving_recipient_id: row.givingRecipientId ?? null,
+    giving_designation_id: row.givingDesignationId ?? null,
     notes: row.notes ?? null,
     tags: Array.isArray(row.tags) ? row.tags : [],
     receipt_url: row.receiptStorageId ?? null,
@@ -81,6 +83,14 @@ export async function PATCH(
       // `in` rather than `??` so an explicit null clears the attribution.
       ...("clientId" in body && { clientId: body.clientId }),
       ...("client_id" in body && { clientId: body.client_id }),
+      ...("givingRecipientId" in body && { givingRecipientId: body.givingRecipientId }),
+      ...("giving_recipient_id" in body && { givingRecipientId: body.giving_recipient_id }),
+      ...("givingDesignationId" in body && {
+        givingDesignationId: body.givingDesignationId,
+      }),
+      ...("giving_designation_id" in body && {
+        givingDesignationId: body.giving_designation_id,
+      }),
       ...(body.notes !== undefined && { notes: body.notes }),
       ...(body.tags !== undefined && { tags: body.tags }),
       ...(receiptStorageId !== undefined && { receiptStorageId }),
@@ -99,6 +109,9 @@ export async function PATCH(
         { error: error.issues[0]?.message ?? "Validation error" },
         { status: 400 },
       );
+    }
+    if (error instanceof txService.GivingAttributionError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     if (
       error instanceof Error &&

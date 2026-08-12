@@ -87,6 +87,25 @@ export const currencySchema = z
 
 export const workspaceIdSchema = z.string().min(1, "workspaceId is required");
 
+export const givingRecipientCreateSchema = z.object({
+  name: z.string().trim().min(1, "name is required").max(120),
+  notes: z.string().trim().max(1000).nullish(),
+});
+
+export const givingRecipientUpdateSchema = givingRecipientCreateSchema
+  .partial()
+  .extend({ isActive: z.boolean().optional() })
+  .refine((value) => Object.keys(value).length > 0, { message: "At least one field is required" });
+
+export const givingDesignationCreateSchema = z.object({
+  recipientId: idSchema,
+  name: z.string().trim().min(1, "name is required").max(120),
+});
+
+export const givingDesignationUpdateSchema = z
+  .object({ name: z.string().trim().min(1).max(120).optional(), isActive: z.boolean().optional() })
+  .refine((value) => Object.keys(value).length > 0, { message: "At least one field is required" });
+
 export const workspaceCreateSchema = z.object({
   name: z.string().min(1, "name is required").max(100),
   type: workspaceTypeSchema,
@@ -256,6 +275,8 @@ export const transactionCreateSchema = z.object({
   category: z.string().min(1, "category is required"),
   payee: z.string().trim().max(200).nullish(),
   clientId: idSchema.nullish(),
+  givingRecipientId: idSchema.nullish(),
+  givingDesignationId: idSchema.nullish(),
   notes: z.string().nullish(),
   tags: z.array(z.string().trim().min(1).max(30)).max(10).optional().default([]),
   receiptStorageId: z.string().nullish(),
@@ -271,6 +292,8 @@ export const transactionUpdateSchema = z.object({
   category: z.string().min(1).optional(),
   payee: z.string().trim().max(200).nullish(),
   clientId: idSchema.nullish(),
+  givingRecipientId: idSchema.nullish(),
+  givingDesignationId: idSchema.nullish(),
   notes: z.string().nullish(),
   tags: z.array(z.string().trim().min(1).max(30)).max(10).optional(),
   receiptStorageId: z.string().nullish(),

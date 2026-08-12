@@ -17,6 +17,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ReceiptScanner } from "./receipt-scanner";
 import { ClientPicker, NO_CLIENT } from "./clients/client-picker";
+import {
+  GivingPicker,
+  NO_GIVING_DESIGNATION,
+  NO_GIVING_RECIPIENT,
+} from "./giving/giving-picker";
 import { useToast } from "@/hooks/use-toast";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
 import type {
@@ -84,6 +89,8 @@ export function TransactionForm({
     category: "",
     payee: "",
     clientId: NO_CLIENT,
+    givingRecipientId: NO_GIVING_RECIPIENT,
+    givingDesignationId: NO_GIVING_DESIGNATION,
     notes: "",
     tags: "",
   });
@@ -101,6 +108,8 @@ export function TransactionForm({
         category: transaction.category,
         payee: transaction.payee ?? "",
         clientId: transaction.client_id ?? NO_CLIENT,
+        givingRecipientId: transaction.giving_recipient_id ?? NO_GIVING_RECIPIENT,
+        givingDesignationId: transaction.giving_designation_id ?? NO_GIVING_DESIGNATION,
         notes: transaction.notes ?? "",
         tags: transaction.tags.join(", "),
       });
@@ -118,6 +127,8 @@ export function TransactionForm({
       category: "",
       payee: "",
       clientId: NO_CLIENT,
+      givingRecipientId: NO_GIVING_RECIPIENT,
+      givingDesignationId: NO_GIVING_DESIGNATION,
       notes: "",
       tags: "",
     });
@@ -172,7 +183,20 @@ export function TransactionForm({
         payee: formData.payee || null,
         // Explicit null rather than undefined so clearing the field on an edit
         // actually detaches the client instead of being read as "unchanged".
-        clientId: formData.clientId === NO_CLIENT ? null : formData.clientId,
+        clientId:
+          formData.type === "giving" || formData.clientId === NO_CLIENT
+            ? null
+            : formData.clientId,
+        givingRecipientId:
+          formData.type === "giving" && formData.givingRecipientId !== NO_GIVING_RECIPIENT
+            ? formData.givingRecipientId
+            : null,
+        givingDesignationId:
+          formData.type === "giving" &&
+          formData.givingRecipientId !== NO_GIVING_RECIPIENT &&
+          formData.givingDesignationId !== NO_GIVING_DESIGNATION
+            ? formData.givingDesignationId
+            : null,
         notes: formData.notes || undefined,
         tags: formData.tags
           .split(",")
@@ -253,7 +277,13 @@ export function TransactionForm({
                 <Select
                   value={formData.type}
                   onValueChange={(value: TransactionType) =>
-                    setFormData((prev) => ({ ...prev, type: value, category: "" }))
+                    setFormData((prev) => ({
+                      ...prev,
+                      type: value,
+                      category: "",
+                      givingRecipientId: NO_GIVING_RECIPIENT,
+                      givingDesignationId: NO_GIVING_DESIGNATION,
+                    }))
                   }
                 >
                   <SelectTrigger id="type" aria-label="Transaction type">
@@ -359,10 +389,26 @@ export function TransactionForm({
               </div>
             </div>
 
-            <ClientPicker
-              value={formData.clientId}
-              onChange={(value) => setFormData((prev) => ({ ...prev, clientId: value }))}
-            />
+            {formData.type === "giving" ? (
+              <GivingPicker
+                recipientId={formData.givingRecipientId}
+                designationId={formData.givingDesignationId}
+                onRecipientChange={(value) => setFormData((prev) => ({
+                  ...prev,
+                  givingRecipientId: value,
+                  givingDesignationId: NO_GIVING_DESIGNATION,
+                }))}
+                onDesignationChange={(value) => setFormData((prev) => ({
+                  ...prev,
+                  givingDesignationId: value,
+                }))}
+              />
+            ) : (
+              <ClientPicker
+                value={formData.clientId}
+                onChange={(value) => setFormData((prev) => ({ ...prev, clientId: value }))}
+              />
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="payee">Payee or merchant (optional)</Label>

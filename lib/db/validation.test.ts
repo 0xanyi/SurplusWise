@@ -18,6 +18,8 @@ import {
   accountReconciliationSchema,
   transactionImportProfileCreateSchema,
   transactionRuleCreateSchema,
+  givingRecipientCreateSchema,
+  givingDesignationCreateSchema,
   categoryCreateSchema,
   categoryUpdateSchema,
   budgetPeriodSchema,
@@ -216,6 +218,23 @@ describe("transaction rule schema", () => {
         matchField: "notes",
         matchValue: "test",
       }),
+    );
+  });
+});
+
+describe("giving recipient schemas", () => {
+  it("accepts recipient and designation names", () => {
+    assert.equal(givingRecipientCreateSchema.parse({ name: " Community Church " }).name, "Community Church");
+    assert.equal(
+      givingDesignationCreateSchema.parse({ recipientId: "recipient-1", name: " Building fund " }).name,
+      "Building fund",
+    );
+  });
+
+  it("rejects blank names", () => {
+    assert.throws(() => givingRecipientCreateSchema.parse({ name: " " }));
+    assert.throws(() =>
+      givingDesignationCreateSchema.parse({ recipientId: "recipient-1", name: " " }),
     );
   });
 });

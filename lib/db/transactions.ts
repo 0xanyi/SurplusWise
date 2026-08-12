@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { transactions } from "@/db/schema";
 import * as clientsService from "./clients";
 import * as financialAccountsService from "./financial-accounts";
+import * as givingRecipientsService from "./giving-recipients";
 import * as transactionRulesService from "./transaction-rules";
 import {
   userIdSchema,
@@ -22,6 +23,36 @@ import {
 
 type TransactionType = "expense" | "giving" | "income";
 type TransactionStatus = "pending" | "cleared" | "reconciled";
+
+export class GivingAttributionError extends Error {}
+
+async function assertGivingAttribution(
+  userId: string,
+  workspaceId: string,
+  type: TransactionType,
+  clientId?: string | null,
+  recipientId?: string | null,
+  designationId?: string | null,
+) {
+  if (clientId && type === "giving") {
+    throw new GivingAttributionError("Clients cannot be assigned to giving transactions");
+  }
+  if (!recipientId && !designationId) return;
+  if (type !== "giving" || !recipientId) {
+    throw new GivingAttributionError(
+      "Giving attribution can only be assigned to giving transactions",
+    );
+  }
+  await givingRecipientsService.assertRecipientInWorkspace(userId, workspaceId, recipientId);
+  if (designationId) {
+    await givingRecipientsService.assertDesignationInWorkspace(
+      userId,
+      workspaceId,
+      designationId,
+      recipientId,
+    );
+  }
+}
 
 export interface ListFilters {
   type?: TransactionType;
@@ -50,6 +81,8 @@ export interface CreateInput {
   category: string;
   payee?: string | null;
   clientId?: string | null;
+  givingRecipientId?: string | null;
+  givingDesignationId?: string | null;
   notes?: string | null;
   tags?: string[];
   receiptStorageId?: string | null;
@@ -65,6 +98,8 @@ export interface UpdateInput {
   category?: string;
   payee?: string | null;
   clientId?: string | null;
+  givingRecipientId?: string | null;
+  givingDesignationId?: string | null;
   notes?: string | null;
   tags?: string[];
   receiptStorageId?: string | null;
@@ -81,6 +116,8 @@ export interface ImportInput {
   tags: string[];
   externalId: string | null;
   clientId?: string | null;
+  givingRecipientId?: string | null;
+  givingDesignationId?: string | null;
   needsReview?: boolean;
 }
 
@@ -139,6 +176,14 @@ async function validateImport(
   }
   for (const row of rows) {
     transactionCreateSchema.parse(row);
+    await assertGivingAttribution(
+      userId,
+      workspaceId,
+      row.type,
+      row.clientId,
+      row.givingRecipientId,
+      row.givingDesignationId,
+    );
   }
   const classifiedRows = await transactionRulesService.applyToImportRows(
     userId,
@@ -286,6 +331,14 @@ export async function create(userId: string, workspaceId: string, input: CreateI
   if (input.clientId) {
     await clientsService.assertInWorkspace(userId, workspaceId, input.clientId);
   }
+  await assertGivingAttribution(
+    userId,
+    workspaceId,
+    input.type,
+    input.clientId,
+    input.givingRecipientId,
+    input.givingDesignationId,
+  );
   const id = genId();
   const now = new Date();
   const [row] = await db
@@ -302,6 +355,8 @@ export async function create(userId: string, workspaceId: string, input: CreateI
       category: input.category,
       payee: input.payee?.trim() || null,
       clientId: input.clientId ?? null,
+      givingRecipientId: input.givingRecipientId ?? null,
+      givingDesignationId: input.givingDesignationId ?? null,
       notes: input.notes ?? null,
       tags: input.tags ?? [],
       receiptStorageId: input.receiptStorageId ?? null,
@@ -392,6 +447,8 @@ export async function importRows(
         category: row.category,
         payee: row.payee,
         clientId: row.clientId ?? null,
+        givingRecipientId: row.givingRecipientId ?? null,
+        givingDesignationId: row.givingDesignationId ?? null,
         notes: row.notes,
         tags: row.tags,
         receiptStorageId: null,
@@ -522,6 +579,36 @@ export async function update(userId: string, id: string, input: UpdateInput) {
     await clientsService.assertInWorkspace(userId, existing.workspaceId, input.clientId);
   }
 
+  const effectiveType = input.type ?? existing.type;
+  const effectiveClientId = input.clientId === undefined ? existing.clientId : input.clientId;
+  const effectiveRecipientId =
+    input.givingRecipientId === undefined
+      ? existing.givingRecipientId
+      : input.givingRecipientId;
+  const effectiveDesignationId =
+    input.givingDesignationId === undefined
+      ? existing.givingDesignationId
+      : input.givingDesignationId;
+  if (!existing.workspaceId) {
+    if (effectiveRecipientId || effectiveDesignationId) {
+      throw new GivingAttributionError("This transaction has no workspace, so it cannot be attributed");
+    }
+  } else if (
+    input.type !== undefined ||
+    input.clientId !== undefined ||
+    input.givingRecipientId !== undefined ||
+    input.givingDesignationId !== undefined
+  ) {
+    await assertGivingAttribution(
+      userId,
+      existing.workspaceId,
+      effectiveType,
+      effectiveClientId,
+      effectiveRecipientId,
+      effectiveDesignationId,
+    );
+  }
+
   const [row] = await db
     .update(transactions)
     .set({
@@ -534,6 +621,12 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       ...(input.category !== undefined && { category: input.category }),
       ...(input.payee !== undefined && { payee: input.payee?.trim() || null }),
       ...(input.clientId !== undefined && { clientId: input.clientId ?? null }),
+      ...(input.givingRecipientId !== undefined && {
+        givingRecipientId: input.givingRecipientId ?? null,
+      }),
+      ...(input.givingDesignationId !== undefined && {
+        givingDesignationId: input.givingDesignationId ?? null,
+      }),
       ...(input.notes !== undefined && { notes: input.notes }),
       ...(input.tags !== undefined && { tags: input.tags }),
       ...(input.receiptStorageId !== undefined && { receiptStorageId: input.receiptStorageId }),

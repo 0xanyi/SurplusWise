@@ -162,6 +162,15 @@ export async function applyToImportRows<
   return rows.map((row) => {
     const rule = rules.find((candidate) => {
       if (candidate.transactionType && candidate.transactionType !== row.type) return false;
+      if (
+        row.type === "giving" &&
+        candidate.clientId &&
+        !candidate.category &&
+        candidate.tags.length === 0 &&
+        !candidate.markReviewed
+      ) {
+        return false;
+      }
       const source = candidate.matchField === "payee" ? row.payee : row.notes;
       return source?.toLowerCase().includes(candidate.matchValue.toLowerCase()) ?? false;
     });
@@ -170,7 +179,7 @@ export async function applyToImportRows<
       ...row,
       ...(rule.category && { category: rule.category }),
       ...(rule.tags.length > 0 && { tags: rule.tags }),
-      ...(rule.clientId && { clientId: rule.clientId }),
+      ...(rule.clientId && row.type !== "giving" && { clientId: rule.clientId }),
       needsReview: rule.markReviewed ? false : (row.needsReview ?? true),
     };
   });

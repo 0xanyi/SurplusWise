@@ -314,6 +314,54 @@ export const clients = pgTable(
   ],
 );
 
+// ─── Giving recipients ──────────────────────────────────────────────────────
+
+export const givingRecipients = pgTable(
+  "giving_recipients",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    notes: text("notes"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_giving_recipients_workspace_active").on(t.workspaceId, t.isActive),
+    uniqueIndex("idx_giving_recipients_workspace_name").on(t.workspaceId, t.name),
+  ],
+);
+
+export const givingDesignations = pgTable(
+  "giving_designations",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    recipientId: text("recipient_id")
+      .notNull()
+      .references(() => givingRecipients.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_giving_designations_recipient_active").on(t.recipientId, t.isActive),
+    uniqueIndex("idx_giving_designations_recipient_name").on(t.recipientId, t.name),
+  ],
+);
+
 // ─── Domain tables ───────────────────────────────────────────────────────────
 
 export const financialAccounts = pgTable(
@@ -477,6 +525,12 @@ export const transactions = pgTable(
     // `recurring_outgoings.client_id` instead. Deleting the client keeps the
     // money in the ledger and only drops the attribution.
     clientId: text("client_id").references(() => clients.id, { onDelete: "set null" }),
+    givingRecipientId: text("giving_recipient_id").references(() => givingRecipients.id, {
+      onDelete: "restrict",
+    }),
+    givingDesignationId: text("giving_designation_id").references(() => givingDesignations.id, {
+      onDelete: "restrict",
+    }),
     notes: text("notes"),
     tags: jsonb("tags").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
     receiptStorageId: text("receipt_storage_id"),
@@ -490,6 +544,14 @@ export const transactions = pgTable(
     index("idx_transactions_account_date").on(t.accountId, t.date.desc()),
     index("idx_transactions_workspace_review").on(t.workspaceId, t.needsReview, t.date.desc()),
     index("idx_transactions_workspace_client").on(t.workspaceId, t.clientId),
+    index("idx_transactions_workspace_giving_recipient").on(
+      t.workspaceId,
+      t.givingRecipientId,
+    ),
+    check(
+      "chk_transactions_giving_attribution",
+      sql`(${t.givingRecipientId} is null and ${t.givingDesignationId} is null) or (${t.type} = 'giving' and ${t.givingRecipientId} is not null)`,
+    ),
     uniqueIndex("idx_transactions_workspace_import_fingerprint").on(
       t.workspaceId,
       t.importFingerprint,

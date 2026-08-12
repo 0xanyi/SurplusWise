@@ -84,6 +84,7 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 
 **Transaction Management**
 - ✅ Manual transaction entry (expenses, income, and givings)
+- ✅ Giving recipients and recipient-specific funds/designations
 - ✅ CRUD operations for all transactions
 - ✅ Search and filter transactions
 - ✅ Date range filtering with database-level optimization
