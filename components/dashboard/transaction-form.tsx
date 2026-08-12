@@ -82,6 +82,7 @@ export function TransactionForm({
     accountId: NO_ACCOUNT,
     status: "cleared" as TransactionStatus,
     category: "",
+    payee: "",
     clientId: NO_CLIENT,
     notes: "",
     tags: "",
@@ -98,6 +99,7 @@ export function TransactionForm({
         accountId: transaction.account_id ?? NO_ACCOUNT,
         status: transaction.status,
         category: transaction.category,
+        payee: transaction.payee ?? "",
         clientId: transaction.client_id ?? NO_CLIENT,
         notes: transaction.notes ?? "",
         tags: transaction.tags.join(", "),
@@ -114,6 +116,7 @@ export function TransactionForm({
       accountId: NO_ACCOUNT,
       status: "cleared",
       category: "",
+      payee: "",
       clientId: NO_CLIENT,
       notes: "",
       tags: "",
@@ -134,7 +137,7 @@ export function TransactionForm({
       date: data.date || prev.date,
       type: "expense",
       category: data.category || prev.category,
-      notes: data.vendor ? `Vendor: ${data.vendor}` : prev.notes,
+      payee: data.vendor || prev.payee,
     }));
 
     const storageId = data.storageId ?? data.receiptUrl;
@@ -165,6 +168,7 @@ export function TransactionForm({
         accountId: formData.accountId === NO_ACCOUNT ? null : formData.accountId,
         status: formData.status,
         category: formData.category,
+        payee: formData.payee || null,
         // Explicit null rather than undefined so clearing the field on an edit
         // actually detaches the client instead of being read as "unchanged".
         clientId: formData.clientId === NO_CLIENT ? null : formData.clientId,
@@ -358,6 +362,17 @@ export function TransactionForm({
               value={formData.clientId}
               onChange={(value) => setFormData((prev) => ({ ...prev, clientId: value }))}
             />
+
+            <div className="space-y-2">
+              <Label htmlFor="payee">Payee or merchant (optional)</Label>
+              <Input
+                id="payee"
+                value={formData.payee}
+                onChange={(e) => setFormData((prev) => ({ ...prev, payee: e.target.value }))}
+                placeholder="Who the money was paid to or received from"
+                maxLength={200}
+              />
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="notes">Notes (optional)</Label>

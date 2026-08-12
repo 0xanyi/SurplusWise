@@ -7,6 +7,7 @@ export type TransactionImportField =
   | "credit"
   | "type"
   | "category"
+  | "payee"
   | "notes"
   | "tags"
   | "externalId";
@@ -30,6 +31,7 @@ export interface TransactionImportValidatedRow {
   date: string;
   type: "expense" | "giving" | "income";
   category: string;
+  payee: string | null;
   notes: string | null;
   tags: string[];
   externalId: string | null;
@@ -57,6 +59,7 @@ const HEADER_ALIASES: Record<TransactionImportField, string[]> = {
   credit: ["credit", "deposit", "money in", "paid in"],
   type: ["type", "transaction type", "entry type"],
   category: ["category", "group", "bucket"],
+  payee: ["payee", "merchant", "vendor", "counterparty"],
   notes: ["notes", "note", "description", "memo", "details"],
   tags: ["tags", "labels", "tag"],
   externalId: ["transaction id", "transaction reference", "bank id", "external id"],
@@ -225,6 +228,7 @@ function validateMappedRow(
     date: mapped.date?.trim() ?? "",
     type,
     category: mapped.category?.trim() || "Uncategorized",
+    payee: mapped.payee?.trim() || null,
     notes: mapped.notes?.trim() ? mapped.notes.trim() : null,
     tags: mapped.tags?.trim() ? parseTags(mapped.tags) : [],
     externalId: mapped.externalId?.trim() || null,
@@ -241,6 +245,7 @@ function validateMappedRow(
   return {
     row: {
       ...parsed.data,
+      payee: parsed.data.payee ?? null,
       notes: parsed.data.notes ?? null,
       externalId: candidate.externalId,
       receiptStorageId: null,

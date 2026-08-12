@@ -219,7 +219,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
           <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             id="transaction-search"
-            placeholder="Search category, notes, or tags"
+            placeholder="Search payee, category, notes, or tags"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-[38px] scroll-mt-6 bg-card pl-9"
@@ -304,7 +304,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                 className="hidden gap-4 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.07em] text-muted-foreground sm:grid sm:grid-cols-[var(--cols)] sm:px-6"
                 style={{ "--cols": TX_COLUMNS } as React.CSSProperties}
               >
-                <span>Category</span>
+                <span>Payee / category</span>
                 <span>Tags</span>
                 <span>Date</span>
                 <span className="text-right">Amount</span>
@@ -334,14 +334,15 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                         </div>
                         <div className="min-w-0">
                           <p className="truncate text-[13.5px] font-medium">
-                            {transaction.category}
+                            {transaction.payee || transaction.category}
                           </p>
-                          {(transaction.account_id || transaction.status !== "cleared" || transaction.notes) && (
+                          {(transaction.payee || transaction.account_id || transaction.status !== "cleared" || transaction.notes) && (
                             <p
                               className="truncate text-xs text-muted-foreground"
                               title={transaction.notes ?? undefined}
                             >
                               {[
+                                transaction.payee ? transaction.category : null,
                                 transaction.account_id
                                   ? accountNames.get(transaction.account_id) ?? "Archived account"
                                   : null,

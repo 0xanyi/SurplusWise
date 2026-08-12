@@ -179,6 +179,37 @@ export const accountReconciliationSchema = z.object({
   statementBalance: z.number().min(0, "statementBalance cannot be negative"),
 });
 
+const importMappingColumnSchema = z.string().trim().min(1).max(200).nullable().optional();
+
+export const transactionImportMappingSchema = z
+  .object({
+    date: importMappingColumnSchema,
+    amount: importMappingColumnSchema,
+    debit: importMappingColumnSchema,
+    credit: importMappingColumnSchema,
+    type: importMappingColumnSchema,
+    category: importMappingColumnSchema,
+    payee: importMappingColumnSchema,
+    notes: importMappingColumnSchema,
+    tags: importMappingColumnSchema,
+    externalId: importMappingColumnSchema,
+  })
+  .refine((mapping) => Boolean(mapping.date), { message: "A date column is required" })
+  .refine(
+    (mapping) => Boolean(mapping.amount || mapping.debit || mapping.credit),
+    { message: "An amount or debit/credit column is required" },
+  )
+  .refine(
+    (mapping) => !(mapping.amount && (mapping.debit || mapping.credit)),
+    { message: "Use either an amount column or debit/credit columns, not both" },
+  );
+
+export const transactionImportProfileCreateSchema = z.object({
+  name: z.string().trim().min(1, "name is required").max(100),
+  accountId: idSchema,
+  mapping: transactionImportMappingSchema,
+});
+
 export const transactionCreateSchema = z.object({
   amount: amountSchema,
   date: dateStringSchema,
@@ -186,6 +217,7 @@ export const transactionCreateSchema = z.object({
   accountId: idSchema.nullish(),
   status: transactionStatusSchema.optional().default("cleared"),
   category: z.string().min(1, "category is required"),
+  payee: z.string().trim().max(200).nullish(),
   clientId: idSchema.nullish(),
   notes: z.string().nullish(),
   tags: z.array(z.string().trim().min(1).max(30)).max(10).optional().default([]),
@@ -199,6 +231,7 @@ export const transactionUpdateSchema = z.object({
   accountId: idSchema.nullish(),
   status: transactionStatusSchema.optional(),
   category: z.string().min(1).optional(),
+  payee: z.string().trim().max(200).nullish(),
   clientId: idSchema.nullish(),
   notes: z.string().nullish(),
   tags: z.array(z.string().trim().min(1).max(30)).max(10).optional(),

@@ -127,6 +127,13 @@
       "when": 1786558535682,
       "tag": "0017_lush_masked_marvel",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786560281441,
+      "tag": "0018_colossal_phil_sheldon",
+      "breakpoints": true
     }
   ]
 }
