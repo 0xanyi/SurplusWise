@@ -45,8 +45,11 @@ const DEBT_TYPE_LABELS: Record<DebtType, string> = {
   other: "Other",
 };
 
+// The last track holds the row's icon buttons: delete, plus the expand toggle
+// on statements with a per-APR split. Two 32px buttons need 64px, and a
+// narrower track flex-shrinks them under the 24px target-size floor.
 const STATEMENT_COLUMNS =
-  "minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr) 40px";
+  "minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr) 76px";
 
 function ordinal(day: number) {
   if (day >= 11 && day <= 13) return "th";
