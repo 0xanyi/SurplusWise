@@ -106,6 +106,13 @@
       "when": 1786484306474,
       "tag": "0014_drop_balance_log_payment_made",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1786523494570,
+      "tag": "0015_clients_and_pass_through",
+      "breakpoints": true
     }
   ]
 }
