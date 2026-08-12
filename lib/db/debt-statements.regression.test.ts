@@ -178,6 +178,41 @@ describe(
       }
     });
 
+    it("patching the totals alone cannot drift from a stored split", async () => {
+      const { userId, debtId } = await createTempDebt();
+      try {
+        const created = await statementsService.createStatement(userId, debtId, {
+          ...baseStatement,
+          interestBreakdown: splitBuckets,
+        });
+
+        // No breakdown in the patch, so the stored one still governs: these
+        // totals must be ignored rather than left contradicting the lines.
+        const updated = await statementsService.updateStatement(
+          userId,
+          debtId,
+          created.id,
+          { interestCharged: 999, balanceSubjectToInterest: 7 },
+        );
+
+        assert.strictEqual(Number(updated.interestCharged), 10);
+        assert.strictEqual(Number(updated.balanceSubjectToInterest), 2500);
+        assert.strictEqual((updated.interestBreakdown as unknown[]).length, 2);
+
+        // Unrelated fields still patch normally, totals still held to the split.
+        const renotes = await statementsService.updateStatement(
+          userId,
+          debtId,
+          created.id,
+          { notes: "checked against the paper statement" },
+        );
+        assert.strictEqual(Number(renotes.interestCharged), 10);
+        assert.strictEqual(renotes.notes, "checked against the paper statement");
+      } finally {
+        await cleanupUser(userId);
+      }
+    });
+
     it("update with null clears the split and keeps patched totals", async () => {
       const { userId, debtId } = await createTempDebt();
       try {

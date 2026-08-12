@@ -285,6 +285,7 @@ export async function updateStatement(
       id: debtStatements.id,
       periodStart: debtStatements.periodStart,
       periodEnd: debtStatements.periodEnd,
+      interestBreakdown: debtStatements.interestBreakdown,
     })
     .from(debtStatements)
     .where(
@@ -305,13 +306,19 @@ export async function updateStatement(
     throw new Error("period end must not be before period start");
   }
 
-  // A provided breakdown replaces the whole split; null or [] clears it. When
-  // a split is supplied its sums win over any totals in the same patch.
+  // A provided breakdown replaces the whole split; null or [] clears it.
+  //
+  // Whichever split ends up in force — patched here or already stored — is the
+  // source of truth for the totals. Re-deriving from the stored one matters:
+  // otherwise a patch of `interestCharged` alone would leave the statement
+  // claiming an interest figure its own APR lines contradict.
   const breakdownProvided = parsed.interestBreakdown !== undefined;
   const breakdown = breakdownProvided
     ? normaliseInterestBreakdown(parsed.interestBreakdown)
     : undefined;
-  const sums = breakdown ? sumInterestBreakdown(breakdown) : null;
+  const sums = sumInterestBreakdown(
+    breakdownProvided ? breakdown : existing.interestBreakdown,
+  );
 
   const str = (v: number | null | undefined) => (v != null ? String(v) : null);
 
@@ -340,7 +347,7 @@ export async function updateStatement(
         ...(parsed.balanceSubjectToInterest !== undefined && {
           balanceSubjectToInterest: str(parsed.balanceSubjectToInterest),
         }),
-        // After the plain totals so bucket sums win when both are patched.
+        // After the plain totals so the bucket sums win over anything patched.
         ...(breakdownProvided && { interestBreakdown: breakdown ?? null }),
         ...(sums != null && { interestCharged: String(sums.interestCharged) }),
         ...(sums != null && {
