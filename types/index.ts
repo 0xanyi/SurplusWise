@@ -252,6 +252,26 @@ export interface ApiGivingRecipient {
   designations: ApiGivingDesignation[]
 }
 
+export type GivingCommitmentFrequency = 'one_time' | 'monthly' | 'quarterly' | 'yearly'
+
+export interface ApiGivingCommitment {
+  id: string
+  recipient_id: string
+  recipient_name: string
+  designation_id: string | null
+  designation_name: string | null
+  name: string
+  amount: number
+  frequency: GivingCommitmentFrequency
+  start_date: string
+  end_date: string | null
+  notes: string | null
+  is_active: boolean
+  expected: number
+  recorded: number
+  variance: number
+}
+
 export interface ApiClientService {
   id: string
   name: string

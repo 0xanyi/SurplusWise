@@ -60,6 +60,13 @@ export const outgoingFrequencyEnum = pgEnum("outgoing_frequency", [
   "yearly",
 ]);
 
+export const givingCommitmentFrequencyEnum = pgEnum("giving_commitment_frequency", [
+  "one_time",
+  "monthly",
+  "quarterly",
+  "yearly",
+]);
+
 export const debtTypeEnum = pgEnum("debt_type", [
   "credit_card",
   "loan",
@@ -359,6 +366,49 @@ export const givingDesignations = pgTable(
   (t) => [
     index("idx_giving_designations_recipient_active").on(t.recipientId, t.isActive),
     uniqueIndex("idx_giving_designations_recipient_name").on(t.recipientId, t.name),
+  ],
+);
+
+export const givingCommitments = pgTable(
+  "giving_commitments",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    recipientId: text("recipient_id")
+      .notNull()
+      .references(() => givingRecipients.id, { onDelete: "restrict" }),
+    designationId: text("designation_id").references(() => givingDesignations.id, {
+      onDelete: "restrict",
+    }),
+    name: text("name").notNull(),
+    amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+    frequency: givingCommitmentFrequencyEnum("frequency").notNull(),
+    startDate: date("start_date", { mode: "string" }).notNull(),
+    endDate: date("end_date", { mode: "string" }),
+    notes: text("notes"),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_giving_commitments_workspace_active").on(t.workspaceId, t.isActive),
+    index("idx_giving_commitments_recipient").on(t.recipientId, t.designationId),
+    uniqueIndex("idx_giving_commitments_active_general_target")
+      .on(t.workspaceId, t.recipientId)
+      .where(sql`${t.isActive} and ${t.designationId} is null`),
+    uniqueIndex("idx_giving_commitments_active_designated_target")
+      .on(t.workspaceId, t.recipientId, t.designationId)
+      .where(sql`${t.isActive} and ${t.designationId} is not null`),
+    check("chk_giving_commitments_positive_amount", sql`${t.amount} > 0`),
+    check(
+      "chk_giving_commitments_date_order",
+      sql`${t.endDate} is null or ${t.endDate} >= ${t.startDate}`,
+    ),
   ],
 );
 
