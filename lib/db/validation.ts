@@ -94,6 +94,35 @@ export const workspaceUpdateSchema = z
     { message: "At least one field must be provided for update" },
   );
 
+// ─── Clients / People ────────────────────────────────────────────────────────
+
+export const clientCreateSchema = z.object({
+  name: z.string().trim().min(1, "name is required").max(100),
+  contactEmail: z.string().trim().email("contactEmail must be a valid email").max(254).nullish(),
+  notes: z.string().max(2000).nullish(),
+});
+
+export const clientUpdateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100).optional(),
+    contactEmail: z
+      .string()
+      .trim()
+      .email("contactEmail must be a valid email")
+      .max(254)
+      .nullish(),
+    notes: z.string().max(2000).nullish(),
+    isActive: z.boolean().optional(),
+  })
+  .refine(
+    (data) =>
+      data.name !== undefined ||
+      data.contactEmail !== undefined ||
+      data.notes !== undefined ||
+      data.isActive !== undefined,
+    { message: "At least one field must be provided for update" },
+  );
+
 // ─── Transactions ────────────────────────────────────────────────────────────
 
 export const transactionCreateSchema = z.object({
@@ -101,6 +130,7 @@ export const transactionCreateSchema = z.object({
   date: dateStringSchema,
   type: transactionTypeSchema,
   category: z.string().min(1, "category is required"),
+  clientId: idSchema.nullish(),
   notes: z.string().nullish(),
   tags: z.array(z.string().trim().min(1).max(30)).max(10).optional().default([]),
   receiptStorageId: z.string().nullish(),
@@ -111,6 +141,7 @@ export const transactionUpdateSchema = z.object({
   date: dateStringSchema.optional(),
   type: transactionTypeSchema.optional(),
   category: z.string().min(1).optional(),
+  clientId: idSchema.nullish(),
   notes: z.string().nullish(),
   tags: z.array(z.string().trim().min(1).max(30)).max(10).optional(),
   receiptStorageId: z.string().nullish(),
@@ -120,6 +151,7 @@ export const transactionListFiltersSchema = z
   .object({
     type: transactionTypeSchema.optional(),
     category: z.string().optional(),
+    clientId: idSchema.optional(),
     tag: z.string().trim().min(1).max(30).optional(),
     startDate: dateStringSchema.optional(),
     endDate: dateStringSchema.optional(),
@@ -251,12 +283,18 @@ export const dayOfMonthSchema = z
   .min(1, "dayOfMonth must be 1-31")
   .max(31, "dayOfMonth must be 1-31");
 
+export const rebillModeSchema = z.enum(["none", "at_cost", "fixed", "bundled"]);
+
 export const recurringOutgoingCreateSchema = z.object({
   name: z.string().min(1, "name is required").max(100),
   amount: amountSchema,
   dayOfMonth: dayOfMonthSchema,
   frequency: outgoingFrequencySchema.optional().default("monthly"),
   category: z.string().max(100).nullish(),
+  vendor: z.string().trim().max(100).nullish(),
+  clientId: idSchema.nullish(),
+  rebillMode: rebillModeSchema.optional().default("none"),
+  rebillAmount: amountSchema.nullish(),
   notes: z.string().nullish(),
 });
 
@@ -267,6 +305,10 @@ export const recurringOutgoingUpdateSchema = z
     dayOfMonth: dayOfMonthSchema.optional(),
     frequency: outgoingFrequencySchema.optional(),
     category: z.string().max(100).nullish(),
+    vendor: z.string().trim().max(100).nullish(),
+    clientId: idSchema.nullish(),
+    rebillMode: rebillModeSchema.optional(),
+    rebillAmount: amountSchema.nullish(),
     notes: z.string().nullish(),
     isActive: z.boolean().optional(),
   })
@@ -277,6 +319,10 @@ export const recurringOutgoingUpdateSchema = z
       data.dayOfMonth !== undefined ||
       data.frequency !== undefined ||
       data.category !== undefined ||
+      data.vendor !== undefined ||
+      data.clientId !== undefined ||
+      data.rebillMode !== undefined ||
+      data.rebillAmount !== undefined ||
       data.notes !== undefined ||
       data.isActive !== undefined,
     { message: "At least one field must be provided for update" },
