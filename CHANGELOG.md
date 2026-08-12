@@ -4,6 +4,14 @@ All notable changes to Sika will be documented in this file.
 
 ## [Unreleased]
 
+### Debts: per-APR interest buckets
+
+- A statement's interest can now be recorded as multiple APR lines — a 0%
+  balance transfer next to purchases at the standard rate, cash advances, and
+  so on — exactly as the issuer prints them. Each line shows the rate it
+  implies against its own APR, while the statement keeps a single blended rate.
+  The plain three-number close flow is unchanged when only one rate applies
+
 ## [1.0.0] - 2026-08-11 - Open Source Release
 
 Sika is now open source under the MIT license, renamed from SurplusWise, and

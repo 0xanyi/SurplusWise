@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   CalendarDays,
+  ChevronDown,
   FileText,
   Loader2,
   Plus,
@@ -14,7 +15,7 @@ import {
 import { apiFetch, useApiQuery } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
-import { getUtilisation } from "@/lib/debt-interest";
+import { getUtilisation, INTEREST_BUCKET_LABELS } from "@/lib/debt-interest";
 import type {
   ApiDebtCredit,
   ApiDebtPayment,
@@ -44,8 +45,11 @@ const DEBT_TYPE_LABELS: Record<DebtType, string> = {
   other: "Other",
 };
 
+// The last track holds the row's icon buttons: delete, plus the expand toggle
+// on statements with a per-APR split. Two 32px buttons need 64px, and a
+// narrower track flex-shrinks them under the 24px target-size floor.
 const STATEMENT_COLUMNS =
-  "minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr) 40px";
+  "minmax(0,1.3fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.1fr) minmax(0,1fr) 76px";
 
 function ordinal(day: number) {
   if (day >= 11 && day <= 13) return "th";
@@ -92,6 +96,10 @@ export function DebtDetail({ debtId }: { debtId: string }) {
 
   const [statementOpen, setStatementOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
+  // Statements with a per-APR split can expand to show each line.
+  const [expandedStatements, setExpandedStatements] = useState<Record<string, boolean>>({});
+  const toggleExpanded = (id: string) =>
+    setExpandedStatements((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const debt = debtQuery.data?.debt;
   const statements = statementsQuery.data?.statements ?? [];
@@ -310,6 +318,20 @@ export function DebtDetail({ debtId }: { debtId: string }) {
                           </span>
 
                           <span className="col-span-2 flex justify-end sm:col-auto">
+                            {statement.interest_breakdown && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="size-8 text-muted-foreground"
+                                aria-label={`${expandedStatements[statement.id] ? "Hide" : "Show"} APR lines for ${formatPeriod(statement.period_start, statement.period_end)}`}
+                                aria-expanded={!!expandedStatements[statement.id]}
+                                onClick={() => toggleExpanded(statement.id)}
+                              >
+                                <ChevronDown
+                                  className={`size-3.5 transition-transform ${expandedStatements[statement.id] ? "rotate-180" : ""}`}
+                                />
+                              </Button>
+                            )}
                             <Button
                               size="icon"
                               variant="ghost"
@@ -352,6 +374,8 @@ export function DebtDetail({ debtId }: { debtId: string }) {
                             }`}
                           {statement.minimum_payment != null &&
                             ` · ${formatCurrency(statement.minimum_payment)} min`}
+                          {statement.interest_breakdown &&
+                            ` · ${statement.interest_breakdown.length} rates`}
                         </p>
 
                         {statement.rate && statement.advertised_apr != null && (
@@ -383,6 +407,39 @@ export function DebtDetail({ debtId }: { debtId: string }) {
                             against the figures recorded
                           </p>
                         )}
+
+                        {statement.interest_breakdown &&
+                          expandedStatements[statement.id] && (
+                            <ul className="col-span-2 space-y-1 border-t border-border/40 pt-2">
+                              {statement.interest_breakdown.map((bucket, index) => (
+                                <li
+                                  key={index}
+                                  className="flex flex-wrap items-baseline gap-x-2 text-[11.5px] tabular-nums text-muted-foreground"
+                                >
+                                  <span className="font-medium text-foreground">
+                                    {bucket.label ?? INTEREST_BUCKET_LABELS[bucket.type]}
+                                  </span>
+                                  <span>
+                                    {formatCurrency(bucket.interest_charged)} interest on{" "}
+                                    {formatCurrency(bucket.balance_subject_to_interest)}
+                                  </span>
+                                  {bucket.rate && (
+                                    <span>
+                                      · {bucket.rate.annualised_percent.toFixed(1)}% a year
+                                    </span>
+                                  )}
+                                  {bucket.apr != null && <span>· {bucket.apr}% APR</span>}
+                                  {bucket.rate_variance != null &&
+                                    Math.abs(bucket.rate_variance) >= 1 && (
+                                      <span className="text-obligation">
+                                        ({bucket.rate_variance > 0 ? "+" : ""}
+                                        {bucket.rate_variance.toFixed(1)}pts)
+                                      </span>
+                                    )}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                       </div>
                     </li>
                   ))}

@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { InterestBucket } from "@/lib/debt-interest";
 import {
   boolean,
   check,
@@ -509,7 +510,8 @@ export const debtStatements = pgTable(
     }),
     principalPaid: decimal("principal_paid", { precision: 10, scale: 2 }), // amortising only
     interestPaid: decimal("interest_paid", { precision: 10, scale: 2 }), // amortising only
-    interestBreakdown: jsonb("interest_breakdown"), // reserved for per-APR buckets
+    // Per-APR buckets; when present, interest/basis columns are the bucket sums.
+    interestBreakdown: jsonb("interest_breakdown").$type<InterestBucket[]>(),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

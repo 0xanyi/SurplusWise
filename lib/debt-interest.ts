@@ -102,6 +102,128 @@ export function getRateVariance(
   return derived.annualisedPercent - advertisedApr;
 }
 
+// ─── Per-APR interest buckets ────────────────────────────────────────────────
+//
+// A statement can carry several APR lines at once (a 0% balance transfer next
+// to purchases at 24.9%). Each line is a bucket; when buckets are present they
+// are the source of truth and the statement-level interest and basis are their
+// sums.
+
+export type InterestBucketType =
+  | "purchases"
+  | "balance_transfer"
+  | "cash_advance"
+  | "promotional"
+  | "other";
+
+/** Zod needs a mutable tuple; treat it as readonly everywhere else. */
+export const INTEREST_BUCKET_TYPES: [InterestBucketType, ...InterestBucketType[]] = [
+  "purchases",
+  "balance_transfer",
+  "cash_advance",
+  "promotional",
+  "other",
+];
+
+export const INTEREST_BUCKET_LABELS: Record<InterestBucketType, string> = {
+  purchases: "Purchases",
+  balance_transfer: "Balance transfer",
+  cash_advance: "Cash advance",
+  promotional: "Promotional",
+  other: "Other",
+};
+
+/** Hard cap so the jsonb column cannot grow without bound. */
+export const MAX_INTEREST_BUCKETS = 8;
+
+export interface InterestBucket {
+  type: InterestBucketType;
+  /** Free-text override of the preset name; null uses the type's label. */
+  label?: string | null;
+  /** The balance the issuer charged interest against for this line. */
+  balanceSubjectToInterest: number;
+  interestCharged: number;
+  /** Advertised APR for this line, percent. */
+  apr?: number | null;
+}
+
+/**
+ * Statement-level totals implied by a split, or null when there is no split.
+ * When buckets exist they are the source of truth: the statement's
+ * `interest_charged` and `balance_subject_to_interest` columns are these sums.
+ */
+export function sumInterestBreakdown(
+  buckets: InterestBucket[] | null | undefined,
+): { interestCharged: number; balanceSubjectToInterest: number } | null {
+  if (!buckets || buckets.length === 0) return null;
+  return {
+    interestCharged: round2(buckets.reduce((sum, b) => sum + b.interestCharged, 0)),
+    balanceSubjectToInterest: round2(
+      buckets.reduce((sum, b) => sum + b.balanceSubjectToInterest, 0),
+    ),
+  };
+}
+
+/**
+ * Canonical stored form of a breakdown: null when there is no split, otherwise
+ * the buckets with labels trimmed and blank labels nulled. Assumes the input
+ * has already passed validation (`lib/db/validation.ts`).
+ */
+export function normaliseInterestBreakdown(
+  input: InterestBucket[] | null | undefined,
+): InterestBucket[] | null {
+  if (!input || input.length === 0) return null;
+  return input.map((bucket) => ({
+    type: bucket.type,
+    label: bucket.label?.trim() ? bucket.label.trim() : null,
+    balanceSubjectToInterest: bucket.balanceSubjectToInterest,
+    interestCharged: bucket.interestCharged,
+    apr: bucket.apr ?? null,
+  }));
+}
+
+/**
+ * The rate one APR line implies, using the line's printed basis so the result
+ * is always exact, never a midpoint estimate.
+ *
+ * Unlike a whole statement, a zero basis is not automatically meaningless: a
+ * 0% promotional line with nothing yet subject to interest is a real 0%
+ * answer. Zero basis with interest actually charged is nonsense and stays
+ * null, as does a broken period.
+ */
+export function deriveBucketRate(
+  bucket: Pick<InterestBucket, "balanceSubjectToInterest" | "interestCharged">,
+  periodStart: string,
+  periodEnd: string,
+): DerivedRate | null {
+  const periodDays = getPeriodDays(periodStart, periodEnd);
+  if (periodDays <= 0) return null;
+
+  if (!(bucket.balanceSubjectToInterest > 0)) {
+    if (bucket.interestCharged === 0) {
+      return {
+        periodRatePercent: 0,
+        annualisedPercent: 0,
+        basis: 0,
+        estimated: false,
+        periodDays,
+      };
+    }
+    return null;
+  }
+
+  // A printed basis makes the midpoint inputs irrelevant; deriveRate's own
+  // null-on-zero-basis contract is unchanged and still governs statements.
+  return deriveRate({
+    openingBalance: 0,
+    closingBalance: 0,
+    interestCharged: bucket.interestCharged,
+    balanceSubjectToInterest: bucket.balanceSubjectToInterest,
+    periodStart,
+    periodEnd,
+  });
+}
+
 export type RevolvingDebtType = "credit_card" | "overdraft";
 
 /**

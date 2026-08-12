@@ -225,6 +225,24 @@ export interface ApiDerivedRate {
   period_days: number
 }
 
+export type InterestBucketType =
+  | 'purchases'
+  | 'balance_transfer'
+  | 'cash_advance'
+  | 'promotional'
+  | 'other'
+
+/** One APR line of a statement's interest breakdown, with the rate it implies. */
+export interface ApiInterestBucket {
+  type: InterestBucketType
+  label: string | null
+  balance_subject_to_interest: number
+  interest_charged: number
+  apr: number | null
+  rate: ApiDerivedRate | null
+  rate_variance: number | null
+}
+
 export interface ApiDebtStatement {
   id: string
   debt_id: string
@@ -247,6 +265,8 @@ export interface ApiDebtStatement {
   residual_significant: boolean
   advertised_apr: number | null
   rate: ApiDerivedRate | null
+  /** Per-APR split; when present, interest_charged/balance_subject_to_interest are its sums. */
+  interest_breakdown: ApiInterestBucket[] | null
   created_at: string | null
 }
 
