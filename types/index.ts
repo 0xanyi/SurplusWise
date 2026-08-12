@@ -1,4 +1,5 @@
 export type TransactionType = 'expense' | 'giving' | 'income'
+export type TransactionStatus = 'pending' | 'cleared' | 'reconciled'
 
 export interface Transaction {
   _id: string
@@ -6,11 +7,47 @@ export interface Transaction {
   amount: number
   date: string
   type: TransactionType
+  account_id: string | null
+  status: TransactionStatus
   category: string
   notes?: string
   receiptStorageId?: string
   createdAt: number
   updatedAt: number
+}
+
+export type FinancialAccountClass = 'asset' | 'liability'
+export type FinancialAccountType =
+  | 'checking'
+  | 'savings'
+  | 'cash'
+  | 'credit_card'
+  | 'loan'
+  | 'other'
+
+export interface ApiFinancialAccount {
+  id: string
+  name: string
+  account_class: FinancialAccountClass
+  account_type: FinancialAccountType
+  currency: string
+  opening_balance: number
+  opening_date: string
+  current_balance: number
+  projected_balance: number
+  reconciled_balance: number | null
+  reconciled_at: string | null
+  is_active: boolean
+}
+
+export interface ApiAccountTransfer {
+  id: string
+  from_account_id: string
+  to_account_id: string
+  amount: number
+  date: string
+  notes: string | null
+  created_at: string | null
 }
 
 export interface Category {
@@ -50,6 +87,8 @@ export interface ApiTransaction {
   amount: number
   date: string
   type: TransactionType
+  account_id: string | null
+  status: TransactionStatus
   category: string
   client_id: string | null
   notes: string | null

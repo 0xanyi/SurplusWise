@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Repeat,
   Settings,
+  WalletCards,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -78,6 +79,7 @@ export const navGroups: NavGroup[] = [
   {
     heading: "Balance sheet",
     items: [
+      { href: "/dashboard/accounts", icon: WalletCards, label: "Accounts" },
       { href: "/dashboard/debts", icon: CreditCard, label: "Debts" },
       { href: "/dashboard/loans", icon: HandCoins, label: "Loans given" },
       { href: "/dashboard/investments", icon: Landmark, label: "Investments" },

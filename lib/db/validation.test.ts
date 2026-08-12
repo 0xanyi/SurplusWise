@@ -12,6 +12,9 @@ import {
   transactionCreateSchema,
   transactionUpdateSchema,
   transactionListFiltersSchema,
+  financialAccountCreateSchema,
+  accountTransferCreateSchema,
+  accountReconciliationSchema,
   categoryCreateSchema,
   categoryUpdateSchema,
   budgetPeriodSchema,
@@ -104,6 +107,57 @@ describe("transactionTypeSchema", () => {
   }
   it('rejects "debit"', () => {
     assert.throws(() => transactionTypeSchema.parse("debit"));
+  });
+});
+
+describe("financial account schemas", () => {
+  const checking = {
+    name: "Main account",
+    accountClass: "asset" as const,
+    accountType: "checking" as const,
+    currency: "GBP",
+    openingBalance: 250,
+    openingDate: "2026-01-01",
+  };
+
+  it("accepts an asset account", () => {
+    assert.doesNotThrow(() => financialAccountCreateSchema.parse(checking));
+  });
+
+  it("rejects an asset type declared as a liability", () => {
+    assert.throws(() =>
+      financialAccountCreateSchema.parse({ ...checking, accountClass: "liability" }),
+    );
+  });
+
+  it("accepts a credit card liability", () => {
+    assert.doesNotThrow(() =>
+      financialAccountCreateSchema.parse({
+        ...checking,
+        accountClass: "liability",
+        accountType: "credit_card",
+      }),
+    );
+  });
+
+  it("rejects transfers to the same account", () => {
+    assert.throws(() =>
+      accountTransferCreateSchema.parse({
+        fromAccountId: "same",
+        toAccountId: "same",
+        amount: 10,
+        date: "2026-01-02",
+      }),
+    );
+  });
+
+  it("accepts a zero statement balance", () => {
+    assert.doesNotThrow(() =>
+      accountReconciliationSchema.parse({
+        statementDate: "2026-01-31",
+        statementBalance: 0,
+      }),
+    );
   });
 });
 

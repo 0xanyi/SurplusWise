@@ -22,6 +22,8 @@ function toTransaction(row: Awaited<ReturnType<typeof txService.list>>[number]) 
     amount: Number(row.amount),
     date: row.date,
     type: row.type,
+    account_id: row.accountId ?? null,
+    status: row.status,
     category: row.category,
     client_id: row.clientId ?? null,
     notes: row.notes ?? null,
@@ -40,6 +42,8 @@ export async function GET(request: NextRequest) {
 
     // Parse filters
     const type = sp.get("type") as txService.ListFilters["type"] | null;
+    const accountId = sp.get("accountId") ?? undefined;
+    const status = sp.get("status") as txService.ListFilters["status"] | null;
     const category = sp.get("category") ?? undefined;
     const clientId = sp.get("clientId") ?? undefined;
     const tag = sp.get("tag") ?? undefined;
@@ -49,6 +53,8 @@ export async function GET(request: NextRequest) {
 
     const filters: txService.ListFilters = {
       ...(type && { type }),
+      ...(accountId && { accountId }),
+      ...(status && { status }),
       ...(category && { category }),
       ...(clientId && { clientId }),
       ...(tag && { tag }),
@@ -130,6 +136,8 @@ export async function POST(request: NextRequest) {
       amount: body.amount,
       date: body.date,
       type: body.type,
+      accountId: body.accountId ?? body.account_id,
+      status: body.status,
       category: body.category,
       clientId: body.clientId ?? body.client_id ?? null,
       notes: body.notes ?? null,

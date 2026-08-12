@@ -19,7 +19,14 @@ import { ReceiptScanner } from "./receipt-scanner";
 import { ClientPicker, NO_CLIENT } from "./clients/client-picker";
 import { useToast } from "@/hooks/use-toast";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
-import type { TransactionType, ApiTransaction } from "@/types";
+import type {
+  ApiFinancialAccount,
+  ApiTransaction,
+  TransactionStatus,
+  TransactionType,
+} from "@/types";
+
+const NO_ACCOUNT = "__unassigned__";
 
 interface ApiCategory {
   id: string;
@@ -59,7 +66,11 @@ export function TransactionForm({
 }: TransactionFormProps) {
   const { toast } = useToast();
   const { data: catData } = useApiQuery<{ categories: ApiCategory[] }>("/api/categories");
+  const { data: accountData } = useApiQuery<{ accounts: ApiFinancialAccount[] }>(
+    "/api/financial-accounts",
+  );
   const categories = catData?.categories;
+  const accounts = accountData?.accounts ?? [];
 
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"manual" | "scan">(defaultMode);
@@ -68,6 +79,8 @@ export function TransactionForm({
     amount: "",
     date: new Date().toISOString().split("T")[0],
     type: defaultType,
+    accountId: NO_ACCOUNT,
+    status: "cleared" as TransactionStatus,
     category: "",
     clientId: NO_CLIENT,
     notes: "",
@@ -82,6 +95,8 @@ export function TransactionForm({
         amount: transaction.amount.toString(),
         date: transaction.date,
         type: transaction.type,
+        accountId: transaction.account_id ?? NO_ACCOUNT,
+        status: transaction.status,
         category: transaction.category,
         clientId: transaction.client_id ?? NO_CLIENT,
         notes: transaction.notes ?? "",
@@ -96,6 +111,8 @@ export function TransactionForm({
       amount: "",
       date: new Date().toISOString().split("T")[0],
       type: defaultType,
+      accountId: NO_ACCOUNT,
+      status: "cleared",
       category: "",
       clientId: NO_CLIENT,
       notes: "",
@@ -145,6 +162,8 @@ export function TransactionForm({
         amount,
         date: formData.date,
         type: formData.type,
+        accountId: formData.accountId === NO_ACCOUNT ? null : formData.accountId,
+        status: formData.status,
         category: formData.category,
         // Explicit null rather than undefined so clearing the field on an edit
         // actually detaches the client instead of being read as "unchanged".
@@ -255,6 +274,51 @@ export function TransactionForm({
                   onChange={(e) => setFormData((prev) => ({ ...prev, amount: e.target.value }))}
                   required
                 />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Account (optional)</Label>
+                <Select
+                  value={formData.accountId}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, accountId: value }))}
+                  disabled={transaction?.status === "reconciled"}
+                >
+                  <SelectTrigger aria-label="Financial account">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_ACCOUNT}>Unassigned</SelectItem>
+                    {accounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value: TransactionStatus) =>
+                    setFormData((prev) => ({ ...prev, status: value }))
+                  }
+                  disabled={transaction?.status === "reconciled"}
+                >
+                  <SelectTrigger aria-label="Transaction status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="cleared">Cleared</SelectItem>
+                    {transaction?.status === "reconciled" && (
+                      <SelectItem value="reconciled">Reconciled</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

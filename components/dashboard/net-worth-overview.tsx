@@ -10,7 +10,10 @@ interface NetWorthResponse {
   netWorth: number;
   investmentsValue: number;
   loansReceivable: number;
+  accountAssets: number;
+  accountLiabilities: number;
   debtsOwed: number;
+  accountCount: number;
   investmentCount: number;
   loanCount: number;
   debtCount: number;
@@ -47,14 +50,14 @@ export function NetWorthOverview() {
   // The bar apportions everything on the balance sheet, both sides, so the
   // liability reads as a share of the whole rather than as a negative width.
   const total =
-    data.investmentsValue + cashAndOther + data.loansReceivable + data.debtsOwed;
+    data.investmentsValue + cashAndOther + data.loansReceivable + data.liabilities;
   const share = (n: number) => (total > 0 ? (n / total) * 100 : 0);
 
   const segments = [
     { value: data.investmentsValue, className: "bg-foreground/70" },
     { value: cashAndOther, className: "bg-foreground/40" },
     { value: data.loansReceivable, className: "bg-foreground/25" },
-    { value: data.debtsOwed, className: "bg-obligation" },
+    { value: data.liabilities, className: "bg-obligation" },
   ];
 
   const columns = [
@@ -63,8 +66,8 @@ export function NetWorthOverview() {
     { label: "Loans out", value: data.loansReceivable, tone: "" },
     {
       label: "Debts owed",
-      value: -data.debtsOwed,
-      tone: data.debtsOwed > 0 ? "text-obligation" : "",
+      value: -data.liabilities,
+      tone: data.liabilities > 0 ? "text-obligation" : "",
     },
   ];
 
@@ -95,7 +98,7 @@ export function NetWorthOverview() {
               share(data.investmentsValue)
             )}%, cash and other ${Math.round(share(cashAndOther))}%, loans out ${Math.round(
               share(data.loansReceivable)
-            )}%, debts owed ${Math.round(share(data.debtsOwed))}%`}
+            )}%, debts owed ${Math.round(share(data.liabilities))}%`}
           >
             {segments.map((seg, i) =>
               seg.value > 0 ? (

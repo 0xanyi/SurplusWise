@@ -97,7 +97,12 @@ today; it is a position, not a measured market finding.)*
 - Workspaces: `personal` and `business` types, multiple allowed, per-workspace
   currency, hard data isolation across every feature.
 - Transactions: `income`, `expense`, `giving`; CRUD, search, type/category/date-range
-  filtering at the database level.
+  filtering at the database level. Transactions can optionally belong to a
+  financial account and carry pending, cleared, or reconciled status.
+- Financial accounts: asset and liability accounts, opening and derived balances,
+  linked transfers that never enter income/expense/giving reports, statement
+  reconciliation, and account balances included in net worth. Historical
+  transactions remain explicitly unassigned until the user places them.
 - Categories: 10 default expense, 8 default giving, plus custom, color-coded,
   per workspace.
 - Budgets: monthly / quarterly / yearly, per category, with live spent-vs-allocated

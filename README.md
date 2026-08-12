@@ -87,6 +87,9 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - ✅ CRUD operations for all transactions
 - ✅ Search and filter transactions
 - ✅ Date range filtering with database-level optimization
+- ✅ Optional financial account assignment with pending/cleared/reconciled status
+- ✅ Asset and liability balances, transfers, and statement reconciliation
+- ✅ Bank-style CSV import with debit/credit mapping and duplicate review
 - 🤖 AI-powered receipt scanning with OpenAI Vision
 - ✅ Receipt upload and storage via S3-compatible storage
 
@@ -102,6 +105,7 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - 🥧 Category breakdown (pie charts)
 - 📅 Period-based filtering (weekly, monthly, quarterly, yearly, custom)
 - 💾 CSV data export
+- 💰 Financial account balances included in net worth
 
 **Category Management**
 - ✅ Default expense categories (10 categories)

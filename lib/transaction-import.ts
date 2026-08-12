@@ -1,13 +1,25 @@
 import { transactionCreateSchema } from "@/lib/db/validation";
 
-export type TransactionImportField = "date" | "amount" | "type" | "category" | "notes" | "tags";
+export type TransactionImportField =
+  | "date"
+  | "amount"
+  | "debit"
+  | "credit"
+  | "type"
+  | "category"
+  | "notes"
+  | "tags"
+  | "externalId";
 
-export type TransactionImportMapping = Partial<Record<TransactionImportField, string>>;
+export const UNMAPPED_IMPORT_COLUMN = "__unmapped__";
+
+export type TransactionImportMapping = Partial<Record<TransactionImportField, string | null>>;
 
 export interface TransactionImportPreviewRow {
   lineNumber: number;
   source: Record<string, string>;
   mapped: Partial<Record<TransactionImportField, string>>;
+  normalized: Omit<TransactionImportValidatedRow, "lineNumber"> | null;
   valid: boolean;
   errors: string[];
 }
@@ -20,6 +32,7 @@ export interface TransactionImportValidatedRow {
   category: string;
   notes: string | null;
   tags: string[];
+  externalId: string | null;
   receiptStorageId: null;
 }
 
@@ -35,15 +48,18 @@ export interface TransactionImportAnalysis {
   missingRequiredMappings: TransactionImportField[];
 }
 
-const REQUIRED_FIELDS: TransactionImportField[] = ["date", "amount", "type", "category"];
+const REQUIRED_FIELDS: TransactionImportField[] = ["date", "amount"];
 
 const HEADER_ALIASES: Record<TransactionImportField, string[]> = {
   date: ["date", "transaction date", "posted date", "payment date"],
   amount: ["amount", "value", "total", "transaction amount"],
+  debit: ["debit", "withdrawal", "money out", "paid out"],
+  credit: ["credit", "deposit", "money in", "paid in"],
   type: ["type", "transaction type", "entry type"],
   category: ["category", "group", "bucket"],
   notes: ["notes", "note", "description", "memo", "details"],
   tags: ["tags", "labels", "tag"],
+  externalId: ["transaction id", "transaction reference", "bank id", "external id"],
 };
 
 function normalizeHeader(value: string) {
@@ -95,6 +111,17 @@ function parseTags(value: string) {
     .split(/[;,]/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function parseAmount(value: string) {
+  const trimmed = value.trim();
+  const parenthesized = /^\(.*\)$/.test(trimmed);
+  const numeric = trimmed
+    .replace(/^\((.*)\)$/, "$1")
+    .replace(/[^0-9.,+-]/g, "")
+    .replace(/,/g, "");
+  const amount = Number.parseFloat(numeric);
+  return parenthesized ? -amount : amount;
 }
 
 export function inferMappings(headers: string[]): TransactionImportMapping {
@@ -151,32 +178,56 @@ function validateMappedRow(
 ): { row?: Omit<TransactionImportValidatedRow, "lineNumber">; errors: string[] } {
   const errors: string[] = [];
 
-  for (const field of REQUIRED_FIELDS) {
-    if (!mapped[field]?.trim()) {
-      errors.push(`Missing ${field}`);
-    }
+  if (!mapped.date?.trim()) {
+    errors.push("Missing date");
+  }
+  const hasAmount = Boolean(mapped.amount?.trim());
+  const hasDebit = Boolean(mapped.debit?.trim());
+  const hasCredit = Boolean(mapped.credit?.trim());
+  if (!hasAmount && !hasDebit && !hasCredit) {
+    errors.push("Missing amount, debit, or credit");
+  }
+  if (hasAmount && (hasDebit || hasCredit)) {
+    errors.push("Use either amount or debit/credit columns, not both");
   }
 
   if (errors.length > 0) {
     return { errors };
   }
 
-  let type: "expense" | "giving" | "income";
-  try {
-    type = normalizeType(mapped.type ?? "");
-  } catch (error) {
-    errors.push(error instanceof Error ? error.message : "Invalid type");
-    return { errors };
+  let amount: number;
+  let inferredType: "expense" | "income";
+  if (hasAmount) {
+    const signedAmount = parseAmount(mapped.amount ?? "");
+    amount = Math.abs(signedAmount);
+    inferredType = signedAmount < 0 ? "expense" : "income";
+  } else {
+    const debit = hasDebit ? Math.abs(parseAmount(mapped.debit ?? "")) : 0;
+    const credit = hasCredit ? Math.abs(parseAmount(mapped.credit ?? "")) : 0;
+    if (debit > 0 && credit > 0) {
+      return { errors: ["A row cannot contain both debit and credit amounts"] };
+    }
+    amount = debit || credit;
+    inferredType = debit > 0 ? "expense" : "income";
   }
 
-  const amount = Number.parseFloat(mapped.amount ?? "");
+  let type: "expense" | "giving" | "income" = inferredType;
+  if (mapped.type?.trim()) {
+    try {
+      type = normalizeType(mapped.type);
+    } catch (error) {
+      return { errors: [error instanceof Error ? error.message : "Invalid type"] };
+    }
+  }
+
   const candidate = {
     amount,
     date: mapped.date?.trim() ?? "",
     type,
-    category: mapped.category?.trim() ?? "",
+    category: mapped.category?.trim() || "Uncategorized",
     notes: mapped.notes?.trim() ? mapped.notes.trim() : null,
     tags: mapped.tags?.trim() ? parseTags(mapped.tags) : [],
+    externalId: mapped.externalId?.trim() || null,
     receiptStorageId: null,
   };
 
@@ -191,6 +242,7 @@ function validateMappedRow(
     row: {
       ...parsed.data,
       notes: parsed.data.notes ?? null,
+      externalId: candidate.externalId,
       receiptStorageId: null,
     },
     errors: [],
@@ -203,7 +255,12 @@ export function analyzeTransactionImport(
 ): TransactionImportAnalysis {
   const { headers, rows } = parseCsv(text);
   const mappings = { ...inferMappings(headers), ...mappingOverrides };
-  const missingRequiredMappings = REQUIRED_FIELDS.filter((field) => !mappings[field]);
+  const missingRequiredMappings = [
+    ...(!mappings.date ? (["date"] as TransactionImportField[]) : []),
+    ...(!mappings.amount && !mappings.debit && !mappings.credit
+      ? (["amount"] as TransactionImportField[])
+      : []),
+  ];
 
   const previewRows: TransactionImportPreviewRow[] = [];
   const validRows: TransactionImportValidatedRow[] = [];
@@ -215,6 +272,7 @@ export function analyzeTransactionImport(
       lineNumber: row.lineNumber,
       source: mappedRow.source,
       mapped: mappedRow.mapped,
+      normalized: validRow ?? null,
       valid: errors.length === 0,
       errors,
     };

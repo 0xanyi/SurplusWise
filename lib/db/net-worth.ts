@@ -1,16 +1,24 @@
 import * as investmentsService from "./investments";
 import * as loansService from "./loans-given";
 import * as debtsService from "./debts-credits";
+import * as financialAccountsService from "./financial-accounts";
 
 export async function getNetWorthSummary(userId: string, workspaceId: string) {
-  const [investments, loans, debts] = await Promise.all([
+  const [investments, loans, debts, accounts] = await Promise.all([
     investmentsService.getSummary(userId, workspaceId),
     loansService.getSummary(userId, workspaceId),
     debtsService.getSummary(userId, workspaceId),
+    financialAccountsService.list(userId, workspaceId),
   ]);
 
-  const assets = investments.totalCurrentValue + loans.totalOutstanding;
-  const liabilities = debts.totalBalance;
+  const accountAssets = accounts
+    .filter((account) => account.accountClass === "asset")
+    .reduce((sum, account) => sum + account.currentBalance, 0);
+  const accountLiabilities = accounts
+    .filter((account) => account.accountClass === "liability")
+    .reduce((sum, account) => sum + account.currentBalance, 0);
+  const assets = investments.totalCurrentValue + loans.totalOutstanding + accountAssets;
+  const liabilities = debts.totalBalance + accountLiabilities;
   const netWorth = assets - liabilities;
 
   return {
@@ -19,7 +27,10 @@ export async function getNetWorthSummary(userId: string, workspaceId: string) {
     netWorth,
     investmentsValue: investments.totalCurrentValue,
     loansReceivable: loans.totalOutstanding,
+    accountAssets,
+    accountLiabilities,
     debtsOwed: debts.totalBalance,
+    accountCount: accounts.length,
     investmentCount: investments.count,
     loanCount: loans.count,
     debtCount: debts.count,

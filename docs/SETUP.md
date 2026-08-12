@@ -170,7 +170,7 @@ For exact production command order, use:
 1. Set up the only account using `SIKA_SETUP_TOKEN`, then log in.
 2. Add a transaction and confirm it appears in the dashboard.
 3. Upload a receipt and verify AI scanning works.
-4. Check the analytics dashboard and export CSV/PDF reports.
+4. Check the analytics dashboard and export a CSV report.
 
 ## Troubleshooting
 

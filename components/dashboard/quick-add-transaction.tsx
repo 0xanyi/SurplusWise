@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Plus } from "lucide-react";
-import type { TransactionType } from "@/types";
+import type { ApiFinancialAccount, TransactionType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,15 +34,22 @@ const TYPE_OPTIONS: { value: TransactionType; label: string }[] = [
   { value: "giving", label: "Giving" },
 ];
 
+const NO_ACCOUNT = "__unassigned__";
+
 export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: QuickAddTransactionProps) {
   const { toast } = useToast();
   const { data: catData } = useApiQuery<{ categories: ApiCategory[] }>("/api/categories");
+  const { data: accountData } = useApiQuery<{ accounts: ApiFinancialAccount[] }>(
+    "/api/financial-accounts",
+  );
   const categories = catData?.categories;
+  const accounts = accountData?.accounts ?? [];
 
   const [loading, setLoading] = useState(false);
   const [type, setType] = useState<TransactionType>("expense");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("");
+  const [accountId, setAccountId] = useState(NO_ACCOUNT);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
 
   const filteredCategories = useMemo(
@@ -80,7 +87,13 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
       await apiFetch("/api/transactions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: parsedAmount, date, type, category }),
+        body: JSON.stringify({
+          amount: parsedAmount,
+          date,
+          type,
+          category,
+          accountId: accountId === NO_ACCOUNT ? null : accountId,
+        }),
       });
       toast({ title: "Saved", description: "Transaction added" });
       setAmount("");
@@ -151,6 +164,25 @@ export function QuickAddTransaction({ onOpenFullForm, onTransactionAdded }: Quic
               onChange={(e) => setAmount(e.target.value)}
               required
             />
+          </div>
+
+          <div className="min-w-[150px] flex-1 space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">
+              Account
+            </Label>
+            <Select value={accountId} onValueChange={setAccountId}>
+              <SelectTrigger className="h-11" aria-label="Financial account">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_ACCOUNT}>Unassigned</SelectItem>
+                {accounts.map((account) => (
+                  <SelectItem key={account.id} value={account.id}>
+                    {account.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="min-w-[150px] flex-1 space-y-1.5">
