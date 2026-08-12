@@ -34,6 +34,22 @@ function toStatement(row: Statement) {
       estimated: row.rate.estimated,
       period_days: row.rate.periodDays,
     },
+    interest_breakdown:
+      row.interestBreakdown?.map((bucket) => ({
+        type: bucket.type,
+        label: bucket.label,
+        balance_subject_to_interest: bucket.balanceSubjectToInterest,
+        interest_charged: bucket.interestCharged,
+        apr: bucket.apr,
+        rate: bucket.rate && {
+          period_rate_percent: bucket.rate.periodRatePercent,
+          annualised_percent: bucket.rate.annualisedPercent,
+          basis: bucket.rate.basis,
+          estimated: bucket.rate.estimated,
+          period_days: bucket.rate.periodDays,
+        },
+        rate_variance: bucket.rateVariance,
+      })) ?? null,
     created_at: row.createdAt,
   };
 }
@@ -87,6 +103,7 @@ export async function POST(
       minimumPayment: body.minimumPayment ?? body.minimum_payment,
       balanceSubjectToInterest:
         body.balanceSubjectToInterest ?? body.balance_subject_to_interest,
+      interestBreakdown: body.interestBreakdown ?? body.interest_breakdown,
       principalPaid: body.principalPaid ?? body.principal_paid,
       interestPaid: body.interestPaid ?? body.interest_paid,
       notes: body.notes,

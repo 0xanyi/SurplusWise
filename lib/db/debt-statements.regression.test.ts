@@ -206,10 +206,10 @@ describe(
         await assert.rejects(() =>
           statementsService.createStatement(userId, debtId, {
             ...baseStatement,
-            // @ts-expect-error deliberately invalid type
             interestBreakdown: [
+              // Deliberately invalid type to prove zod rejects it at runtime.
               { type: "mortgage", balanceSubjectToInterest: 1, interestCharged: 1 },
-            ],
+            ] as unknown as Parameters<typeof statementsService.createStatement>[2]["interestBreakdown"],
           }),
         );
         await assert.rejects(() =>

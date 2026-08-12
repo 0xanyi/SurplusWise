@@ -51,6 +51,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           body.balance_subject_to_interest,
         ),
       }),
+      // pick returns null (not undefined) for an explicit JSON null, so
+      // interestBreakdown: null reaches the service as "clear the split".
+      ...(pick(body.interestBreakdown, body.interest_breakdown) !== undefined && {
+        interestBreakdown: pick(body.interestBreakdown, body.interest_breakdown),
+      }),
       ...(pick(body.principalPaid, body.principal_paid) !== undefined && {
         principalPaid: pick(body.principalPaid, body.principal_paid),
       }),
