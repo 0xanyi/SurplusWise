@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useWorkspace } from "@/contexts/workspace-context";
 import { Building2, ChevronsUpDown, Plus, User, Check } from "lucide-react";
 import { SUPPORTED_CURRENCIES } from "@/lib/currency";
+import { cn } from "@/lib/utils";
 
 function WorkspaceIcon({ type }: { type: string }) {
   return type === "business" ? (
@@ -13,7 +14,11 @@ function WorkspaceIcon({ type }: { type: string }) {
   );
 }
 
-export function WorkspaceSwitcher() {
+export function WorkspaceSwitcher({
+  variant = "sidebar",
+}: {
+  variant?: "sidebar" | "compact";
+}) {
   const {
     workspaces,
     activeWorkspace,
@@ -64,25 +69,37 @@ export function WorkspaceSwitcher() {
     }
   };
 
+  const compact = variant === "compact";
+
   return (
-    <div className="relative">
+    <div className={cn("relative", compact && "min-w-0 flex-1")}>
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={`Switch workspace. Current workspace: ${activeWorkspace.name}`}
         aria-haspopup="menu"
         aria-expanded={isOpen}
-        className="flex h-11 w-full items-center gap-2.5 rounded-xl border border-border bg-card px-2.5 text-left transition-colors hover:border-foreground/20"
+        className={cn(
+          "flex items-center text-left transition-colors",
+          compact
+            ? "h-[38px] w-full min-w-0 max-w-[108px] gap-1.5 rounded-[11px] border border-border bg-card px-2.5 text-[11px] font-medium text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+            : "h-11 w-full gap-2.5 rounded-xl border border-border bg-card px-2.5 hover:border-foreground/20"
+        )}
       >
-        {/* Mint tint marks workspace identity, not an amount. */}
-        <span className="flex size-[26px] flex-none items-center justify-center rounded-lg bg-brand/15 text-brand">
-          <WorkspaceIcon type={activeWorkspace.type} />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13px] font-medium">
+        {!compact && (
+          // Mint tint marks workspace identity, not an amount.
+          <span className="flex size-[26px] flex-none items-center justify-center rounded-lg bg-brand/15 text-brand">
+            <WorkspaceIcon type={activeWorkspace.type} />
+          </span>
+        )}
+        <span className={cn("min-w-0", compact ? "truncate" : "flex-1")}>
+          <span className={cn(!compact && "block truncate text-[13px] font-medium")}>
             {activeWorkspace.name}
           </span>
-          <span className="block text-[11px] capitalize text-muted-foreground">
-            {activeWorkspace.type}
-          </span>
+          {!compact && (
+            <span className="block text-[11px] capitalize text-muted-foreground">
+              {activeWorkspace.type}
+            </span>
+          )}
         </span>
         <ChevronsUpDown className="size-3.5 flex-none text-muted-foreground" />
       </button>
@@ -99,7 +116,14 @@ export function WorkspaceSwitcher() {
           />
 
           {/* Dropdown */}
-          <div className="absolute left-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-border bg-popover shadow-lg">
+          <div
+            className={cn(
+              "z-50 rounded-xl border border-border bg-popover shadow-lg",
+              compact
+                ? "fixed left-4 right-4 top-16 max-h-[calc(100dvh-5rem)] overflow-y-auto"
+                : "absolute left-0 top-full mt-1.5 w-64"
+            )}
+          >
             <div className="p-1.5">
               <p className="px-2 py-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Workspaces
