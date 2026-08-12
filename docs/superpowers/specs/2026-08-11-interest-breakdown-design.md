@@ -2,7 +2,7 @@
 
 **Status:** Decided 2026-08-11  
 **Product home:** `PRODUCT.md` (Debts / statements)  
-**Implementation plan:** *(pending)*  
+**Implementation plan:** [2026-08-12-interest-breakdown.md](../plans/2026-08-12-interest-breakdown.md)  
 **Column:** `debt_statements.interest_breakdown` (jsonb, already present; was reserved)
 
 ## Problem
