@@ -16,6 +16,8 @@ export const UNMAPPED_IMPORT_COLUMN = "__unmapped__";
 
 export type TransactionImportMapping = Partial<Record<TransactionImportField, string | null>>;
 
+export type TransactionImportFormat = "csv" | "ofx" | "qif" | "camt053";
+
 export interface TransactionImportPreviewRow {
   lineNumber: number;
   source: Record<string, string>;
@@ -302,4 +304,12 @@ export function analyzeTransactionImport(
     invalidRowCount: previewRows.length - validRows.length,
     missingRequiredMappings,
   };
+}
+
+export function detectTransactionImportFormat(fileName: string, text: string): TransactionImportFormat {
+  const extension = fileName.toLowerCase().split(".").pop();
+  if (extension === "ofx" || extension === "qfx") return "ofx";
+  if (extension === "qif") return "qif";
+  if (extension === "xml" || /<\w*:?(?:BkToCstmrStmt|Document)\b/i.test(text)) return "camt053";
+  return "csv";
 }

@@ -20,10 +20,13 @@ import { formatCurrency } from "@/lib/utils";
 import type { ApiFinancialAccount, ApiTransactionImportProfile } from "@/types";
 import {
   analyzeTransactionImport,
+  detectTransactionImportFormat,
   type TransactionImportField,
+  type TransactionImportFormat,
   type TransactionImportMapping,
   UNMAPPED_IMPORT_COLUMN,
 } from "@/lib/transaction-import";
+import { analyzeStructuredTransactionImport } from "@/lib/structured-transaction-import";
 
 interface TransactionImportProps {
   onImported?: () => void;
@@ -64,6 +67,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
   const [uploading, setUploading] = useState(false);
   const [open, setOpen] = useState(false);
   const [mapping, setMapping] = useState<TransactionImportMapping>({});
+  const [format, setFormat] = useState<TransactionImportFormat>("csv");
   const [accountId, setAccountId] = useState(NO_ACCOUNT);
   const [activeProfileId, setActiveProfileId] = useState(NO_PROFILE);
   const [profileName, setProfileName] = useState("");
@@ -87,11 +91,13 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
     if (!fileText) return null;
 
     try {
-      return analyzeTransactionImport(fileText, mapping);
+      return format === "csv"
+        ? analyzeTransactionImport(fileText, mapping)
+        : analyzeStructuredTransactionImport(fileText, format);
     } catch {
       return null;
     }
-  }, [fileText, mapping]);
+  }, [fileText, format, mapping]);
 
   const handleImport = async () => {
     if (!selectedFile || !analysis) return;
@@ -102,7 +108,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
       formData.append("file", selectedFile);
       formData.append("action", review ? "commit" : "preview");
       if (accountId !== NO_ACCOUNT) formData.append("accountId", accountId);
-      for (const field of FIELD_OPTIONS) {
+      for (const field of format === "csv" ? FIELD_OPTIONS : []) {
         const value = mapping[field.value];
         formData.append(
           `mapping:${field.value}`,
@@ -146,7 +152,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
     } catch (error) {
       toast({
         title: "Import failed",
-        description: error instanceof Error ? error.message : "Failed to import CSV",
+        description: error instanceof Error ? error.message : "Failed to import transactions",
         variant: "destructive",
       });
     } finally {
@@ -158,9 +164,13 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
   const handleFileSelected = async (file: File) => {
     try {
       const text = await file.text();
-      const initialAnalysis = analyzeTransactionImport(text);
+      const detectedFormat = detectTransactionImportFormat(file.name, text);
+      const initialAnalysis = detectedFormat === "csv"
+        ? analyzeTransactionImport(text)
+        : analyzeStructuredTransactionImport(text, detectedFormat);
       setSelectedFile(file);
       setFileText(text);
+      setFormat(detectedFormat);
       setMapping(initialAnalysis.mappings);
       setActiveProfileId(NO_PROFILE);
       setProfileName("");
@@ -169,7 +179,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
     } catch (error) {
       toast({
         title: "Import failed",
-        description: error instanceof Error ? error.message : "Unable to read CSV",
+        description: error instanceof Error ? error.message : "Unable to read transaction file",
         variant: "destructive",
       });
       if (inputRef.current) inputRef.current.value = "";
@@ -273,7 +283,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
     <div className="flex flex-col gap-2 sm:flex-row">
       <Button type="button" variant="outline" className="h-11" onClick={() => inputRef.current?.click()} disabled={uploading}>
         <Upload className="size-4" />
-        Import CSV
+        Import transactions
       </Button>
       <Button type="button" variant="ghost" className="h-11" onClick={downloadSample}>
         <Download className="size-4" />
@@ -282,7 +292,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
       <input
         ref={inputRef}
         type="file"
-        accept=".csv,text/csv"
+        accept=".csv,.ofx,.qfx,.qif,.xml,text/csv,application/xml,text/xml"
         className="hidden"
         onChange={(e) => {
           const file = e.target.files?.[0];
@@ -295,10 +305,12 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <FileSpreadsheet className="size-5" />
-              Review CSV import
+              Review {format === "csv" ? "CSV" : format === "ofx" ? "OFX/QFX" : format === "qif" ? "QIF" : "CAMT.053"} import
             </DialogTitle>
             <DialogDescription>
-              Map a signed amount or separate debit and credit columns. Sika checks for duplicates before importing.
+              {format === "csv"
+                ? "Map a signed amount or separate debit and credit columns. Sika checks for duplicates before importing."
+                : "Review the bank transactions Sika found. Duplicate and reconciliation checks still apply."}
             </DialogDescription>
           </DialogHeader>
 
@@ -345,7 +357,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
+                {format === "csv" && <div className="space-y-2">
                   <Label>Saved mapping</Label>
                   <Select
                     value={activeProfileId}
@@ -364,8 +376,8 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                       ))}
                     </SelectContent>
                   </Select>
-                </div>
-                {FIELD_OPTIONS.map((field) => (
+                </div>}
+                {format === "csv" && FIELD_OPTIONS.map((field) => (
                   <div key={field.value} className="space-y-2">
                     <Label>{field.label}{field.required ? " *" : ""}</Label>
                     <Select
@@ -388,7 +400,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                 ))}
               </div>
 
-              {accountId !== NO_ACCOUNT && (
+              {format === "csv" && accountId !== NO_ACCOUNT && (
                 <div className="flex flex-col gap-2 rounded-xl border border-border/60 p-4 sm:flex-row sm:items-end">
                   <div className="flex-1 space-y-2">
                     <Label htmlFor="profile-name">Mapping name</Label>
