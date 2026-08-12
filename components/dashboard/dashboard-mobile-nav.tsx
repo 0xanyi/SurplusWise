@@ -7,26 +7,21 @@ import { SikaLogo } from "@/components/sika-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { mobileTabItems } from "@/components/dashboard/nav-items";
 import { useDueOutgoingsCount } from "@/hooks/use-due-outgoings";
-import { useWorkspace } from "@/contexts/workspace-context";
+import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
 import { AccountMenu, type AccountUser } from "@/components/dashboard/account-menu";
 import { cn } from "@/lib/utils";
 
 /** Logo, workspace, theme and account — the chrome the sidebar carries on desktop. */
 export function DashboardMobileHeader({ user }: { user: AccountUser }) {
-  const { activeWorkspace } = useWorkspace();
   const initial = (user.name || user.email).charAt(0).toUpperCase();
 
   return (
     <div className="flex items-center justify-between gap-3 lg:hidden">
-      <div className="flex min-w-0 items-center gap-2.5">
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
         <Link href="/dashboard">
           <SikaLogo size="sm" />
         </Link>
-        {activeWorkspace && (
-          <span className="truncate rounded-md bg-secondary px-2 py-[3px] text-[11px] font-medium text-muted-foreground">
-            {activeWorkspace.name}
-          </span>
-        )}
+        <WorkspaceSwitcher variant="compact" />
       </div>
 
       <div className="flex flex-none items-center gap-2">
