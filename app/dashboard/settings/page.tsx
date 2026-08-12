@@ -4,11 +4,13 @@ import { GoalsManagement } from "@/components/dashboard/goals-management";
 import { AIProviderSettings } from "@/components/dashboard/ai-provider-settings";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { SettingsNav, type SettingsSection } from "@/components/dashboard/settings-nav";
+import { TransactionRulesManagement } from "@/components/dashboard/transaction-rules-management";
 
 const sections: SettingsSection[] = [
   { id: "ai-provider", label: "AI provider" },
   { id: "budgets", label: "Budgets" },
   { id: "categories", label: "Categories" },
+  { id: "transaction-rules", label: "Transaction rules" },
   { id: "goals", label: "Goals" },
 ];
 
@@ -49,6 +51,18 @@ export default function SettingsPage() {
               </p>
             </div>
             <CategoryManagement />
+          </section>
+
+          <section id="transaction-rules" className="scroll-mt-6 space-y-4">
+            <div>
+              <h2 className="font-display text-base font-semibold tracking-[-0.015em]">
+                Transaction rules
+              </h2>
+              <p className="mt-1 text-[12.5px] text-muted-foreground">
+                Classify future imports from familiar payees or note text. Lower-priority numbers run first, and only the first matching rule applies.
+              </p>
+            </div>
+            <TransactionRulesManagement />
           </section>
 
           <section id="goals" className="scroll-mt-6 space-y-4">

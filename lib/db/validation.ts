@@ -210,6 +210,43 @@ export const transactionImportProfileCreateSchema = z.object({
   mapping: transactionImportMappingSchema,
 });
 
+const transactionRuleFields = {
+  name: z.string().trim().min(1, "name is required").max(100),
+  matchField: z.enum(["payee", "notes"]),
+  matchValue: z.string().trim().min(1, "match value is required").max(200),
+  transactionType: transactionTypeSchema.nullish(),
+  category: z.string().trim().min(1).max(100).nullish(),
+  tags: z.array(z.string().trim().min(1).max(30)).max(10).default([]),
+  clientId: idSchema.nullish(),
+  markReviewed: z.boolean().default(false),
+  isActive: z.boolean().default(true),
+  priority: z.number().int().min(0).max(1000).default(100),
+};
+
+export const transactionRuleCreateSchema = z
+  .object(transactionRuleFields)
+  .refine(
+    (rule) =>
+      Boolean(rule.category || rule.clientId || rule.tags.length > 0 || rule.markReviewed),
+    { message: "At least one rule action is required" },
+  );
+
+export const transactionRuleUpdateSchema = z
+  .object({
+    ...transactionRuleFields,
+    name: transactionRuleFields.name.optional(),
+    matchField: transactionRuleFields.matchField.optional(),
+    matchValue: transactionRuleFields.matchValue.optional(),
+    transactionType: transactionRuleFields.transactionType.optional(),
+    category: transactionRuleFields.category.optional(),
+    tags: transactionRuleFields.tags.optional(),
+    clientId: transactionRuleFields.clientId.optional(),
+    markReviewed: transactionRuleFields.markReviewed.optional(),
+    isActive: transactionRuleFields.isActive.optional(),
+    priority: transactionRuleFields.priority.optional(),
+  })
+  .refine((rule) => Object.keys(rule).length > 0, { message: "At least one field is required" });
+
 export const transactionCreateSchema = z.object({
   amount: amountSchema,
   date: dateStringSchema,

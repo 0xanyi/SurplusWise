@@ -4,6 +4,7 @@ import {
   clients,
   outgoingPaymentLogs,
   recurringOutgoings,
+  transactionRules,
   transactions,
 } from "@/db/schema";
 import {
@@ -284,6 +285,21 @@ export async function remove(userId: string, id: string) {
   if (!existing) throw new Error("Client not found or unauthorized");
 
   await db.transaction(async (tx) => {
+    // A client-only import rule has no remaining action once its client is
+    // deleted. Disable it before the FK clears the attribution.
+    await tx
+      .update(transactionRules)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(
+        and(
+          eq(transactionRules.userId, userId),
+          eq(transactionRules.clientId, id),
+          sql`${transactionRules.category} is null`,
+          sql`jsonb_array_length(${transactionRules.tags}) = 0`,
+          eq(transactionRules.markReviewed, false),
+        ),
+      );
+
     await tx
       .update(recurringOutgoings)
       .set({ rebillMode: "none", rebillAmount: null, updatedAt: new Date() })

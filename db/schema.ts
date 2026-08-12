@@ -376,6 +376,44 @@ export const transactionImportProfiles = pgTable(
   ],
 );
 
+export const transactionRules = pgTable(
+  "transaction_rules",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    matchField: text("match_field").notNull(),
+    matchValue: text("match_value").notNull(),
+    transactionType: transactionTypeEnum("transaction_type"),
+    category: text("category"),
+    tags: jsonb("tags").$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+    clientId: text("client_id").references(() => clients.id, { onDelete: "set null" }),
+    markReviewed: boolean("mark_reviewed").notNull().default(false),
+    isActive: boolean("is_active").notNull().default(true),
+    priority: integer("priority").notNull().default(100),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_transaction_rules_workspace_active_priority").on(
+      t.workspaceId,
+      t.isActive,
+      t.priority,
+    ),
+    uniqueIndex("idx_transaction_rules_workspace_name").on(t.workspaceId, t.name),
+    check("chk_transaction_rules_match_field", sql`${t.matchField} in ('payee', 'notes')`),
+    check(
+      "chk_transaction_rules_has_action",
+      sql`${t.isActive} = false or ${t.category} is not null or ${t.clientId} is not null or jsonb_array_length(${t.tags}) > 0 or ${t.markReviewed} = true`,
+    ),
+  ],
+);
+
 /**
  * Transfers are deliberately separate from transactions. Moving money between
  * accounts changes balances but is neither income, expense, nor giving, so it

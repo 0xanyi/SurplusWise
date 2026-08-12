@@ -47,10 +47,8 @@ Follow-up work in this phase:
 - Merchant/payee as a first-class field — implemented
 - OFX/QFX, QIF, and CAMT.053 import — implemented
 - Needs-review inbox and metadata-only bulk actions — implemented
-
-Follow-up work in this phase:
-
-- Transaction rules for categorization, tags, clients, and review status
+- Prioritized transaction rules for categorization, tags, clients, and review
+  status — implemented
 
 ## Phase 3 — Giving workspace
 

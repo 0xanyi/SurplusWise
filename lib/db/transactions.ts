@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import { transactions } from "@/db/schema";
 import * as clientsService from "./clients";
 import * as financialAccountsService from "./financial-accounts";
+import * as transactionRulesService from "./transaction-rules";
 import {
   userIdSchema,
   idSchema,
@@ -79,6 +80,8 @@ export interface ImportInput {
   notes: string | null;
   tags: string[];
   externalId: string | null;
+  clientId?: string | null;
+  needsReview?: boolean;
 }
 
 interface ImportCandidate extends ImportInput {
@@ -137,7 +140,12 @@ async function validateImport(
   for (const row of rows) {
     transactionCreateSchema.parse(row);
   }
-  return prepareImportCandidates(accountId, rows);
+  const classifiedRows = await transactionRulesService.applyToImportRows(
+    userId,
+    workspaceId,
+    rows,
+  );
+  return prepareImportCandidates(accountId, classifiedRows);
 }
 
 async function existingImportFingerprints(workspaceId: string, fingerprints: string[]) {
@@ -380,9 +388,10 @@ export async function importRows(
         date: row.date,
         type: row.type,
         status: "cleared" as const,
-        needsReview: true,
+        needsReview: row.needsReview ?? true,
         category: row.category,
         payee: row.payee,
+        clientId: row.clientId ?? null,
         notes: row.notes,
         tags: row.tags,
         receiptStorageId: null,

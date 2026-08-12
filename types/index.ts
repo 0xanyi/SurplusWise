@@ -58,6 +58,20 @@ export interface ApiTransactionImportProfile {
   updated_at: string
 }
 
+export interface ApiTransactionRule {
+  id: string
+  name: string
+  match_field: 'payee' | 'notes'
+  match_value: string
+  transaction_type: TransactionType | null
+  category: string | null
+  tags: string[]
+  client_id: string | null
+  mark_reviewed: boolean
+  is_active: boolean
+  priority: number
+}
+
 export interface Category {
   _id: string
   userId: string
