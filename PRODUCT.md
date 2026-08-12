@@ -108,7 +108,10 @@ today; it is a position, not a measured market finding.)*
 - Debts and credits (credit card, loan, mortgage, overdraft, other) with balance
   snapshots, payments, and per-cycle **statements**: opening and closing balance,
   interest and fees charged, minimum payment, and the interest rate that cycle
-  implies shown against the APR on file. Statement interest is reported as cost of
+  implies shown against the APR on file. When a statement prints several APRs at
+  once, interest can be split into per-APR lines (a 0% balance transfer next to
+  purchases), each with the rate it implies against its own APR, alongside a
+  single blended statement rate. Statement interest is reported as cost of
   borrowing and is deliberately never added to expense totals — the payment is
   already counted and the interest sits inside it.
 - Analytics: trend and category charts (Recharts), period filters, CSV export.
