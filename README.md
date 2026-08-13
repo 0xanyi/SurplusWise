@@ -87,6 +87,7 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - ✅ Giving recipients and recipient-specific funds/designations
 - ✅ Giving commitments and expected-versus-recorded progress
 - ✅ Optional giving-to-income context by reporting period
+- ✅ Multiple optional supporting documents per gift
 - ✅ CRUD operations for all transactions
 - ✅ Search and filter transactions
 - ✅ Date range filtering with database-level optimization

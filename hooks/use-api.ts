@@ -43,6 +43,20 @@ async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
+export async function apiFetchBlob(url: string): Promise<Blob> {
+  const workspaceId = getActiveWorkspaceId();
+  const headers = new Headers();
+  if (workspaceId) headers.set("x-workspace-id", workspaceId);
+  const response = await fetch(url, { headers });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(
+      (body as { error?: string }).error ?? `Request failed (${response.status})`,
+    );
+  }
+  return response.blob();
+}
+
 // ─── useApiQuery ─────────────────────────────────────────────────────────────
 // Drop-in replacement for Convex useQuery.
 // Returns `undefined` while loading, the data when ready.

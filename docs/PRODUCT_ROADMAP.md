@@ -56,7 +56,7 @@ Follow-up work in this phase:
 - Recurring commitments and pledges — implemented
 - Expected versus recorded giving by period — implemented
 - Optional giving-to-income consistency view — implemented
-- Multiple supporting documents per gift
+- Multiple supporting documents per gift — implemented
 - Missing-receipt review
 - Annual giving summary by recipient and designation
 

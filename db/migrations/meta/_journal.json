@@ -162,6 +162,13 @@
       "when": 1786578103323,
       "tag": "0022_glossy_ma_gnuci",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1786581114737,
+      "tag": "0023_spooky_lightspeed",
+      "breakpoints": true
     }
   ]
 }

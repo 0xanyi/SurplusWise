@@ -1,0 +1,159 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import { transactions, users, workspaces } from "@/db/schema";
+import * as documentsService from "./transaction-documents";
+import * as transactionsService from "./transactions";
+
+describe(
+  "transaction supporting documents regression",
+  { skip: process.env.DATABASE_URL ? false : "requires DATABASE_URL" },
+  () => {
+    it("scopes documents to a workspace and only uploads them to gifts", async () => {
+      const userId = crypto.randomUUID();
+      const workspaceId = crypto.randomUUID();
+      const otherWorkspaceId = crypto.randomUUID();
+      await db.insert(users).values({
+        id: userId,
+        name: "Document test user",
+        email: `documents-${userId.slice(0, 8)}@example.com`,
+      });
+      await db.insert(workspaces).values([
+        { id: workspaceId, userId, name: "Personal", type: "personal", currency: "GBP", isDefault: true },
+        { id: otherWorkspaceId, userId, name: "Other", type: "personal", currency: "GBP", isDefault: false },
+      ]);
+
+      try {
+        const gift = await transactionsService.create(userId, workspaceId, {
+          amount: 100,
+          date: "2026-08-01",
+          type: "giving",
+          category: "Offering",
+          receiptStorageId: "receipts/legacy.jpg",
+        });
+        const expense = await transactionsService.create(userId, workspaceId, {
+          amount: 20,
+          date: "2026-08-01",
+          type: "expense",
+          category: "Food",
+        });
+
+        await assert.rejects(
+          () => documentsService.create(userId, workspaceId, expense.id, {
+            storageKey: "supporting-documents/expense.pdf",
+            fileName: "expense.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 100,
+          }),
+          /only be added to giving/,
+        );
+        await assert.rejects(
+          () => documentsService.list(userId, workspaceId, expense.id),
+          /only available for giving/,
+        );
+
+        const legacy = await documentsService.create(userId, workspaceId, gift.id, {
+          storageKey: "receipts/legacy.jpg",
+          fileName: "  Receipt\u0000.jpg  ",
+          mimeType: "image/jpeg",
+          sizeBytes: 100,
+        });
+        const rows = await documentsService.list(userId, workspaceId, gift.id);
+        assert.equal(rows.length, 1);
+        assert.equal(rows[0]?.fileName, "Receipt.jpg");
+        await assert.rejects(
+          () => documentsService.list(userId, otherWorkspaceId, gift.id),
+          /not found or unauthorized/,
+        );
+
+        const otherDocument = await documentsService.create(userId, workspaceId, gift.id, {
+          storageKey: "supporting-documents/other.pdf",
+          fileName: "other.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 100,
+        });
+        await documentsService.remove(userId, workspaceId, gift.id, otherDocument.id);
+        const [giftWithLegacyReceipt] = await db
+          .select({ receiptStorageId: transactions.receiptStorageId })
+          .from(transactions)
+          .where(eq(transactions.id, gift.id));
+        assert.equal(
+          giftWithLegacyReceipt?.receiptStorageId,
+          "receipts/legacy.jpg",
+          "removing another document preserves the legacy receipt field",
+        );
+
+        await documentsService.remove(userId, workspaceId, gift.id, legacy.id);
+        const [updatedGift] = await db
+          .select({ receiptStorageId: transactions.receiptStorageId })
+          .from(transactions)
+          .where(eq(transactions.id, gift.id));
+        assert.equal(updatedGift?.receiptStorageId, null, "removing a backfilled receipt clears the legacy field");
+
+        for (let index = 0; index < 9; index += 1) {
+          await documentsService.create(userId, workspaceId, gift.id, {
+            storageKey: `supporting-documents/${index}.pdf`,
+            fileName: `${index}.pdf`,
+            mimeType: "application/pdf",
+            sizeBytes: 100,
+          });
+        }
+        const concurrentUploads = await Promise.allSettled([
+          documentsService.create(userId, workspaceId, gift.id, {
+            storageKey: "supporting-documents/concurrent-a.pdf",
+            fileName: "concurrent-a.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 100,
+          }),
+          documentsService.create(userId, workspaceId, gift.id, {
+            storageKey: "supporting-documents/concurrent-b.pdf",
+            fileName: "concurrent-b.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 100,
+          }),
+        ]);
+        assert.equal(concurrentUploads.filter((result) => result.status === "fulfilled").length, 1);
+        assert.equal(concurrentUploads.filter((result) => result.status === "rejected").length, 1);
+        assert.equal((await documentsService.list(userId, workspaceId, gift.id)).length, 10);
+        await assert.rejects(
+          () => transactionsService.update(userId, gift.id, { type: "expense" }),
+          /Remove this gift's supporting documents/,
+        );
+
+        const concurrentGift = await transactionsService.create(userId, workspaceId, {
+          amount: 50,
+          date: "2026-08-02",
+          type: "giving",
+          category: "Offering",
+        });
+        const typeChangeAndUpload = await Promise.allSettled([
+          transactionsService.update(userId, concurrentGift.id, { type: "expense" }),
+          documentsService.create(userId, workspaceId, concurrentGift.id, {
+            storageKey: "supporting-documents/type-race.pdf",
+            fileName: "type-race.pdf",
+            mimeType: "application/pdf",
+            sizeBytes: 100,
+          }),
+        ]);
+        assert.equal(typeChangeAndUpload.filter((result) => result.status === "fulfilled").length, 1);
+        const [concurrentGiftAfter] = await db
+          .select({ type: transactions.type })
+          .from(transactions)
+          .where(eq(transactions.id, concurrentGift.id));
+        const concurrentDocuments = await documentsService.listForTransactionDeletion(
+          userId,
+          workspaceId,
+          concurrentGift.id,
+        );
+        assert.ok(
+          (concurrentGiftAfter?.type === "giving" && concurrentDocuments.length === 1) ||
+            (concurrentGiftAfter?.type === "expense" && concurrentDocuments.length === 0),
+          "a type change and upload cannot leave documents on a non-giving transaction",
+        );
+      } finally {
+        await db.delete(users).where(eq(users.id, userId));
+      }
+    });
+  },
+);

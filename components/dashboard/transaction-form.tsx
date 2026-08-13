@@ -22,6 +22,7 @@ import {
   NO_GIVING_DESIGNATION,
   NO_GIVING_RECIPIENT,
 } from "./giving/giving-picker";
+import { GivingSupportingDocuments } from "./giving/giving-supporting-documents";
 import { useToast } from "@/hooks/use-toast";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
 import type {
@@ -442,8 +443,25 @@ export function TransactionForm({
               />
             </div>
 
-            {receiptStorageId && (
+            {receiptStorageId && formData.type !== "giving" && (
               <p className="text-sm text-muted-foreground">Receipt attached</p>
+            )}
+
+            {(formData.type === "giving" || transaction?.type === "giving") && (
+              transaction?.id ? (
+                <div className="space-y-2">
+                  {formData.type !== "giving" && (
+                    <p className="text-xs text-muted-foreground">
+                      Remove all supporting documents before changing this gift to another type.
+                    </p>
+                  )}
+                  <GivingSupportingDocuments transactionId={transaction.id} />
+                </div>
+              ) : (
+                <p className="rounded-xl border border-dashed p-4 text-xs text-muted-foreground">
+                  Save this gift, then edit it to add receipts, acknowledgement letters, or payment evidence.
+                </p>
+              )
             )}
 
             <DialogFooter>

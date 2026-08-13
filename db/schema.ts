@@ -609,6 +609,41 @@ export const transactions = pgTable(
   ],
 );
 
+export const transactionDocuments = pgTable(
+  "transaction_documents",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    transactionId: text("transaction_id")
+      .notNull()
+      .references(() => transactions.id, { onDelete: "cascade" }),
+    storageKey: text("storage_key").notNull(),
+    fileName: text("file_name").notNull(),
+    mimeType: text("mime_type"),
+    sizeBytes: integer("size_bytes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_transaction_documents_workspace_transaction").on(
+      t.workspaceId,
+      t.transactionId,
+    ),
+    uniqueIndex("idx_transaction_documents_transaction_storage").on(
+      t.transactionId,
+      t.storageKey,
+    ),
+    check(
+      "chk_transaction_documents_positive_size",
+      sql`${t.sizeBytes} is null or ${t.sizeBytes} > 0`,
+    ),
+  ],
+);
+
 export const categories = pgTable(
   "categories",
   {

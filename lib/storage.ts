@@ -1,4 +1,9 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
 
 // ---------------------------------------------------------------------------
@@ -47,6 +52,7 @@ function extForMime(mime: string): string {
     "image/png": ".png",
     "image/webp": ".webp",
     "image/gif": ".gif",
+    "application/pdf": ".pdf",
   };
   return map[mime] ?? "";
 }
@@ -96,4 +102,51 @@ export async function uploadReceipt(
   const url = publicBase ? `${publicBase}/${key}` : key;
 
   return { key, url };
+}
+
+export function isStorageConfigured() {
+  return Boolean(
+    process.env.S3_ENDPOINT &&
+      process.env.S3_ACCESS_KEY_ID &&
+      process.env.S3_SECRET_ACCESS_KEY &&
+      process.env.S3_BUCKET,
+  );
+}
+
+export async function uploadSupportingDocument(
+  buffer: Buffer,
+  mimeType: string,
+): Promise<UploadResult> {
+  const client = getS3Client();
+  const bucket = getBucket();
+  const key = `supporting-documents/${randomUUID()}${extForMime(mimeType)}`;
+
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: mimeType,
+    }),
+  );
+
+  const publicBase = process.env.S3_PUBLIC_URL?.replace(/\/$/, "");
+  return { key, url: publicBase ? `${publicBase}/${key}` : key };
+}
+
+export async function getStoredDocument(key: string) {
+  const result = await getS3Client().send(
+    new GetObjectCommand({ Bucket: getBucket(), Key: key }),
+  );
+  if (!result.Body) throw new Error("Stored document is empty");
+  return {
+    bytes: await result.Body.transformToByteArray(),
+    contentType: result.ContentType,
+  };
+}
+
+export async function deleteStoredDocument(key: string) {
+  await getS3Client().send(
+    new DeleteObjectCommand({ Bucket: getBucket(), Key: key }),
+  );
 }
