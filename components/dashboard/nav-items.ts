@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   BarChart3,
+  Bell,
   CalendarDays,
   CreditCard,
   HandCoins,
@@ -24,6 +25,8 @@ export interface NavItem {
   mobileTab?: boolean;
   /** Carries the count of outgoings that are due or overdue. */
   showsDueBadge?: boolean;
+  /** Carries the count of unread live notifications. */
+  showsNotificationBadge?: boolean;
   /**
    * Label comes from the workspace vocabulary rather than `label`: "Clients"
    * in a business workspace, "People" in a personal one. See
@@ -68,6 +71,12 @@ export const navGroups: NavGroup[] = [
         showsDueBadge: true,
       },
       { href: "/dashboard/calendar", icon: CalendarDays, label: "Calendar" },
+      {
+        href: "/dashboard/notifications",
+        icon: Bell,
+        label: "Notifications",
+        showsNotificationBadge: true,
+      },
       {
         href: "/dashboard/clients",
         icon: Users,

@@ -226,6 +226,28 @@ export const onboardingStatus = pgTable(
   (t) => [index("idx_onboarding_status_workspace").on(t.workspaceId)],
 );
 
+/** Per-occurrence read state for live, calendar-derived notifications. */
+export const notificationStates = pgTable(
+  "notification_states",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    eventKey: text("event_key").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("idx_notification_states_workspace_event").on(t.workspaceId, t.eventKey),
+    index("idx_notification_states_user_workspace").on(t.userId, t.workspaceId),
+  ],
+);
+
 export const goalCategoryEnum = pgEnum("goal_category", [
   "emergency_fund",
   "savings",

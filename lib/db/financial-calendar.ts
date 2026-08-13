@@ -305,7 +305,7 @@ export async function getMonth(userId: string, workspaceId: string, periodMonth:
       : settlement(paymentLog, Number(draft.expectedAmount));
     return {
       id: `recurring:${draft.id}`,
-      sourceId: draft.id,
+      sourceId: draft.recurringMoneyId,
       source: "recurring",
       date: draft.dueDate,
       title: draft.recurringMoneyName,

@@ -13,6 +13,7 @@ import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
 import { navGroups, settingsItem } from "@/components/dashboard/nav-items";
 import { AccountMenu, type AccountUser } from "@/components/dashboard/account-menu";
 import { useDueOutgoingsCount } from "@/hooks/use-due-outgoings";
+import { useNotifications } from "@/hooks/use-notifications";
 import { usePartyLabels } from "@/hooks/use-party-labels";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +59,7 @@ export function NavLink({
 
 export function DashboardSidebar({ user }: { user: AccountUser }) {
   const dueCount = useDueOutgoingsCount();
+  const { data: notifications } = useNotifications();
   const partyLabels = usePartyLabels();
 
   const initial = (user.name || user.email).charAt(0).toUpperCase();
@@ -91,7 +93,13 @@ export function DashboardSidebar({ user }: { user: AccountUser }) {
                 href={item.href}
                 label={item.usesPartyLabel ? partyLabels.plural : item.label}
                 icon={item.icon}
-                badge={item.showsDueBadge ? dueCount : undefined}
+                badge={
+                  item.showsDueBadge
+                    ? dueCount
+                    : item.showsNotificationBadge
+                      ? notifications?.unread
+                      : undefined
+                }
               />
             ))}
           </div>

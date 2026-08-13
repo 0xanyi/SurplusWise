@@ -10,6 +10,7 @@ import {
 } from "@/components/dashboard/dashboard-mobile-nav";
 import { WorkspaceProvider } from "@/contexts/workspace-context";
 import { authClient } from "@/lib/auth-client";
+import { NotificationsProvider } from "@/hooks/use-notifications";
 
 export default function DashboardLayout({
   children,
@@ -52,16 +53,18 @@ export default function DashboardLayout({
 
   return (
     <WorkspaceProvider>
-      <div className="flex min-h-screen bg-background">
-        <DashboardSidebar user={user} />
-        {/* max-w caps the measure on very wide screens so the content column
-            never outruns the sidebar it sits beside. */}
-        <main className="flex min-w-0 flex-1 flex-col gap-6 px-4 pb-5 pt-4.5 lg:max-w-[1240px] lg:gap-[26px] lg:px-8 lg:pb-14 lg:pt-6">
-          <DashboardMobileHeader user={user} />
-          {children}
-          <DashboardTabBar />
-        </main>
-      </div>
+      <NotificationsProvider>
+        <div className="flex min-h-screen bg-background">
+          <DashboardSidebar user={user} />
+          {/* max-w caps the measure on very wide screens so the content column
+              never outruns the sidebar it sits beside. */}
+          <main className="flex min-w-0 flex-1 flex-col gap-6 px-4 pb-5 pt-4.5 lg:max-w-[1240px] lg:gap-[26px] lg:px-8 lg:pb-14 lg:pt-6">
+            <DashboardMobileHeader user={user} />
+            {children}
+            <DashboardTabBar />
+          </main>
+        </div>
+      </NotificationsProvider>
     </WorkspaceProvider>
   );
 }

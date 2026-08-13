@@ -2,18 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import { SikaLogo } from "@/components/sika-logo";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { mobileTabItems } from "@/components/dashboard/nav-items";
 import { useDueOutgoingsCount } from "@/hooks/use-due-outgoings";
 import { WorkspaceSwitcher } from "@/components/dashboard/workspace-switcher";
 import { AccountMenu, type AccountUser } from "@/components/dashboard/account-menu";
+import { useNotifications } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
 
 /** Logo, workspace, theme and account — the chrome the sidebar carries on desktop. */
 export function DashboardMobileHeader({ user }: { user: AccountUser }) {
   const initial = (user.name || user.email).charAt(0).toUpperCase();
+  const { data: notifications } = useNotifications();
 
   return (
     <div className="flex items-center justify-between gap-3 lg:hidden">
@@ -25,6 +27,18 @@ export function DashboardMobileHeader({ user }: { user: AccountUser }) {
       </div>
 
       <div className="flex flex-none items-center gap-2">
+        <Link
+          href="/dashboard/notifications"
+          aria-label={`${notifications?.unread ?? 0} unread notifications`}
+          className="relative flex size-[38px] items-center justify-center rounded-[11px] border border-border bg-card text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+        >
+          <Bell className="size-4" />
+          {(notifications?.unread ?? 0) > 0 && (
+            <span className="absolute -right-1 -top-1 flex size-[16px] items-center justify-center rounded-full bg-obligation text-[9px] font-bold text-obligation-foreground">
+              {notifications?.unread}
+            </span>
+          )}
+        </Link>
         <Link
           href="/dashboard/transactions#transaction-search"
           aria-label="Search transactions"

@@ -138,6 +138,18 @@ export interface ApiFinancialCalendarEvent {
   href: string
 }
 
+export interface ApiNotification {
+  id: string
+  date: string
+  title: string
+  description: string
+  amount: number
+  type: TransactionType | 'debt'
+  days_until_due: number
+  href: string
+  read_at: string | null
+}
+
 export interface ApiTransactionDocument {
   id: string
   file_name: string
