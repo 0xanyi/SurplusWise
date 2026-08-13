@@ -10,12 +10,17 @@ function toOutgoing(row: Record<string, unknown>) {
     id: row.id,
     name: row.name,
     amount: Number(row.amount),
+    type: row.type,
     day_of_month: row.dayOfMonth,
     frequency: row.frequency,
     category: row.category,
     vendor: row.vendor ?? null,
     client_id: row.clientId ?? null,
     client_name: row.clientName ?? null,
+    giving_recipient_id: row.givingRecipientId ?? null,
+    giving_recipient_name: row.givingRecipientName ?? null,
+    giving_designation_id: row.givingDesignationId ?? null,
+    giving_designation_name: row.givingDesignationName ?? null,
     rebill_mode: row.rebillMode ?? "none",
     rebill_amount: row.rebillAmount == null ? null : Number(row.rebillAmount),
     notes: row.notes,
@@ -32,12 +37,16 @@ function getCurrentPeriodMonth() {
 export async function GET() {
   try {
     const { userId, workspaceId } = await requireAuthWithWorkspace();
-    const outgoings = await outgoingsService.list(userId, workspaceId);
+    const outgoings = await outgoingsService.list(userId, workspaceId, undefined, "expense");
     const summary = await outgoingsService.getMonthlyTotal(userId, workspaceId);
 
     // Get payment status for current month
     const periodMonth = getCurrentPeriodMonth();
-    const paymentMap = await paymentLogService.getMonthlyStatus(userId, periodMonth);
+    const paymentMap = await paymentLogService.getMonthlyStatus(
+      userId,
+      periodMonth,
+      workspaceId,
+    );
 
     const outgoingsWithStatus = outgoings.map((o) => {
       const mapped = toOutgoing(o);

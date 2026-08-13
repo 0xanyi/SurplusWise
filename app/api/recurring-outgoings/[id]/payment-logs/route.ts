@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
 import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
 import { NextRequest, NextResponse } from "next/server";
@@ -21,10 +21,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const { id: outgoingId } = await params;
 
-    const logs = await paymentLogService.listForOutgoing(userId, outgoingId);
+    const logs = await paymentLogService.listForOutgoing(userId, outgoingId, workspaceId);
     return NextResponse.json({ logs: logs.map(toPaymentLog) });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
@@ -46,7 +46,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const { id: outgoingId } = await params;
     const body = await request.json();
 
@@ -60,13 +60,18 @@ export async function POST(
       );
     }
 
-    const row = await paymentLogService.create(userId, outgoingId, {
-      amount: body.amount,
-      paidAt,
-      // Canonical period month is derived server-side from paidAt
-      periodMonth: getPeriodMonthFromDate(paidAt),
-      notes: body.notes,
-    });
+    const row = await paymentLogService.create(
+      userId,
+      outgoingId,
+      {
+        amount: body.amount,
+        paidAt,
+        // Canonical period month is derived server-side from paidAt
+        periodMonth: getPeriodMonthFromDate(paidAt),
+        notes: body.notes,
+      },
+      workspaceId,
+    );
 
     return NextResponse.json(toPaymentLog(row));
   } catch (error) {

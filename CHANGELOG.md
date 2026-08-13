@@ -4,6 +4,16 @@ All notable changes to Sika will be documented in this file.
 
 ## [Unreleased]
 
+### Recurring money foundation
+
+- Extended recurring records to cover income, expenses, and giving through one
+  workspace-scoped service and API contract while preserving existing bills as expenses
+- Recurring giving can reference an existing recipient and designation; client
+  attribution, recovery terms, and outgoing payment logs remain expense-only
+- Added integrity checks for incompatible attribution and safe type changes.
+  Draft generation, transaction matching, variable settlement, calendar views,
+  and notifications remain planned follow-up work
+
 ### Giving recipients and funds
 
 - Added workspace-scoped giving recipients and recipient-specific funds or

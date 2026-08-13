@@ -1,12 +1,19 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { clients, recurringOutgoings } from "@/db/schema";
+import {
+  clients,
+  givingDesignations,
+  givingRecipients,
+  outgoingPaymentLogs,
+  recurringOutgoings,
+} from "@/db/schema";
 import {
   assertRebillShape,
   normaliseRebillAmount,
   type RebillMode,
 } from "@/lib/rebill";
 import * as clientsService from "./clients";
+import * as givingRecipientsService from "./giving-recipients";
 import {
   userIdSchema,
   idSchema,
@@ -18,15 +25,21 @@ import {
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type OutgoingFrequency = "monthly";
+type RecurringMoneyType = "income" | "expense" | "giving";
+
+export class RecurringMoneyShapeError extends Error {}
 
 export interface CreateInput {
   name: string;
   amount: number;
+  type?: RecurringMoneyType;
   dayOfMonth: number;
   frequency?: OutgoingFrequency;
   category?: string | null;
   vendor?: string | null;
   clientId?: string | null;
+  givingRecipientId?: string | null;
+  givingDesignationId?: string | null;
   rebillMode?: RebillMode;
   rebillAmount?: number | null;
   notes?: string | null;
@@ -35,11 +48,14 @@ export interface CreateInput {
 export interface UpdateInput {
   name?: string;
   amount?: number;
+  type?: RecurringMoneyType;
   dayOfMonth?: number;
   frequency?: OutgoingFrequency;
   category?: string | null;
   vendor?: string | null;
   clientId?: string | null;
+  givingRecipientId?: string | null;
+  givingDesignationId?: string | null;
   rebillMode?: RebillMode;
   rebillAmount?: number | null;
   notes?: string | null;
@@ -52,6 +68,50 @@ function genId() {
   return crypto.randomUUID();
 }
 
+async function assertRecurringMoneyShape(
+  userId: string,
+  workspaceId: string,
+  input: {
+    type: RecurringMoneyType;
+    clientId: string | null;
+    givingRecipientId: string | null;
+    givingDesignationId: string | null;
+    rebillMode: RebillMode;
+    rebillAmount: number | null;
+  },
+) {
+  if (input.type !== "expense" && (input.rebillMode !== "none" || input.rebillAmount !== null)) {
+    throw new RecurringMoneyShapeError("Only recurring expenses can use client recovery terms");
+  }
+  if (input.type !== "expense" && input.clientId) {
+    throw new RecurringMoneyShapeError("Clients can only be assigned to recurring expenses");
+  }
+  if (input.type !== "giving" && (input.givingRecipientId || input.givingDesignationId)) {
+    throw new RecurringMoneyShapeError(
+      "Giving attribution can only be assigned to recurring giving",
+    );
+  }
+  if (input.givingDesignationId && !input.givingRecipientId) {
+    throw new RecurringMoneyShapeError("A giving fund requires a recipient");
+  }
+  if (input.clientId) await clientsService.assertInWorkspace(userId, workspaceId, input.clientId);
+  if (input.givingRecipientId) {
+    await givingRecipientsService.assertRecipientInWorkspace(
+      userId,
+      workspaceId,
+      input.givingRecipientId,
+    );
+    if (input.givingDesignationId) {
+      await givingRecipientsService.assertDesignationInWorkspace(
+        userId,
+        workspaceId,
+        input.givingDesignationId,
+        input.givingRecipientId,
+      );
+    }
+  }
+}
+
 // ─── Service functions ───────────────────────────────────────────────────────
 
 /**
@@ -60,23 +120,34 @@ function genId() {
  * Left-joins the client so a row can say who it is carried for without the
  * caller making a second round trip per row.
  */
-export async function list(userId: string, workspaceId: string, isActive?: boolean) {
+export async function list(
+  userId: string,
+  workspaceId: string,
+  isActive?: boolean,
+  type?: RecurringMoneyType,
+) {
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   const conditions = [eq(recurringOutgoings.userId, userId), eq(recurringOutgoings.workspaceId, workspaceId)];
   if (isActive !== undefined) conditions.push(eq(recurringOutgoings.isActive, isActive));
+  if (type !== undefined) conditions.push(eq(recurringOutgoings.type, type));
 
   return db
     .select({
       id: recurringOutgoings.id,
       name: recurringOutgoings.name,
       amount: recurringOutgoings.amount,
+      type: recurringOutgoings.type,
       dayOfMonth: recurringOutgoings.dayOfMonth,
       frequency: recurringOutgoings.frequency,
       category: recurringOutgoings.category,
       vendor: recurringOutgoings.vendor,
       clientId: recurringOutgoings.clientId,
       clientName: clients.name,
+      givingRecipientId: recurringOutgoings.givingRecipientId,
+      givingRecipientName: givingRecipients.name,
+      givingDesignationId: recurringOutgoings.givingDesignationId,
+      givingDesignationName: givingDesignations.name,
       rebillMode: recurringOutgoings.rebillMode,
       rebillAmount: recurringOutgoings.rebillAmount,
       notes: recurringOutgoings.notes,
@@ -86,6 +157,8 @@ export async function list(userId: string, workspaceId: string, isActive?: boole
     })
     .from(recurringOutgoings)
     .leftJoin(clients, eq(recurringOutgoings.clientId, clients.id))
+    .leftJoin(givingRecipients, eq(recurringOutgoings.givingRecipientId, givingRecipients.id))
+    .leftJoin(givingDesignations, eq(recurringOutgoings.givingDesignationId, givingDesignations.id))
     .where(and(...conditions))
     .orderBy(recurringOutgoings.dayOfMonth);
 }
@@ -113,6 +186,7 @@ export async function getMonthlyTotal(userId: string, workspaceId: string) {
       and(
         eq(recurringOutgoings.userId, userId),
         eq(recurringOutgoings.workspaceId, workspaceId),
+        eq(recurringOutgoings.type, "expense"),
         eq(recurringOutgoings.isActive, true),
         eq(recurringOutgoings.frequency, "monthly"),
       ),
@@ -136,9 +210,19 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 
   const rebillMode = input.rebillMode ?? "none";
   const clientId = input.clientId ?? null;
+  const type = input.type ?? "expense";
+  const givingRecipientId = input.givingRecipientId ?? null;
+  const givingDesignationId = input.givingDesignationId ?? null;
   const rebillAmount = normaliseRebillAmount(rebillMode, input.rebillAmount);
   assertRebillShape({ rebillMode, clientId, rebillAmount });
-  if (clientId) await clientsService.assertInWorkspace(userId, workspaceId, clientId);
+  await assertRecurringMoneyShape(userId, workspaceId, {
+    type,
+    clientId,
+    givingRecipientId,
+    givingDesignationId,
+    rebillMode,
+    rebillAmount,
+  });
 
   const [row] = await db
     .insert(recurringOutgoings)
@@ -148,11 +232,14 @@ export async function create(userId: string, workspaceId: string, input: CreateI
       workspaceId,
       name: input.name,
       amount: String(input.amount),
+      type,
       dayOfMonth: input.dayOfMonth,
       frequency: input.frequency ?? "monthly",
       category: input.category ?? null,
       vendor: input.vendor ?? null,
       clientId,
+      givingRecipientId,
+      givingDesignationId,
       rebillMode,
       rebillAmount: rebillAmount === null ? null : String(rebillAmount),
       notes: input.notes ?? null,
@@ -165,85 +252,140 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 }
 
 /** Partial update. Throws if not found / unauthorized. */
-export async function update(userId: string, id: string, input: UpdateInput) {
+export async function update(
+  userId: string,
+  id: string,
+  input: UpdateInput,
+  workspaceId?: string,
+  expectedType?: RecurringMoneyType,
+) {
   userIdSchema.parse(userId);
   idSchema.parse(id);
+  if (workspaceId) workspaceIdSchema.parse(workspaceId);
   recurringOutgoingUpdateSchema.parse(input);
 
-  const [existing] = await db
-    .select()
-    .from(recurringOutgoings)
-    .where(and(eq(recurringOutgoings.id, id), eq(recurringOutgoings.userId, userId)))
-    .limit(1);
+  const ownership = [
+    eq(recurringOutgoings.id, id),
+    eq(recurringOutgoings.userId, userId),
+  ];
+  if (workspaceId) ownership.push(eq(recurringOutgoings.workspaceId, workspaceId));
+  if (expectedType) ownership.push(eq(recurringOutgoings.type, expectedType));
 
-  if (!existing) throw new Error("Recurring outgoing not found or unauthorized");
+  return db.transaction(async (tx) => {
+    // Payment logging takes the same row lock, so a payment cannot race a type
+    // change and leave a non-expense with an outgoing settlement.
+    const [existing] = await tx
+      .select()
+      .from(recurringOutgoings)
+      .where(and(...ownership))
+      .limit(1)
+      .for("update");
 
-  // The rebill fields are interdependent, so they are validated as the row will
-  // end up rather than as the patch arrived: clearing the client on a row that
-  // is still marked `at_cost` has to fail even though neither field is wrong on
-  // its own.
-  const rebillMode = input.rebillMode ?? (existing.rebillMode as RebillMode);
-  const clientId = input.clientId !== undefined ? input.clientId : existing.clientId;
-  const patchedAmount =
-    input.rebillAmount !== undefined
-      ? input.rebillAmount
-      : existing.rebillAmount === null
-        ? null
-        : Number(existing.rebillAmount);
-  const rebillAmount = normaliseRebillAmount(rebillMode, patchedAmount);
-  assertRebillShape({ rebillMode, clientId, rebillAmount });
-
-  const touchesRebill =
-    input.rebillMode !== undefined ||
-    input.clientId !== undefined ||
-    input.rebillAmount !== undefined;
-
-  if (touchesRebill && clientId && clientId !== existing.clientId) {
-    // Validated against the row's own workspace rather than the active one, so
-    // a client can never be attached across the isolation boundary.
-    if (!existing.workspaceId) {
-      throw new Error("This outgoing has no workspace, so it cannot be billed to a client");
+    if (!existing) throw new Error("Recurring outgoing not found or unauthorized");
+    if (input.type !== undefined && input.type !== existing.type) {
+      const [settlement] = await tx
+        .select({ id: outgoingPaymentLogs.id })
+        .from(outgoingPaymentLogs)
+        .where(eq(outgoingPaymentLogs.outgoingId, id))
+        .limit(1);
+      if (settlement) {
+        throw new RecurringMoneyShapeError(
+          "A recurring item's type cannot change after payments have been logged",
+        );
+      }
     }
-    await clientsService.assertInWorkspace(userId, existing.workspaceId, clientId);
-  }
 
-  const [row] = await db
-    .update(recurringOutgoings)
-    .set({
-      ...(input.name !== undefined && { name: input.name }),
-      ...(input.amount !== undefined && { amount: String(input.amount) }),
-      ...(input.dayOfMonth !== undefined && { dayOfMonth: input.dayOfMonth }),
-      ...(input.frequency !== undefined && { frequency: input.frequency }),
-      ...(input.category !== undefined && { category: input.category }),
-      ...(input.vendor !== undefined && { vendor: input.vendor }),
-      ...(touchesRebill && {
-        clientId,
-        rebillMode,
-        rebillAmount: rebillAmount === null ? null : String(rebillAmount),
-      }),
-      ...(input.notes !== undefined && { notes: input.notes }),
-      ...(input.isActive !== undefined && { isActive: input.isActive }),
-      updatedAt: new Date(),
-    })
-    .where(and(eq(recurringOutgoings.id, id), eq(recurringOutgoings.userId, userId)))
-    .returning();
-  return row;
+    // The interdependent fields are validated as the row will end up rather
+    // than independently as the patch arrived.
+    const rebillMode = input.rebillMode ?? (existing.rebillMode as RebillMode);
+    const clientId = input.clientId !== undefined ? input.clientId : existing.clientId;
+    const type = input.type ?? existing.type;
+    const givingRecipientId =
+      input.givingRecipientId !== undefined
+        ? input.givingRecipientId
+        : existing.givingRecipientId;
+    const givingDesignationId =
+      input.givingDesignationId !== undefined
+        ? input.givingDesignationId
+        : existing.givingDesignationId;
+    const patchedAmount =
+      input.rebillAmount !== undefined
+        ? input.rebillAmount
+        : existing.rebillAmount === null
+          ? null
+          : Number(existing.rebillAmount);
+    const rebillAmount = normaliseRebillAmount(rebillMode, patchedAmount);
+    assertRebillShape({ rebillMode, clientId, rebillAmount });
+    if (!existing.workspaceId) {
+      throw new Error("This recurring item has no workspace, so it cannot be updated");
+    }
+    await assertRecurringMoneyShape(userId, existing.workspaceId, {
+      type,
+      clientId,
+      givingRecipientId,
+      givingDesignationId,
+      rebillMode,
+      rebillAmount,
+    });
+
+    const touchesRebill =
+      input.rebillMode !== undefined ||
+      input.clientId !== undefined ||
+      input.rebillAmount !== undefined;
+
+    const [row] = await tx
+      .update(recurringOutgoings)
+      .set({
+        ...(input.name !== undefined && { name: input.name }),
+        ...(input.amount !== undefined && { amount: String(input.amount) }),
+        ...(input.type !== undefined && { type: input.type }),
+        ...(input.dayOfMonth !== undefined && { dayOfMonth: input.dayOfMonth }),
+        ...(input.frequency !== undefined && { frequency: input.frequency }),
+        ...(input.category !== undefined && { category: input.category }),
+        ...(input.vendor !== undefined && { vendor: input.vendor }),
+        ...(touchesRebill && {
+          clientId,
+          rebillMode,
+          rebillAmount: rebillAmount === null ? null : String(rebillAmount),
+        }),
+        ...(input.givingRecipientId !== undefined && { givingRecipientId }),
+        ...(input.givingDesignationId !== undefined && { givingDesignationId }),
+        ...(input.notes !== undefined && { notes: input.notes }),
+        ...(input.isActive !== undefined && { isActive: input.isActive }),
+        updatedAt: new Date(),
+      })
+      .where(and(...ownership))
+      .returning();
+    return row;
+  });
 }
 
 /** Delete a recurring outgoing. Throws if not found / unauthorized. */
-export async function remove(userId: string, id: string) {
+export async function remove(
+  userId: string,
+  id: string,
+  workspaceId?: string,
+  expectedType?: RecurringMoneyType,
+) {
   userIdSchema.parse(userId);
   idSchema.parse(id);
+  if (workspaceId) workspaceIdSchema.parse(workspaceId);
 
+  const ownership = [
+    eq(recurringOutgoings.id, id),
+    eq(recurringOutgoings.userId, userId),
+  ];
+  if (workspaceId) ownership.push(eq(recurringOutgoings.workspaceId, workspaceId));
+  if (expectedType) ownership.push(eq(recurringOutgoings.type, expectedType));
   const [existing] = await db
     .select({ id: recurringOutgoings.id })
     .from(recurringOutgoings)
-    .where(and(eq(recurringOutgoings.id, id), eq(recurringOutgoings.userId, userId)))
+    .where(and(...ownership))
     .limit(1);
 
   if (!existing) throw new Error("Recurring outgoing not found or unauthorized");
 
   await db
     .delete(recurringOutgoings)
-    .where(and(eq(recurringOutgoings.id, id), eq(recurringOutgoings.userId, userId)));
+    .where(and(...ownership));
 }

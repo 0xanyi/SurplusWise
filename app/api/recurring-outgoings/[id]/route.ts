@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as outgoingsService from "@/lib/db/recurring-outgoings";
 import { errorResponse } from "@/lib/api-errors";
 import { NextRequest, NextResponse } from "next/server";
@@ -8,7 +8,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
@@ -35,7 +35,7 @@ export async function PATCH(
       ...(body.is_active !== undefined && { isActive: body.is_active }),
     };
 
-    await outgoingsService.update(userId, id, input);
+    await outgoingsService.update(userId, id, input, workspaceId, "expense");
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -48,10 +48,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
 
-    await outgoingsService.remove(userId, id);
+    await outgoingsService.remove(userId, id, workspaceId, "expense");
 
     return NextResponse.json({ success: true });
   } catch (error) {

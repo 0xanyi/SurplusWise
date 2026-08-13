@@ -149,6 +149,7 @@ async function getTotalsForRange(
       and(
         eq(outgoingPaymentLogs.userId, userId),
         eq(recurringOutgoings.workspaceId, workspaceId),
+        eq(recurringOutgoings.type, "expense"),
         gte(outgoingPaymentLogs.paidAt, range.startDate),
         lte(outgoingPaymentLogs.paidAt, range.endDate),
       ),
@@ -247,6 +248,7 @@ async function getHistoricalMonthlyAverages(
       and(
         eq(outgoingPaymentLogs.userId, userId),
         eq(recurringOutgoings.workspaceId, workspaceId),
+        eq(recurringOutgoings.type, "expense"),
         gte(outgoingPaymentLogs.paidAt, range.startDate),
         lte(outgoingPaymentLogs.paidAt, range.endDate),
       ),
@@ -372,6 +374,7 @@ async function getCommittedMonthlyExpenses(
       and(
         eq(recurringOutgoings.userId, userId),
         eq(recurringOutgoings.workspaceId, workspaceId),
+        eq(recurringOutgoings.type, "expense"),
         eq(recurringOutgoings.isActive, true),
         eq(recurringOutgoings.frequency, "monthly"),
       ),
@@ -509,6 +512,7 @@ export async function getAnalytics(
       and(
         eq(outgoingPaymentLogs.userId, userId),
         eq(recurringOutgoings.workspaceId, workspaceId),
+        eq(recurringOutgoings.type, "expense"),
         gte(outgoingPaymentLogs.paidAt, range.startDate),
         lte(outgoingPaymentLogs.paidAt, range.endDate),
       ),

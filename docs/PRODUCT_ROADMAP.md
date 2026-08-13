@@ -65,7 +65,7 @@ of a recipient.
 
 ## Phase 4 — Recurring money and notifications
 
-- One recurring model for income, expenses, and giving
+- One recurring model for income, expenses, and giving — foundation implemented
 - Draft generation and matching against imported transactions
 - Variable expected amounts and partial settlement
 - Unified financial calendar
