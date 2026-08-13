@@ -53,7 +53,7 @@ Set `OPENAI_API_KEY` to enable receipt scanning, and the `S3_*` variables to sto
 receipt images. The AI provider is configurable per user in Settings and works
 with any OpenAI-compatible endpoint, including a local Ollama instance.
 
-Due-money delivery is also optional and self-hosted. Browser Push uses a VAPID
+Notification delivery is also optional and self-hosted. Browser Push uses a VAPID
 key pair generated with `npx web-push generate-vapid-keys --json`; email uses
 your own SMTP server through `SMTP_URL` and `SMTP_FROM`. Configure either channel
 plus `NOTIFICATION_DISPATCH_TOKEN`, then invoke the token-protected dispatcher
@@ -152,7 +152,7 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - ✅ Toast notifications
 - ✅ Installable PWA with a privacy-safe offline fallback
 - ✅ Mobile-friendly design
-- ✅ In-app due-money inbox with optional self-hosted Web Push and SMTP reminders
+- ✅ In-app, Web Push, and SMTP reminders for due money and import review
 
 ### Upcoming Features
 - 📱 Advanced filtering options

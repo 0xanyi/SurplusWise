@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationStates } from "@/db/schema";
 import * as calendarService from "./financial-calendar";
+import * as transactionsService from "./transactions";
 import { idSchema, userIdSchema, workspaceIdSchema } from "./validation";
 import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
 
@@ -26,6 +27,34 @@ function description(type: calendarService.CalendarEventType, days: number) {
   return `${subject} is due in ${days} days`;
 }
 
+type Notification = {
+  id: string;
+  kind: "due_money" | "review_item";
+  date: string;
+  title: string;
+  description: string;
+  amount: number;
+  type: calendarService.CalendarEventType;
+  daysUntilDue: number | null;
+  href: string;
+  readAt: Date | null;
+};
+
+async function readState(userId: string, workspaceId: string, eventKeys: string[]) {
+  if (eventKeys.length === 0) return new Map<string, Date>();
+  const states = await db
+    .select({ eventKey: notificationStates.eventKey, readAt: notificationStates.readAt })
+    .from(notificationStates)
+    .where(
+      and(
+        eq(notificationStates.userId, userId),
+        eq(notificationStates.workspaceId, workspaceId),
+        inArray(notificationStates.eventKey, eventKeys),
+      ),
+    );
+  return new Map(states.map((state) => [state.eventKey, state.readAt]));
+}
+
 export async function listDue(userId: string, workspaceId: string, today = getCurrentUtcDate()) {
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
@@ -44,20 +73,11 @@ export async function listDue(userId: string, workspaceId: string, today = getCu
     .sort((left, right) => left.event.date.localeCompare(right.event.date));
   if (events.length === 0) return [];
 
-  const states = await db
-    .select({ eventKey: notificationStates.eventKey, readAt: notificationStates.readAt })
-    .from(notificationStates)
-    .where(
-      and(
-        eq(notificationStates.userId, userId),
-        eq(notificationStates.workspaceId, workspaceId),
-        inArray(notificationStates.eventKey, events.map(({ eventKey }) => eventKey)),
-      ),
-    );
-  const readByEvent = new Map(states.map((state) => [state.eventKey, state.readAt]));
+  const readByEvent = await readState(userId, workspaceId, events.map(({ eventKey }) => eventKey));
 
-  return events.map(({ event, eventKey, days }) => ({
+  return events.map(({ event, eventKey, days }): Notification => ({
     id: eventKey,
+    kind: "due_money",
     date: event.date,
     title: event.title,
     description: description(event.type, days),
@@ -67,6 +87,40 @@ export async function listDue(userId: string, workspaceId: string, today = getCu
     href: event.href,
     readAt: readByEvent.get(eventKey) ?? null,
   }));
+}
+
+export async function listReviewItems(userId: string, workspaceId: string) {
+  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
+  const transactions = await transactionsService.list(userId, workspaceId, { needsReview: true });
+  const eventKeys = transactions.map((transaction) => `transaction-review:${transaction.id}`);
+  const readByEvent = await readState(userId, workspaceId, eventKeys);
+
+  return transactions.map((transaction, index): Notification => {
+    const eventKey = eventKeys[index];
+    const subject = transaction.payee?.trim() || transaction.category;
+    return {
+      id: eventKey,
+      kind: "review_item",
+      date: transaction.date,
+      title: "Review imported transaction",
+      description: `${subject} needs classification review`,
+      amount: Number(transaction.amount),
+      type: transaction.type,
+      daysUntilDue: null,
+      href: "/dashboard/transactions?needsReview=true",
+      readAt: readByEvent.get(eventKey) ?? null,
+    };
+  });
+}
+
+/** All current attention items; resolved source records disappear automatically. */
+export async function listCurrent(userId: string, workspaceId: string, today = getCurrentUtcDate()) {
+  const [due, reviewItems] = await Promise.all([
+    listDue(userId, workspaceId, today),
+    listReviewItems(userId, workspaceId),
+  ]);
+  return [...due, ...reviewItems];
 }
 
 export async function markRead(

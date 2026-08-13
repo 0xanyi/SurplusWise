@@ -1,9 +1,9 @@
 import {
-  dispatchDueEmail,
+  dispatchEmailNotifications,
   emailNotificationsConfigured,
 } from "@/lib/email-notifications";
 import {
-  dispatchDuePush,
+  dispatchPushNotifications,
   getPublicPushConfiguration,
 } from "@/lib/push-notifications";
 
@@ -18,9 +18,9 @@ export async function dispatchConfiguredNotifications() {
   const emailConfigured = emailNotificationsConfigured();
   if (!pushConfigured && !emailConfigured) throw new NotificationConfigurationError();
 
-  // Both channels derive current-month drafts through the same calendar source;
-  // run them sequentially rather than racing that idempotent materialization.
-  const webPush = pushConfigured ? await dispatchDuePush() : null;
-  const email = emailConfigured ? await dispatchDueEmail() : null;
+  // Both channels derive due-money items through the same calendar source; run them
+  // sequentially rather than racing its idempotent current-month materialization.
+  const webPush = pushConfigured ? await dispatchPushNotifications() : null;
+  const email = emailConfigured ? await dispatchEmailNotifications() : null;
   return { web_push: webPush, email };
 }

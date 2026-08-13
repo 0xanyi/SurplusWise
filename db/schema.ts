@@ -226,7 +226,7 @@ export const onboardingStatus = pgTable(
   (t) => [index("idx_onboarding_status_workspace").on(t.workspaceId)],
 );
 
-/** Per-occurrence read state for live, calendar-derived notifications. */
+/** Per-occurrence read state for notifications derived from live source records. */
 export const notificationStates = pgTable(
   "notification_states",
   {
@@ -269,7 +269,7 @@ export const pushNotificationPreferences = pgTable(
   ],
 );
 
-/** Workspace-level opt-in for due-money reminders sent to the account email. */
+/** Workspace-level opt-in for notifications sent to the account email. */
 export const emailNotificationPreferences = pgTable(
   "email_notification_preferences",
   {

@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { users, workspaces } from "@/db/schema";
+import { transactions, users, workspaces } from "@/db/schema";
 import * as notificationsService from "./notifications";
 import * as recurringMoneyService from "./recurring-outgoings";
 import * as draftsService from "./recurring-money-drafts";
+import * as transactionsService from "./transactions";
 
 describe(
   "due-money notifications regression",
@@ -134,6 +135,92 @@ describe(
         assert.ok(
           materialized.readAt instanceof Date,
           "read state must survive a future projection becoming a monthly draft",
+        );
+      } finally {
+        await db.delete(users).where(eq(users.id, userId));
+      }
+    });
+
+    it("derives review notifications from live workspace-scoped import state", async () => {
+      const userId = crypto.randomUUID();
+      const workspaceId = crypto.randomUUID();
+      const otherWorkspaceId = crypto.randomUUID();
+      await db.insert(users).values({
+        id: userId,
+        name: "Review notification user",
+        email: `review-notifications-${userId.slice(0, 8)}@example.com`,
+      });
+      await db.insert(workspaces).values([
+        {
+          id: workspaceId,
+          userId,
+          name: "Personal",
+          type: "personal",
+          currency: "GBP",
+          isDefault: true,
+        },
+        {
+          id: otherWorkspaceId,
+          userId,
+          name: "Other",
+          type: "business",
+          currency: "GBP",
+          isDefault: false,
+        },
+      ]);
+
+      try {
+        const reviewable = await transactionsService.create(userId, workspaceId, {
+          amount: 27.5,
+          date: "2028-02-10",
+          type: "expense",
+          category: "Uncategorized",
+          payee: "Corner Shop",
+        });
+        const other = await transactionsService.create(userId, otherWorkspaceId, {
+          amount: 50,
+          date: "2028-02-10",
+          type: "expense",
+          category: "Uncategorized",
+          payee: "Other workspace payee",
+        });
+        await db
+          .update(transactions)
+          .set({ needsReview: true })
+          .where(inArray(transactions.id, [reviewable.id, other.id]));
+
+        let reviewItems = await notificationsService.listReviewItems(userId, workspaceId);
+        assert.equal(reviewItems.length, 1);
+        assert.deepEqual(reviewItems[0], {
+          id: `transaction-review:${reviewable.id}`,
+          kind: "review_item",
+          date: "2028-02-10",
+          title: "Review imported transaction",
+          description: "Corner Shop needs classification review",
+          amount: 27.5,
+          type: "expense",
+          daysUntilDue: null,
+          href: "/dashboard/transactions?needsReview=true",
+          readAt: null,
+        });
+
+        await notificationsService.markRead(userId, workspaceId, reviewItems[0].id, true);
+        reviewItems = await notificationsService.listReviewItems(userId, workspaceId);
+        assert.ok(reviewItems[0].readAt instanceof Date);
+        assert.equal(
+          (await notificationsService.listReviewItems(userId, otherWorkspaceId))[0].readAt,
+          null,
+          "read state must not cross workspace boundaries",
+        );
+
+        await transactionsService.bulkUpdateMetadata(userId, workspaceId, {
+          ids: [reviewable.id],
+          needsReview: false,
+        });
+        assert.equal(
+          (await notificationsService.listReviewItems(userId, workspaceId)).length,
+          0,
+          "reviewed transactions disappear without separate notification cleanup",
         );
       } finally {
         await db.delete(users).where(eq(users.id, userId));

@@ -13,10 +13,11 @@ const updateSchema = z.object({
 export async function POST() {
   try {
     const { userId, workspaceId } = await requireAuthWithWorkspace();
-    const notifications = await notificationsService.listDue(userId, workspaceId);
+    const notifications = await notificationsService.listCurrent(userId, workspaceId);
     return NextResponse.json({
       notifications: notifications.map((notification) => ({
         id: notification.id,
+        kind: notification.kind,
         date: notification.date,
         title: notification.title,
         description: notification.description,

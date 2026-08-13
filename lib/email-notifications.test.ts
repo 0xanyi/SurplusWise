@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { users, workspaces } from "@/db/schema";
+import { transactions, users, workspaces } from "@/db/schema";
 import * as notificationsService from "@/lib/db/notifications";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
 import * as recurringMoneyService from "@/lib/db/recurring-outgoings";
+import * as transactionsService from "@/lib/db/transactions";
 import { getCurrentUtcDate } from "@/lib/outgoings-date";
 import {
   EmailConfigurationError,
-  dispatchDueEmail,
+  dispatchEmailNotifications,
   getEmailNotificationStatus,
   setEmailNotifications,
 } from "./email-notifications";
@@ -37,7 +38,7 @@ describe("SMTP notification configuration", () => {
     process.env.SMTP_FROM = "Sika <sika@example.com>";
     process.env.NEXT_PUBLIC_SITE_URL = "https://sika.example";
     await assert.rejects(
-      () => dispatchDueEmail(),
+      () => dispatchEmailNotifications(),
       (error: unknown) => {
         assert.ok(error instanceof EmailConfigurationError);
         assert.equal(error.message.includes("secret"), false);
@@ -133,7 +134,7 @@ describe(
         const send = async (message: (typeof messages)[number]) => {
           messages.push(message);
         };
-        const first = await dispatchDueEmail({ today, send });
+        const first = await dispatchEmailNotifications({ today, send });
         assert.equal(first.sent, 1);
         assert.equal(first.emails, 1, "due items for one workspace are sent as one digest");
         assert.equal(messages[0].to, email, "delivery always uses the account email");
@@ -144,7 +145,7 @@ describe(
         assert.match(messages[0].html, /Personal &amp; home/);
         assert.equal(JSON.stringify(first).includes("secret"), false);
 
-        const repeat = await dispatchDueEmail({ today, send });
+        const repeat = await dispatchEmailNotifications({ today, send });
         assert.equal(repeat.sent, 0);
         assert.equal(repeat.skipped, 1);
         assert.equal(messages.length, 1);
@@ -152,17 +153,17 @@ describe(
         const dueNotification = (await notificationsService.listDue(userId, workspaceId, today))
           .find((notification) => notification.title === dueSchedule.name)!;
         await notificationsService.markRead(userId, workspaceId, dueNotification.id, true);
-        assert.equal((await dispatchDueEmail({ today, send })).due, 0);
+        assert.equal((await dispatchEmailNotifications({ today, send })).notifications, 0);
 
-        const nextOccurrence = await dispatchDueEmail({ today: nextMonth, send });
+        const nextOccurrence = await dispatchEmailNotifications({ today: nextMonth, send });
         assert.equal(nextOccurrence.sent, 2, "a new month has distinct stable occurrence keys");
         assert.equal(nextOccurrence.emails, 1);
 
         await setEmailNotifications(userId, workspaceId, false);
-        assert.equal((await dispatchDueEmail({ today: retryMonth, send })).workspaces, 0);
+        assert.equal((await dispatchEmailNotifications({ today: retryMonth, send })).workspaces, 0);
 
         await setEmailNotifications(userId, workspaceId, true);
-        const failed = await dispatchDueEmail({
+        const failed = await dispatchEmailNotifications({
           today: retryMonth,
           send: async () => {
             throw new Error("SMTP temporarily unavailable");
@@ -170,8 +171,31 @@ describe(
         });
         assert.equal(failed.failed, 2);
         assert.equal((await getEmailNotificationStatus(userId, workspaceId)).enabled, true);
-        const retried = await dispatchDueEmail({ today: retryMonth, send });
+        const retried = await dispatchEmailNotifications({ today: retryMonth, send });
         assert.equal(retried.sent, 2, "failed SMTP sends release occurrence claims for retry");
+
+        const reviewable = await transactionsService.create(userId, workspaceId, {
+          amount: 23,
+          date: retryMonth,
+          type: "expense",
+          category: "Uncategorized",
+          payee: "Review this import",
+        });
+        const secondReviewable = await transactionsService.create(userId, workspaceId, {
+          amount: 19,
+          date: retryMonth,
+          type: "expense",
+          category: "Uncategorized",
+          payee: "Review this import too",
+        });
+        await db
+          .update(transactions)
+          .set({ needsReview: true })
+          .where(inArray(transactions.id, [reviewable.id, secondReviewable.id]));
+        const reviewRun = await dispatchEmailNotifications({ today: retryMonth, send });
+        assert.equal(reviewRun.sent, 2, "review items use the same SMTP digest pipeline");
+        assert.match(messages.at(-1)!.text, /Review imported transaction/);
+        assert.match(messages.at(-1)!.text, /needsReview=true/);
       } finally {
         await db.delete(users).where(eq(users.id, userId));
       }

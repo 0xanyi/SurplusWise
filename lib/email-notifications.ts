@@ -113,17 +113,17 @@ function escapeHtml(value: string) {
 function messageFor(
   recipient: string,
   workspace: { name: string; currency: string },
-  due: Awaited<ReturnType<typeof notificationsService.listDue>>,
+  notifications: Awaited<ReturnType<typeof notificationsService.listCurrent>>,
   config: EmailConfiguration,
 ): EmailMessage {
-  const rawSubject = due.length === 1
-    ? `${due[0].title} — ${due[0].description}`
-    : `${due.length} due-money reminders for ${workspace.name}`;
+  const rawSubject = notifications.length === 1
+    ? `${notifications[0].title} — ${notifications[0].description}`
+    : `${notifications.length} reminders for ${workspace.name}`;
   const subject = rawSubject.replace(/[\r\n]+/g, " ");
-  const lines = due.map((notification) =>
+  const lines = notifications.map((notification) =>
     `${notification.title}: ${formatCurrency(notification.amount, workspace.currency)} — ${notification.description}\n${new URL(notification.href, config.siteUrl).href}`,
   );
-  const rows = due.map((notification) => {
+  const rows = notifications.map((notification) => {
     const href = new URL(notification.href, config.siteUrl).href;
     return `<li style="margin:0 0 16px"><strong>${escapeHtml(notification.title)}</strong> — ${escapeHtml(formatCurrency(notification.amount, workspace.currency))}<br>${escapeHtml(notification.description)}<br><a href="${escapeHtml(href)}">Open in Sika</a></li>`;
   }).join("");
@@ -132,21 +132,21 @@ function messageFor(
     from: config.from,
     to: recipient,
     subject,
-    text: `Due-money reminders for ${workspace.name}\n\n${lines.join("\n\n")}\n\nYou enabled these reminders in Sika Settings.`,
-    html: `<div style="font-family:system-ui,sans-serif;line-height:1.5;color:#18181b"><h1 style="font-size:20px">Due-money reminders for ${escapeHtml(workspace.name)}</h1><ul style="padding-left:20px">${rows}</ul><p style="color:#71717a;font-size:13px">You enabled these reminders in Sika Settings.</p></div>`,
+    text: `Sika reminders for ${workspace.name}\n\n${lines.join("\n\n")}\n\nYou enabled these reminders in Sika Settings.`,
+    html: `<div style="font-family:system-ui,sans-serif;line-height:1.5;color:#18181b"><h1 style="font-size:20px">Sika reminders for ${escapeHtml(workspace.name)}</h1><ul style="padding-left:20px">${rows}</ul><p style="color:#71717a;font-size:13px">You enabled these reminders in Sika Settings.</p></div>`,
   };
 }
 
 export interface EmailDispatchSummary {
   workspaces: number;
-  due: number;
+  notifications: number;
   sent: number;
   skipped: number;
   failed: number;
   emails: number;
 }
 
-export async function dispatchDueEmail(options: { today?: string; send?: EmailSender } = {}) {
+export async function dispatchEmailNotifications(options: { today?: string; send?: EmailSender } = {}) {
   const config = deliveryConfiguration();
   const transporter = options.send ? null : nodemailer.createTransport(config.smtpUrl);
   const send = options.send ?? ((message: EmailMessage) => transporter!.sendMail(message));
@@ -165,7 +165,7 @@ export async function dispatchDueEmail(options: { today?: string; send?: EmailSe
 
   const summary: EmailDispatchSummary = {
     workspaces: preferences.length,
-    due: 0,
+    notifications: 0,
     sent: 0,
     skipped: 0,
     failed: 0,
@@ -173,15 +173,18 @@ export async function dispatchDueEmail(options: { today?: string; send?: EmailSe
   };
 
   for (const preference of preferences) {
-    const due = (await notificationsService.listDue(
+    const notifications = (await notificationsService.listCurrent(
       preference.userId,
       preference.workspaceId,
       options.today,
     )).filter((notification) => !notification.readAt);
-    summary.due += due.length;
-    const claimed: Array<{ deliveryId: string; notification: (typeof due)[number] }> = [];
+    summary.notifications += notifications.length;
+    const claimed: Array<{
+      deliveryId: string;
+      notification: (typeof notifications)[number];
+    }> = [];
 
-    for (const notification of due) {
+    for (const notification of notifications) {
       const deliveryId = await claimDelivery({
         userId: preference.userId,
         workspaceId: preference.workspaceId,

@@ -127,7 +127,7 @@ export function PushNotificationSettings() {
       toast({
         title: enabled ? "Push notifications enabled" : "Push notifications disabled",
         description: enabled
-          ? "This device will receive unread due-money reminders for this workspace."
+          ? "This device will receive unread reminders for this workspace."
           : "Push delivery is off for this workspace.",
       });
     } catch (error) {
@@ -157,11 +157,11 @@ export function PushNotificationSettings() {
         <div className="flex items-center gap-2">
           <BellRing className="size-4 text-muted-foreground" aria-hidden="true" />
           <h2 className="font-display text-base font-semibold leading-none tracking-[-0.015em]">
-            Due-money reminders
+            Browser reminders
           </h2>
         </div>
         <CardDescription>
-          Receive browser notifications for unread income and payments in the seven days before they are due.
+          Receive notifications for unread due money and imported transactions needing review.
         </CardDescription>
       </CardHeader>
       <CardContent>
