@@ -123,6 +123,21 @@ export interface ApiTransaction {
   created_at: string | null
 }
 
+export interface ApiFinancialCalendarEvent {
+  id: string
+  source_id: string
+  source: 'recurring' | 'debt'
+  date: string
+  title: string
+  amount: number
+  type: TransactionType | 'debt'
+  status: 'draft' | 'partial' | 'settled' | 'overpaid' | 'scheduled'
+  certainty: 'expected' | 'statement' | 'estimate'
+  recorded_amount: number
+  outstanding_amount: number
+  href: string
+}
+
 export interface ApiTransactionDocument {
   id: string
   file_name: string

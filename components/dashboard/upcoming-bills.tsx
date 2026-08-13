@@ -106,10 +106,10 @@ export function UpcomingBills() {
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3.5">
         <CardTitle>Coming up</CardTitle>
         <Link
-          href="/dashboard/outgoings"
+          href="/dashboard/calendar"
           className="text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
-          View all
+          View calendar
         </Link>
       </CardHeader>
 

@@ -18,8 +18,11 @@ All notable changes to Sika will be documented in this file.
 - Monthly expectations can be adjusted without changing their recurring template,
   and multiple ledger transactions can partially settle one expectation with
   outstanding and overpaid amounts reported separately
+- Added a workspace financial calendar that combines recurring income, expenses,
+  giving, and debt payment dates, distinguishing statement amounts from estimates
+  and showing partial or completed settlement without changing ledger totals
 - Added integrity checks for incompatible attribution and safe type changes.
-  Calendar views and notifications remain planned follow-up work
+  Notifications remain planned follow-up work
 
 ### Giving recipients and funds
 
