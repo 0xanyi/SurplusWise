@@ -21,7 +21,7 @@ export async function GET(
     const { id } = await params;
 
     const client = await clientsService.getWithRollup(userId, workspaceId, id);
-    const outgoings = await outgoingsService.list(userId, workspaceId);
+    const outgoings = await outgoingsService.list(userId, workspaceId, undefined, "expense");
     const activity = await transactionsService.list(userId, workspaceId, { clientId: id });
 
     const services = outgoings

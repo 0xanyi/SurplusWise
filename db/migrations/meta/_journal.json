@@ -169,6 +169,13 @@
       "when": 1786581114737,
       "tag": "0023_spooky_lightspeed",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786643736686,
+      "tag": "0024_sudden_molten_man",
+      "breakpoints": true
     }
   ]
 }

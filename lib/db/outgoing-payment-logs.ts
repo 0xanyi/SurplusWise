@@ -5,6 +5,7 @@ import {
   userIdSchema,
   idSchema,
   outgoingPaymentLogCreateSchema,
+  workspaceIdSchema,
 } from "./validation";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -25,20 +26,26 @@ function genId() {
 // ─── Service functions ───────────────────────────────────────────────────────
 
 /** List payment logs for a specific outgoing, newest first. */
-export async function listForOutgoing(userId: string, outgoingId: string) {
+export async function listForOutgoing(
+  userId: string,
+  outgoingId: string,
+  workspaceId?: string,
+) {
   userIdSchema.parse(userId);
   idSchema.parse(outgoingId);
+  if (workspaceId) workspaceIdSchema.parse(workspaceId);
 
   // Verify ownership
+  const ownership = [
+    eq(recurringOutgoings.id, outgoingId),
+    eq(recurringOutgoings.userId, userId),
+    eq(recurringOutgoings.type, "expense"),
+  ];
+  if (workspaceId) ownership.push(eq(recurringOutgoings.workspaceId, workspaceId));
   const [outgoing] = await db
     .select({ id: recurringOutgoings.id })
     .from(recurringOutgoings)
-    .where(
-      and(
-        eq(recurringOutgoings.id, outgoingId),
-        eq(recurringOutgoings.userId, userId),
-      ),
-    )
+    .where(and(...ownership))
     .limit(1);
 
   if (!outgoing) throw new Error("Recurring outgoing not found or unauthorized");
@@ -54,8 +61,20 @@ export async function listForOutgoing(userId: string, outgoingId: string) {
  * Get payment status for all active outgoings for a specific month.
  * Returns which outgoings have been paid and which are still pending.
  */
-export async function getMonthlyStatus(userId: string, periodMonth: string) {
+export async function getMonthlyStatus(
+  userId: string,
+  periodMonth: string,
+  workspaceId?: string,
+) {
   userIdSchema.parse(userId);
+  if (workspaceId) workspaceIdSchema.parse(workspaceId);
+
+  const conditions = [
+    eq(outgoingPaymentLogs.userId, userId),
+    eq(outgoingPaymentLogs.periodMonth, periodMonth),
+    eq(recurringOutgoings.type, "expense"),
+  ];
+  if (workspaceId) conditions.push(eq(recurringOutgoings.workspaceId, workspaceId));
 
   const payments = await db
     .select({
@@ -65,12 +84,8 @@ export async function getMonthlyStatus(userId: string, periodMonth: string) {
       id: outgoingPaymentLogs.id,
     })
     .from(outgoingPaymentLogs)
-    .where(
-      and(
-        eq(outgoingPaymentLogs.userId, userId),
-        eq(outgoingPaymentLogs.periodMonth, periodMonth),
-      ),
-    );
+    .innerJoin(recurringOutgoings, eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id))
+    .where(and(...conditions));
 
   // Map outgoingId -> payment info
   const paymentMap = new Map<string, { id: string; amount: number; paidAt: string }>();
@@ -90,72 +105,82 @@ export async function create(
   userId: string,
   outgoingId: string,
   input: CreateInput,
+  workspaceId?: string,
 ) {
   userIdSchema.parse(userId);
   idSchema.parse(outgoingId);
+  if (workspaceId) workspaceIdSchema.parse(workspaceId);
   outgoingPaymentLogCreateSchema.parse(input);
 
-  // Verify ownership
-  const [outgoing] = await db
-    .select({ id: recurringOutgoings.id })
-    .from(recurringOutgoings)
-    .where(
-      and(
-        eq(recurringOutgoings.id, outgoingId),
-        eq(recurringOutgoings.userId, userId),
-      ),
-    )
-    .limit(1);
+  const ownership = [
+    eq(recurringOutgoings.id, outgoingId),
+    eq(recurringOutgoings.userId, userId),
+    eq(recurringOutgoings.type, "expense"),
+  ];
+  if (workspaceId) ownership.push(eq(recurringOutgoings.workspaceId, workspaceId));
 
-  if (!outgoing) throw new Error("Recurring outgoing not found or unauthorized");
+  return db.transaction(async (tx) => {
+    const [outgoing] = await tx
+      .select({ id: recurringOutgoings.id })
+      .from(recurringOutgoings)
+      .where(and(...ownership))
+      .limit(1)
+      .for("update");
 
-  const id = genId();
-  const now = new Date();
+    if (!outgoing) throw new Error("Recurring outgoing not found or unauthorized");
 
-  const [row] = await db
-    .insert(outgoingPaymentLogs)
-    .values({
-      id,
-      outgoingId,
-      userId,
-      amount: String(input.amount),
-      paidAt: input.paidAt,
-      periodMonth: input.periodMonth,
-      notes: input.notes ?? null,
-      createdAt: now,
-    })
-    .returning();
-
-  return row;
+    const [row] = await tx
+      .insert(outgoingPaymentLogs)
+      .values({
+        id: genId(),
+        outgoingId,
+        userId,
+        amount: String(input.amount),
+        paidAt: input.paidAt,
+        periodMonth: input.periodMonth,
+        notes: input.notes ?? null,
+        createdAt: new Date(),
+      })
+      .returning();
+    return row;
+  });
 }
 
 /** Delete a payment log. */
-export async function remove(userId: string, outgoingId: string, logId: string) {
+export async function remove(
+  userId: string,
+  outgoingId: string,
+  logId: string,
+  workspaceId?: string,
+) {
   userIdSchema.parse(userId);
   idSchema.parse(outgoingId);
   idSchema.parse(logId);
+  if (workspaceId) workspaceIdSchema.parse(workspaceId);
 
+  const ownership = [
+    eq(recurringOutgoings.id, outgoingId),
+    eq(recurringOutgoings.userId, userId),
+    eq(recurringOutgoings.type, "expense"),
+  ];
+  if (workspaceId) ownership.push(eq(recurringOutgoings.workspaceId, workspaceId));
+  const [outgoing] = await db
+    .select({ id: recurringOutgoings.id })
+    .from(recurringOutgoings)
+    .where(and(...ownership))
+    .limit(1);
+  if (!outgoing) throw new Error("Recurring outgoing not found or unauthorized");
+
+  const deletion = and(
+    eq(outgoingPaymentLogs.id, logId),
+    eq(outgoingPaymentLogs.outgoingId, outgoingId),
+    eq(outgoingPaymentLogs.userId, userId),
+  );
   const [existing] = await db
     .select({ id: outgoingPaymentLogs.id })
     .from(outgoingPaymentLogs)
-    .where(
-      and(
-        eq(outgoingPaymentLogs.id, logId),
-        eq(outgoingPaymentLogs.outgoingId, outgoingId),
-        eq(outgoingPaymentLogs.userId, userId),
-      ),
-    )
+    .where(deletion)
     .limit(1);
-
   if (!existing) throw new Error("Payment log not found or unauthorized");
-
-  await db
-    .delete(outgoingPaymentLogs)
-    .where(
-      and(
-        eq(outgoingPaymentLogs.id, logId),
-        eq(outgoingPaymentLogs.outgoingId, outgoingId),
-        eq(outgoingPaymentLogs.userId, userId),
-      ),
-    );
+  await db.delete(outgoingPaymentLogs).where(deletion);
 }

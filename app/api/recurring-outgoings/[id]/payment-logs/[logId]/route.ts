@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,10 +7,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; logId: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const { id: outgoingId, logId } = await params;
 
-    await paymentLogService.remove(userId, outgoingId, logId);
+    await paymentLogService.remove(userId, outgoingId, logId, workspaceId);
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

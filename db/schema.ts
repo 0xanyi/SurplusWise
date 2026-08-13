@@ -702,6 +702,7 @@ export const recurringOutgoings = pgTable(
       .references(() => workspaces.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+    type: transactionTypeEnum("type").notNull().default("expense"),
     dayOfMonth: integer("day_of_month").notNull(), // 1-31
     frequency: outgoingFrequencyEnum("frequency").notNull().default("monthly"),
     category: text("category"), // optional grouping e.g. "Housing", "Utilities"
@@ -709,6 +710,12 @@ export const recurringOutgoings = pgTable(
     // Null client means this is the workspace's own overhead. A client plus a
     // rebill mode means the cost is fronted on their behalf.
     clientId: text("client_id").references(() => clients.id, { onDelete: "set null" }),
+    givingRecipientId: text("giving_recipient_id").references(() => givingRecipients.id, {
+      onDelete: "restrict",
+    }),
+    givingDesignationId: text("giving_designation_id").references(() => givingDesignations.id, {
+      onDelete: "restrict",
+    }),
     rebillMode: rebillModeEnum("rebill_mode").notNull().default("none"),
     rebillAmount: decimal("rebill_amount", { precision: 10, scale: 2 }), // required when mode is 'fixed'
     notes: text("notes"),
@@ -719,6 +726,7 @@ export const recurringOutgoings = pgTable(
   (t) => [
     index("idx_recurring_outgoings_user").on(t.userId, t.isActive),
     index("idx_recurring_outgoings_client").on(t.clientId),
+    index("idx_recurring_outgoings_workspace_type").on(t.workspaceId, t.type, t.isActive),
     check("chk_recurring_outgoings_day_of_month", sql`${t.dayOfMonth} BETWEEN 1 AND 31`),
     // A rebill mode without a client would claim a recovery from nobody. The
     // ON DELETE SET NULL on client_id would violate this, so deleting a client
@@ -730,6 +738,18 @@ export const recurringOutgoings = pgTable(
     check(
       "chk_recurring_outgoings_rebill_amount",
       sql`${t.rebillMode} <> 'fixed' OR ${t.rebillAmount} IS NOT NULL`,
+    ),
+    check(
+      "chk_recurring_outgoings_rebill_type",
+      sql`${t.type} = 'expense' OR (${t.rebillMode} = 'none' AND ${t.rebillAmount} IS NULL)`,
+    ),
+    check(
+      "chk_recurring_outgoings_giving_attribution",
+      sql`(${t.givingRecipientId} IS NULL AND ${t.givingDesignationId} IS NULL) OR (${t.type} = 'giving' AND ${t.givingRecipientId} IS NOT NULL)`,
+    ),
+    check(
+      "chk_recurring_outgoings_client_type",
+      sql`${t.type} = 'expense' OR ${t.clientId} IS NULL`,
     ),
   ],
 );

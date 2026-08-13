@@ -333,12 +333,17 @@ export interface ApiRecurringOutgoing {
   id: string
   name: string
   amount: number
+  type: TransactionType
   day_of_month: number
   frequency: OutgoingFrequency
   category: string | null
   vendor: string | null
   client_id: string | null
   client_name: string | null
+  giving_recipient_id: string | null
+  giving_recipient_name: string | null
+  giving_designation_id: string | null
+  giving_designation_name: string | null
   rebill_mode: RebillMode
   rebill_amount: number | null
   notes: string | null

@@ -1,0 +1,9 @@
+ALTER TABLE "recurring_outgoings" ADD COLUMN "type" "transaction_type" DEFAULT 'expense' NOT NULL;--> statement-breakpoint
+ALTER TABLE "recurring_outgoings" ADD COLUMN "giving_recipient_id" text;--> statement-breakpoint
+ALTER TABLE "recurring_outgoings" ADD COLUMN "giving_designation_id" text;--> statement-breakpoint
+ALTER TABLE "recurring_outgoings" ADD CONSTRAINT "recurring_outgoings_giving_recipient_id_giving_recipients_id_fk" FOREIGN KEY ("giving_recipient_id") REFERENCES "public"."giving_recipients"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "recurring_outgoings" ADD CONSTRAINT "recurring_outgoings_giving_designation_id_giving_designations_id_fk" FOREIGN KEY ("giving_designation_id") REFERENCES "public"."giving_designations"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "idx_recurring_outgoings_workspace_type" ON "recurring_outgoings" USING btree ("workspace_id","type","is_active");--> statement-breakpoint
+ALTER TABLE "recurring_outgoings" ADD CONSTRAINT "chk_recurring_outgoings_rebill_type" CHECK ("recurring_outgoings"."type" = 'expense' OR ("recurring_outgoings"."rebill_mode" = 'none' AND "recurring_outgoings"."rebill_amount" IS NULL));--> statement-breakpoint
+ALTER TABLE "recurring_outgoings" ADD CONSTRAINT "chk_recurring_outgoings_giving_attribution" CHECK (("recurring_outgoings"."giving_recipient_id" IS NULL AND "recurring_outgoings"."giving_designation_id" IS NULL) OR ("recurring_outgoings"."type" = 'giving' AND "recurring_outgoings"."giving_recipient_id" IS NOT NULL));--> statement-breakpoint
+ALTER TABLE "recurring_outgoings" ADD CONSTRAINT "chk_recurring_outgoings_client_type" CHECK ("recurring_outgoings"."type" = 'expense' OR "recurring_outgoings"."client_id" IS NULL);

@@ -494,11 +494,14 @@ export const rebillModeSchema = z.enum(["none", "at_cost", "fixed", "bundled"]);
 export const recurringOutgoingCreateSchema = z.object({
   name: z.string().min(1, "name is required").max(100),
   amount: amountSchema,
+  type: transactionTypeSchema.optional().default("expense"),
   dayOfMonth: dayOfMonthSchema,
   frequency: outgoingFrequencySchema.optional().default("monthly"),
   category: z.string().max(100).nullish(),
   vendor: z.string().trim().max(100).nullish(),
   clientId: idSchema.nullish(),
+  givingRecipientId: idSchema.nullish(),
+  givingDesignationId: idSchema.nullish(),
   rebillMode: rebillModeSchema.optional().default("none"),
   rebillAmount: amountSchema.nullish(),
   notes: z.string().nullish(),
@@ -508,11 +511,14 @@ export const recurringOutgoingUpdateSchema = z
   .object({
     name: z.string().min(1).max(100).optional(),
     amount: amountSchema.optional(),
+    type: transactionTypeSchema.optional(),
     dayOfMonth: dayOfMonthSchema.optional(),
     frequency: outgoingFrequencySchema.optional(),
     category: z.string().max(100).nullish(),
     vendor: z.string().trim().max(100).nullish(),
     clientId: idSchema.nullish(),
+    givingRecipientId: idSchema.nullish(),
+    givingDesignationId: idSchema.nullish(),
     rebillMode: rebillModeSchema.optional(),
     rebillAmount: amountSchema.nullish(),
     notes: z.string().nullish(),
@@ -522,11 +528,14 @@ export const recurringOutgoingUpdateSchema = z
     (data) =>
       data.name !== undefined ||
       data.amount !== undefined ||
+      data.type !== undefined ||
       data.dayOfMonth !== undefined ||
       data.frequency !== undefined ||
       data.category !== undefined ||
       data.vendor !== undefined ||
       data.clientId !== undefined ||
+      data.givingRecipientId !== undefined ||
+      data.givingDesignationId !== undefined ||
       data.rebillMode !== undefined ||
       data.rebillAmount !== undefined ||
       data.notes !== undefined ||
