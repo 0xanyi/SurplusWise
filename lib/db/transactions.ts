@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { recurringMoneyDrafts, transactionDocuments, transactions } from "@/db/schema";
+import {
+  recurringMoneyDraftSettlements,
+  recurringMoneyDrafts,
+  transactionDocuments,
+  transactions,
+} from "@/db/schema";
 import * as clientsService from "./clients";
 import * as financialAccountsService from "./financial-accounts";
 import * as givingRecipientsService from "./giving-recipients";
@@ -469,19 +474,48 @@ export async function importRows(
       ? await tx
           .select({
             id: recurringMoneyDrafts.id,
-            transactionId: recurringMoneyDrafts.transactionId,
+            expectedAmount: recurringMoneyDrafts.expectedAmount,
           })
           .from(recurringMoneyDrafts)
           .where(inArray(recurringMoneyDrafts.id, matches.map((match) => match.draftId)))
           .orderBy(recurringMoneyDrafts.id)
           .for("update")
       : [];
-    const availableDraftIds = new Set(
-      lockedDrafts
-        .filter((draft) => draft.transactionId === null)
-        .map((draft) => draft.id),
+    const recordedRows = lockedDrafts.length > 0
+      ? await tx
+          .select({
+            draftId: recurringMoneyDraftSettlements.draftId,
+            total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
+          })
+          .from(recurringMoneyDraftSettlements)
+          .innerJoin(
+            transactions,
+            eq(recurringMoneyDraftSettlements.transactionId, transactions.id),
+          )
+          .where(
+            inArray(
+              recurringMoneyDraftSettlements.draftId,
+              lockedDrafts.map((draft) => draft.id),
+            ),
+          )
+          .groupBy(recurringMoneyDraftSettlements.draftId)
+      : [];
+    const expectedByDraft = new Map(
+      lockedDrafts.map((draft) => [draft.id, Number(draft.expectedAmount)]),
     );
-    const availableMatches = matches.filter((match) => availableDraftIds.has(match.draftId));
+    const allocatedByDraft = new Map(
+      recordedRows.map((row) => [row.draftId, Number(row.total)]),
+    );
+    const availableMatches = matches.filter((match) => {
+      const expected = expectedByDraft.get(match.draftId);
+      if (expected === undefined) return false;
+      const allocated = allocatedByDraft.get(match.draftId) ?? 0;
+      if (Math.round((allocated + match.amount) * 100) > Math.round(expected * 100)) {
+        return false;
+      }
+      allocatedByDraft.set(match.draftId, allocated + match.amount);
+      return true;
+    });
     const matchesByFingerprint = new Map(
       availableMatches.map((match) => [match.key, match]),
     );
@@ -531,10 +565,15 @@ export async function importRows(
       const transactionId = insertedByFingerprint.get(match.key);
       if (!transactionId) continue;
       const [linked] = await tx
-        .update(recurringMoneyDrafts)
-        .set({ transactionId, updatedAt: new Date() })
-        .where(eq(recurringMoneyDrafts.id, match.draftId))
-        .returning({ id: recurringMoneyDrafts.id });
+        .insert(recurringMoneyDraftSettlements)
+        .values({
+          id: genId(),
+          userId,
+          workspaceId,
+          draftId: match.draftId,
+          transactionId,
+        })
+        .returning({ id: recurringMoneyDraftSettlements.id });
       if (linked) linkedKeys.add(match.key);
     }
     return { inserted, linkedKeys };
@@ -693,6 +732,23 @@ export async function update(userId: string, id: string, input: UpdateInput) {
   }
 
   return db.transaction(async (tx) => {
+    if (input.type !== undefined && input.type !== existing.type) {
+      const [settlement] = await tx
+        .select({ draftType: recurringMoneyDrafts.type })
+        .from(recurringMoneyDraftSettlements)
+        .innerJoin(
+          recurringMoneyDrafts,
+          eq(recurringMoneyDraftSettlements.draftId, recurringMoneyDrafts.id),
+        )
+        .where(eq(recurringMoneyDraftSettlements.transactionId, id))
+        .limit(1);
+      if (settlement && settlement.draftType !== input.type) {
+        throw new Error(
+          "Unmatch this transaction from recurring money before changing its type",
+        );
+      }
+    }
+
     if (existing.type === "giving" && effectiveType !== "giving") {
       await tx
         .select({ id: transactions.id })

@@ -211,27 +211,39 @@ describe(
         assert.deepEqual(imported.matchedLineNumbers, [2, 3]);
 
         const drafts = await draftsService.list(userId, workspaceId, "2028-02-01");
-        assert.equal(drafts.filter((draft) => draft.transactionId).length, 2);
-        assert.equal(drafts.filter((draft) => !draft.transactionId).length, 2);
+        assert.equal(drafts.filter((draft) => draft.settlements.length > 0).length, 2);
+        assert.equal(drafts.filter((draft) => draft.settlements.length === 0).length, 2);
         const matchedGift = drafts.find((draft) => draft.type === "giving");
+        const giftTransactionId = matchedGift?.settlements[0]?.transactionId ?? "";
         const [giftTransaction] = await db
           .select()
           .from(transactions)
-          .where(eq(transactions.id, matchedGift?.transactionId ?? ""));
+          .where(eq(transactions.id, giftTransactionId));
         assert.equal(giftTransaction.category, "Giving");
         assert.equal(giftTransaction.givingRecipientId, recipient.id);
         assert.equal(giftTransaction.givingDesignationId, designation.id);
         assert.equal(giftTransaction.needsReview, false);
         await assert.rejects(
-          () => draftsService.unmatch(userId, otherWorkspaceId, matchedGift?.id ?? ""),
+          () =>
+            draftsService.unmatch(
+              userId,
+              otherWorkspaceId,
+              matchedGift?.id ?? "",
+              giftTransactionId,
+            ),
           /not found or unauthorized/,
         );
-        await draftsService.unmatch(userId, workspaceId, matchedGift?.id ?? "");
+        await draftsService.unmatch(
+          userId,
+          workspaceId,
+          matchedGift?.id ?? "",
+          giftTransactionId,
+        );
         assert.equal(
           (await draftsService.list(userId, workspaceId, "2028-02-01")).find(
             (draft) => draft.id === matchedGift?.id,
-          )?.transactionId,
-          null,
+          )?.settlements.length,
+          0,
         );
 
         const repeat = await transactionsService.importRows(
@@ -242,6 +254,239 @@ describe(
         );
         assert.equal(repeat.importedIds.length, 0);
         assert.deepEqual(repeat.duplicateLineNumbers, [2, 3, 4, 5]);
+      } finally {
+        await db.delete(users).where(eq(users.id, userId));
+      }
+    });
+
+    it("supports variable expectations and multiple partial settlements", async () => {
+      const userId = crypto.randomUUID();
+      const workspaceId = crypto.randomUUID();
+      const otherWorkspaceId = crypto.randomUUID();
+      await db.insert(users).values({
+        id: userId,
+        name: "Partial settlement test user",
+        email: `partial-settlement-${userId.slice(0, 8)}@example.com`,
+      });
+      await db.insert(workspaces).values([
+        {
+          id: workspaceId,
+          userId,
+          name: "Personal",
+          type: "personal",
+          currency: "GBP",
+          isDefault: true,
+        },
+        {
+          id: otherWorkspaceId,
+          userId,
+          name: "Other",
+          type: "personal",
+          currency: "GBP",
+          isDefault: false,
+        },
+      ]);
+
+      try {
+        const schedule = await recurringMoneyService.create(userId, workspaceId, {
+          name: "Variable electricity",
+          amount: 100,
+          type: "expense",
+          dayOfMonth: 15,
+          category: "Utilities",
+          vendor: "Power Company",
+        });
+        assert.equal(
+          (await transactionsService.list(userId, workspaceId)).length,
+          0,
+          "expectation generation must not create ledger entries",
+        );
+        await draftsService.generate(userId, workspaceId, "2028-04-01");
+        let draft = (await draftsService.list(userId, workspaceId, "2028-04-01")).find(
+          (row) => row.recurringMoneyId === schedule.id,
+        )!;
+        assert.equal((await transactionsService.list(userId, workspaceId)).length, 0);
+
+        const first = await transactionsService.create(userId, workspaceId, {
+          amount: 40,
+          date: "2028-04-14",
+          type: "expense",
+          category: "Utilities",
+          payee: "Power Company",
+        });
+        const second = await transactionsService.create(userId, workspaceId, {
+          amount: 30,
+          date: "2028-04-16",
+          type: "expense",
+          category: "Utilities",
+          payee: "Power Company",
+        });
+        await draftsService.matchTransaction(userId, workspaceId, draft.id, first.id);
+        await draftsService.matchTransaction(userId, workspaceId, draft.id, second.id);
+        draft = (await draftsService.list(userId, workspaceId, "2028-04-01"))[0];
+        assert.equal(draft.status, "partial");
+        assert.equal(draft.recordedAmount, 70);
+        assert.equal(draft.outstandingAmount, 30);
+        assert.equal(draft.settlements.length, 2);
+        await assert.rejects(
+          () => transactionsService.update(userId, first.id, { type: "income" }),
+          /Unmatch this transaction from recurring money/,
+        );
+
+        await draftsService.updateExpectedAmount(userId, workspaceId, draft.id, 70);
+        draft = (await draftsService.list(userId, workspaceId, "2028-04-01"))[0];
+        assert.equal(draft.status, "settled");
+        assert.equal(draft.outstandingAmount, 0);
+
+        await draftsService.updateExpectedAmount(userId, workspaceId, draft.id, 60);
+        draft = (await draftsService.list(userId, workspaceId, "2028-04-01"))[0];
+        assert.equal(draft.status, "overpaid");
+        assert.equal(draft.overpaidAmount, 10);
+        await assert.rejects(
+          () => draftsService.updateExpectedAmount(userId, workspaceId, draft.id, 0),
+          /amount must be positive/,
+        );
+
+        const otherSchedule = await recurringMoneyService.create(userId, workspaceId, {
+          name: "Other expense",
+          amount: 40,
+          type: "expense",
+          dayOfMonth: 20,
+        });
+        await draftsService.generate(userId, workspaceId, "2028-04-01");
+        const otherDraft = (await draftsService.list(userId, workspaceId, "2028-04-01")).find(
+          (row) => row.recurringMoneyId === otherSchedule.id,
+        )!;
+        await assert.rejects(
+          () => draftsService.matchTransaction(userId, workspaceId, otherDraft.id, first.id),
+          /already matched/,
+        );
+        const wrongType = await transactionsService.create(userId, workspaceId, {
+          amount: 10,
+          date: "2028-04-15",
+          type: "income",
+          category: "Other",
+        });
+        await assert.rejects(
+          () => draftsService.matchTransaction(userId, workspaceId, draft.id, wrongType.id),
+          /type must match/,
+        );
+        const otherWorkspaceTransaction = await transactionsService.create(
+          userId,
+          otherWorkspaceId,
+          {
+            amount: 10,
+            date: "2028-04-15",
+            type: "expense",
+            category: "Other",
+          },
+        );
+        await assert.rejects(
+          () =>
+            draftsService.matchTransaction(
+              userId,
+              workspaceId,
+              draft.id,
+              otherWorkspaceTransaction.id,
+            ),
+          /not found or unauthorized/,
+        );
+
+        await draftsService.unmatch(userId, workspaceId, draft.id, first.id);
+        draft = (await draftsService.list(userId, workspaceId, "2028-04-01")).find(
+          (row) => row.id === draft.id,
+        )!;
+        assert.deepEqual(
+          draft.settlements.map((settlement) => settlement.transactionId),
+          [second.id],
+          "unmatching one settlement must preserve the others",
+        );
+        await transactionsService.remove(userId, second.id);
+        draft = (await draftsService.list(userId, workspaceId, "2028-04-01")).find(
+          (row) => row.id === draft.id,
+        )!;
+        assert.equal(draft.recordedAmount, 0);
+        assert.equal(draft.outstandingAmount, 60);
+        assert.equal(draft.status, "draft");
+      } finally {
+        await db.delete(users).where(eq(users.id, userId));
+      }
+    });
+
+    it("auto-matches partial imports without exceeding the expected amount", async () => {
+      const userId = crypto.randomUUID();
+      const workspaceId = crypto.randomUUID();
+      await db.insert(users).values({
+        id: userId,
+        name: "Partial import test user",
+        email: `partial-import-${userId.slice(0, 8)}@example.com`,
+      });
+      await db.insert(workspaces).values({
+        id: workspaceId,
+        userId,
+        name: "Personal",
+        type: "personal",
+        currency: "GBP",
+        isDefault: true,
+      });
+
+      try {
+        await recurringMoneyService.create(userId, workspaceId, {
+          name: "Contract instalments",
+          amount: 100,
+          type: "income",
+          dayOfMonth: 15,
+          category: "Contract income",
+          vendor: "Example Client",
+        });
+        await draftsService.generate(userId, workspaceId, "2028-05-01");
+        const rows: transactionsService.ImportInput[] = [
+          {
+            lineNumber: 2,
+            amount: 40,
+            date: "2028-05-14",
+            type: "income",
+            category: "Uncategorized",
+            payee: "Example Client Ltd",
+            notes: null,
+            tags: [],
+            externalId: "contract-part-1",
+          },
+          {
+            lineNumber: 3,
+            amount: 60,
+            date: "2028-05-16",
+            type: "income",
+            category: "Uncategorized",
+            payee: "Example Client Ltd",
+            notes: null,
+            tags: [],
+            externalId: "contract-part-2",
+          },
+          {
+            lineNumber: 4,
+            amount: 10,
+            date: "2028-05-17",
+            type: "income",
+            category: "Uncategorized",
+            payee: "Example Client Ltd",
+            notes: null,
+            tags: [],
+            externalId: "contract-overpayment",
+          },
+        ];
+        const review = await transactionsService.reviewImport(userId, workspaceId, null, rows);
+        assert.deepEqual(review.matchedLineNumbers, [2, 3]);
+        const imported = await transactionsService.importRows(userId, workspaceId, null, rows);
+        assert.deepEqual(imported.matchedLineNumbers, [2, 3]);
+        const [draft] = await draftsService.list(userId, workspaceId, "2028-05-01");
+        assert.equal(draft.status, "settled");
+        assert.equal(draft.recordedAmount, 100);
+        assert.equal(draft.settlements.length, 2);
+        const unmatchedTransaction = (await transactionsService.list(userId, workspaceId)).find(
+          (row) => Number(row.amount) === 10,
+        );
+        assert.equal(unmatchedTransaction?.needsReview, true);
       } finally {
         await db.delete(users).where(eq(users.id, userId));
       }

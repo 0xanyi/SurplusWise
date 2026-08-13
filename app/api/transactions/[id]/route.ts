@@ -117,6 +117,12 @@ export async function PATCH(
     }
     if (
       error instanceof Error &&
+      error.message === "Unmatch this transaction from recurring money before changing its type"
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (
+      error instanceof Error &&
       (error.message.includes("not found") ||
         error.message.includes("unauthorized"))
     ) {
