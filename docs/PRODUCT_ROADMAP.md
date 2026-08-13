@@ -68,7 +68,7 @@ of a recipient.
 - One recurring model for income, expenses, and giving — foundation implemented
 - Draft generation and matching against imported transactions — implemented
 - Variable expected amounts and partial settlement — implemented
-- Unified financial calendar
+- Unified financial calendar — recurring money and debt due dates implemented
 - Self-hosted Web Push and optional SMTP delivery
 - Notifications for due money, review items, budget limits, and stale backups
 

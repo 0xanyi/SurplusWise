@@ -35,7 +35,7 @@ export interface DraftImportMatch {
   givingDesignationId: string | null;
 }
 
-function dateForPeriod(periodMonth: string, dayOfMonth: number) {
+export function dateForPeriod(periodMonth: string, dayOfMonth: number) {
   const [year, month] = periodMonth.split("-").map(Number);
   const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
   return `${periodMonth.slice(0, 8)}${String(Math.min(dayOfMonth, lastDay)).padStart(2, "0")}`;

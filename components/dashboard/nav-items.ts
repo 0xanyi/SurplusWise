@@ -1,6 +1,7 @@
 import {
   ArrowLeftRight,
   BarChart3,
+  CalendarDays,
   CreditCard,
   HandCoins,
   HeartHandshake,
@@ -66,6 +67,7 @@ export const navGroups: NavGroup[] = [
         mobileTab: true,
         showsDueBadge: true,
       },
+      { href: "/dashboard/calendar", icon: CalendarDays, label: "Calendar" },
       {
         href: "/dashboard/clients",
         icon: Users,
