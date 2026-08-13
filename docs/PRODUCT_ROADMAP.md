@@ -70,7 +70,7 @@ of a recipient.
 - Variable expected amounts and partial settlement — implemented
 - Unified financial calendar — recurring money and debt due dates implemented
 - Self-hosted Web Push and optional SMTP delivery
-- Notifications for due money, review items, budget limits, and stale backups
+- Notifications for due money, review items, budget limits, and stale backups — in-app due-money foundation implemented
 
 ## Phase 5 — Planning and resilience
 

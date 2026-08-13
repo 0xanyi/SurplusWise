@@ -18,6 +18,7 @@ const REQUIRED_TABLES = [
   "investments",
   "investment_events",
   "workspaces",
+  "notification_states",
 ];
 
 // Columns that guarantee latest migrations have been applied.

@@ -21,8 +21,10 @@ All notable changes to Sika will be documented in this file.
 - Added a workspace financial calendar that combines recurring income, expenses,
   giving, and debt payment dates, distinguishing statement amounts from estimates
   and showing partial or completed settlement without changing ledger totals
+- Added a workspace-scoped notification inbox for income and payments due within
+  seven days, with live outstanding amounts, unread badges, and durable read state
 - Added integrity checks for incompatible attribution and safe type changes.
-  Notifications remain planned follow-up work
+  Web Push, SMTP delivery, and additional alert types remain planned follow-up work
 
 ### Giving recipients and funds
 
