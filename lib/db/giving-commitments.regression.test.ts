@@ -111,6 +111,18 @@ describe(
           givingRecipientId: recipient.id,
           givingDesignationId: designation.id,
         });
+        await transactionsService.create(userId, workspaceId, {
+          amount: 4250,
+          date: "2026-02-28",
+          type: "income",
+          category: "Salary",
+        });
+        await transactionsService.create(userId, otherWorkspaceId, {
+          amount: 1000,
+          date: "2026-02-28",
+          type: "income",
+          category: "Other income",
+        });
 
         const progress = await commitmentsService.getProgress(
           userId,
@@ -120,6 +132,9 @@ describe(
         );
         assert.equal(progress.expected, 550);
         assert.equal(progress.recorded, 375);
+        assert.equal(progress.periodGiving, 425);
+        assert.equal(progress.periodIncome, 4250);
+        assert.equal(progress.givingRate, 10);
         assert.deepEqual(
           progress.rows.map((row) => ({ id: row.id, expected: row.expected, recorded: row.recorded })),
           [
@@ -142,6 +157,16 @@ describe(
         assert.equal(activeProgress.expected, 300);
         assert.equal(activeProgress.recorded, 175);
         assert.equal(activeProgress.rows.length, 2, "archived plans remain visible");
+
+        const noIncome = await commitmentsService.getProgress(
+          userId,
+          workspaceId,
+          "2026-01-01",
+          "2026-01-31",
+        );
+        assert.equal(noIncome.periodGiving, 50);
+        assert.equal(noIncome.periodIncome, 0);
+        assert.equal(noIncome.givingRate, null, "a zero-income period has no meaningful rate");
 
         await commitmentsService.update(userId, workspaceId, general.id, { isActive: false });
         const replacement = await commitmentsService.create(userId, workspaceId, {

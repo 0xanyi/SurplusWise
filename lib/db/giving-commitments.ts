@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, lte } from "drizzle-orm";
+import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import type { z } from "zod";
 import { db } from "@/db/client";
 import {
@@ -202,7 +202,7 @@ export async function getProgress(
   dateStringSchema.parse(periodStart);
   dateStringSchema.parse(periodEnd);
   if (periodEnd < periodStart) throw new Error("period end must not be before period start");
-  const [commitments, gifts] = await Promise.all([
+  const [commitments, gifts, incomeRows] = await Promise.all([
     list(userId, workspaceId),
     db
       .select({
@@ -217,6 +217,18 @@ export async function getProgress(
           eq(transactions.userId, userId),
           eq(transactions.workspaceId, workspaceId),
           eq(transactions.type, "giving"),
+          gte(transactions.date, periodStart),
+          lte(transactions.date, periodEnd),
+        ),
+      ),
+    db
+      .select({ total: sql<string>`coalesce(sum(${transactions.amount}), 0)` })
+      .from(transactions)
+      .where(
+        and(
+          eq(transactions.userId, userId),
+          eq(transactions.workspaceId, workspaceId),
+          eq(transactions.type, "income"),
           gte(transactions.date, periodStart),
           lte(transactions.date, periodEnd),
         ),
@@ -244,11 +256,21 @@ export async function getProgress(
     return { ...commitment, expected, recorded, variance: roundCurrency(recorded - expected) };
   });
   const activeRows = rows.filter((row) => row.isActive);
+  const periodGiving = roundCurrency(
+    gifts.reduce((sum, gift) => sum + Number(gift.amount), 0),
+  );
+  const periodIncome = roundCurrency(Number(incomeRows[0]?.total ?? 0));
   return {
     periodStart,
     periodEnd,
     expected: roundCurrency(activeRows.reduce((sum, row) => sum + row.expected, 0)),
     recorded: roundCurrency(activeRows.reduce((sum, row) => sum + row.recorded, 0)),
+    periodGiving,
+    periodIncome,
+    givingRate:
+      periodIncome > 0
+        ? Math.round(((periodGiving / periodIncome) * 100 + Number.EPSILON) * 10) / 10
+        : null,
     rows,
   };
 }

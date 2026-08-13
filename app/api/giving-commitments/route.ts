@@ -25,6 +25,11 @@ export async function GET(request: NextRequest) {
       period_end: progress.periodEnd,
       expected: progress.expected,
       recorded: progress.recorded,
+      income_context: {
+        income: progress.periodIncome,
+        giving: progress.periodGiving,
+        giving_rate: progress.givingRate,
+      },
       commitments: progress.rows.map((row) => ({
         id: row.id,
         recipient_id: row.recipientId,

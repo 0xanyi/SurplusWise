@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { apiFetch, useApiQuery, useWorkspaceCurrency } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
+import { TRANSACTION_CHANGED_EVENT } from "@/lib/client-events";
 import { formatCurrency } from "@/lib/utils";
 import type {
   ApiGivingCommitment,
@@ -24,6 +25,11 @@ interface ProgressResponse {
   period_end: string;
   expected: number;
   recorded: number;
+  income_context: {
+    income: number;
+    giving: number;
+    giving_rate: number | null;
+  };
   commitments: ApiGivingCommitment[];
 }
 
@@ -39,6 +45,7 @@ export function GivingCommitments() {
   const [periodStart, setPeriodStart] = useState(initialRange.start);
   const [periodEnd, setPeriodEnd] = useState(initialRange.end);
   const [appliedRange, setAppliedRange] = useState(initialRange);
+  const [showIncomeContext, setShowIncomeContext] = useState(false);
   const recipientsQuery = useApiQuery<{ recipients: ApiGivingRecipient[] }>(
     "/api/giving-recipients?active=true",
   );
@@ -47,11 +54,17 @@ export function GivingCommitments() {
   );
   const recipients = recipientsQuery.data?.recipients ?? [];
   const refreshRecipients = recipientsQuery.refresh;
+  const refreshProgress = progressQuery.refresh;
 
   useEffect(() => {
     window.addEventListener("giving-recipients-changed", refreshRecipients);
     return () => window.removeEventListener("giving-recipients-changed", refreshRecipients);
   }, [refreshRecipients]);
+
+  useEffect(() => {
+    window.addEventListener(TRANSACTION_CHANGED_EVENT, refreshProgress);
+    return () => window.removeEventListener(TRANSACTION_CHANGED_EVENT, refreshProgress);
+  }, [refreshProgress]);
 
   const [name, setName] = useState("");
   const [recipientId, setRecipientId] = useState("");
@@ -214,11 +227,36 @@ export function GivingCommitments() {
           </div>
         </div>
         {progressQuery.data && (
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Card><CardContent className="pt-5"><p className="text-xs text-muted-foreground">Expected</p><p className="mt-1 font-display text-xl font-semibold">{formatCurrency(expected, currency)}</p></CardContent></Card>
-            <Card><CardContent className="pt-5"><p className="text-xs text-muted-foreground">Recorded</p><p className="mt-1 font-display text-xl font-semibold text-giving">{formatCurrency(recorded, currency)}</p></CardContent></Card>
-            <Card><CardContent className="pt-5"><p className="text-xs text-muted-foreground">Remaining</p><p className="mt-1 font-display text-xl font-semibold">{formatCurrency(remaining, currency)}</p></CardContent></Card>
-          </div>
+          <>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Card><CardContent className="pt-5"><p className="text-xs text-muted-foreground">Expected</p><p className="mt-1 font-display text-xl font-semibold">{formatCurrency(expected, currency)}</p></CardContent></Card>
+              <Card><CardContent className="pt-5"><p className="text-xs text-muted-foreground">Recorded</p><p className="mt-1 font-display text-xl font-semibold text-giving">{formatCurrency(recorded, currency)}</p></CardContent></Card>
+              <Card><CardContent className="pt-5"><p className="text-xs text-muted-foreground">Remaining</p><p className="mt-1 font-display text-xl font-semibold">{formatCurrency(remaining, currency)}</p></CardContent></Card>
+            </div>
+            <Card>
+              <CardContent className="space-y-4 pt-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <Label htmlFor="giving-income-context" className="font-medium">Show income context</Label>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Optionally compare all recorded giving with income in this period. No target is assumed.
+                    </p>
+                  </div>
+                  <Switch id="giving-income-context" checked={showIncomeContext} onCheckedChange={setShowIncomeContext} />
+                </div>
+                {showIncomeContext && (
+                  <div className="grid gap-4 border-t pt-4 sm:grid-cols-3">
+                    <div><p className="text-xs text-muted-foreground">Income</p><p className="mt-1 font-display text-lg font-semibold text-income">{formatCurrency(progressQuery.data.income_context.income, currency)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">All giving</p><p className="mt-1 font-display text-lg font-semibold text-giving">{formatCurrency(progressQuery.data.income_context.giving, currency)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Share of income</p><p className="mt-1 font-display text-lg font-semibold tabular-nums">{progressQuery.data.income_context.giving_rate === null ? "Not available" : `${progressQuery.data.income_context.giving_rate}%`}</p></div>
+                    {progressQuery.data.income_context.giving_rate === null && (
+                      <p className="text-xs text-muted-foreground sm:col-span-3">A percentage needs recorded income in the selected period.</p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
 
