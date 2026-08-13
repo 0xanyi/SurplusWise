@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { transactionDocuments, transactions } from "@/db/schema";
+import { recurringMoneyDrafts, transactionDocuments, transactions } from "@/db/schema";
 import * as clientsService from "./clients";
 import * as financialAccountsService from "./financial-accounts";
 import * as givingRecipientsService from "./giving-recipients";
+import * as recurringMoneyDraftsService from "./recurring-money-drafts";
 import * as transactionRulesService from "./transaction-rules";
 import {
   userIdSchema,
@@ -379,16 +380,34 @@ export async function reviewImport(
     candidates.map((row) => row.fingerprint),
   );
   const seen = new Set<string>();
-  const duplicateLineNumbers = candidates
-    .filter((row) => {
+  const readyCandidates = candidates.filter((row) => {
       const duplicate = existing.has(row.fingerprint) || seen.has(row.fingerprint);
       seen.add(row.fingerprint);
-      return duplicate;
-    })
+      return !duplicate;
+    });
+  const duplicateLineNumbers = candidates
+    .filter((row) => !readyCandidates.includes(row))
     .map((row) => row.lineNumber);
+  const matches = await recurringMoneyDraftsService.findImportMatches(
+    userId,
+    workspaceId,
+    readyCandidates.map((row) => ({
+      key: row.fingerprint,
+      amount: row.amount,
+      date: row.date,
+      type: row.type,
+      payee: row.payee,
+    })),
+  );
+  const matchedKeys = new Set(matches.map((match) => match.key));
   return {
     ready: candidates.length - duplicateLineNumbers.length,
     duplicateLineNumbers,
+    ...(matches.length > 0 && {
+      matchedLineNumbers: readyCandidates
+        .filter((row) => matchedKeys.has(row.fingerprint))
+        .map((row) => row.lineNumber),
+    }),
   };
 }
 
@@ -431,36 +450,95 @@ export async function importRows(
     };
   }
 
-  const inserted = await db
-    .insert(transactions)
-    .values(
-      rowsToInsert.map((row) => ({
-        id: genId(),
-        userId,
-        workspaceId,
-        accountId,
-        amount: String(row.amount),
-        date: row.date,
-        type: row.type,
-        status: "cleared" as const,
-        needsReview: row.needsReview ?? true,
-        category: row.category,
-        payee: row.payee,
-        clientId: row.clientId ?? null,
-        givingRecipientId: row.givingRecipientId ?? null,
-        givingDesignationId: row.givingDesignationId ?? null,
-        notes: row.notes,
-        tags: row.tags,
-        receiptStorageId: null,
-        importFingerprint: row.fingerprint,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })),
-    )
-    .onConflictDoNothing({
-      target: [transactions.workspaceId, transactions.importFingerprint],
-    })
-    .returning({ id: transactions.id, fingerprint: transactions.importFingerprint });
+  const matches = await recurringMoneyDraftsService.findImportMatches(
+    userId,
+    workspaceId,
+    rowsToInsert.map((row) => ({
+      key: row.fingerprint,
+      amount: row.amount,
+      date: row.date,
+      type: row.type,
+      payee: row.payee,
+    })),
+  );
+  const { inserted, linkedKeys } = await db.transaction(async (tx) => {
+    // Lock candidate drafts before deciding which import rows inherit recurring
+    // metadata. Concurrent imports can then never both claim or auto-review the
+    // same expectation.
+    const lockedDrafts = matches.length > 0
+      ? await tx
+          .select({
+            id: recurringMoneyDrafts.id,
+            transactionId: recurringMoneyDrafts.transactionId,
+          })
+          .from(recurringMoneyDrafts)
+          .where(inArray(recurringMoneyDrafts.id, matches.map((match) => match.draftId)))
+          .orderBy(recurringMoneyDrafts.id)
+          .for("update")
+      : [];
+    const availableDraftIds = new Set(
+      lockedDrafts
+        .filter((draft) => draft.transactionId === null)
+        .map((draft) => draft.id),
+    );
+    const availableMatches = matches.filter((match) => availableDraftIds.has(match.draftId));
+    const matchesByFingerprint = new Map(
+      availableMatches.map((match) => [match.key, match]),
+    );
+    const inserted = await tx
+      .insert(transactions)
+      .values(
+        rowsToInsert.map((row) => {
+          const match = matchesByFingerprint.get(row.fingerprint);
+          return {
+            id: genId(),
+            userId,
+            workspaceId,
+            accountId,
+            amount: String(row.amount),
+            date: row.date,
+            type: row.type,
+            status: "cleared" as const,
+            needsReview: match ? false : (row.needsReview ?? true),
+            category: match?.category ?? row.category,
+            payee: row.payee,
+            clientId: match ? match.clientId : (row.clientId ?? null),
+            givingRecipientId: match
+              ? match.givingRecipientId
+              : (row.givingRecipientId ?? null),
+            givingDesignationId: match
+              ? match.givingDesignationId
+              : (row.givingDesignationId ?? null),
+            notes: row.notes,
+            tags: row.tags,
+            receiptStorageId: null,
+            importFingerprint: row.fingerprint,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+        }),
+      )
+      .onConflictDoNothing({
+        target: [transactions.workspaceId, transactions.importFingerprint],
+      })
+      .returning({ id: transactions.id, fingerprint: transactions.importFingerprint });
+
+    const insertedByFingerprint = new Map(
+      inserted.flatMap((row) => (row.fingerprint ? [[row.fingerprint, row.id] as const] : [])),
+    );
+    const linkedKeys = new Set<string>();
+    for (const match of availableMatches) {
+      const transactionId = insertedByFingerprint.get(match.key);
+      if (!transactionId) continue;
+      const [linked] = await tx
+        .update(recurringMoneyDrafts)
+        .set({ transactionId, updatedAt: new Date() })
+        .where(eq(recurringMoneyDrafts.id, match.draftId))
+        .returning({ id: recurringMoneyDrafts.id });
+      if (linked) linkedKeys.add(match.key);
+    }
+    return { inserted, linkedKeys };
+  });
 
   const insertedFingerprints = new Set(
     inserted.flatMap((row) => (row.fingerprint ? [row.fingerprint] : [])),
@@ -473,6 +551,11 @@ export async function importRows(
   return {
     importedIds: inserted.map((row) => row.id),
     duplicateLineNumbers: duplicateLineNumbers.sort((a, b) => a - b),
+    ...(linkedKeys.size > 0 && {
+      matchedLineNumbers: rowsToInsert
+        .filter((row) => linkedKeys.has(row.fingerprint))
+        .map((row) => row.lineNumber),
+    }),
   };
 }
 

@@ -10,9 +10,13 @@ All notable changes to Sika will be documented in this file.
   workspace-scoped service and API contract while preserving existing bills as expenses
 - Recurring giving can reference an existing recipient and designation; client
   attribution, recovery terms, and outgoing payment logs remain expense-only
+- Added idempotent monthly expectation drafts that snapshot due dates and amounts
+  without entering planned money into the ledger
+- Transaction imports now match exact-amount recurring drafts within a seven-day
+  window when the payee agrees or the candidate is otherwise unambiguous, carrying
+  the recurring category and attribution onto the cleared transaction
 - Added integrity checks for incompatible attribution and safe type changes.
-  Draft generation, transaction matching, variable settlement, calendar views,
-  and notifications remain planned follow-up work
+  Variable settlement, calendar views, and notifications remain planned follow-up work
 
 ### Giving recipients and funds
 

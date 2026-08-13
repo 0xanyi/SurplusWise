@@ -87,6 +87,8 @@ export async function POST(request: NextRequest) {
       );
       return NextResponse.json({
         ready: review.ready,
+        matched: review.matchedLineNumbers?.length ?? 0,
+        matched_rows: review.matchedLineNumbers ?? [],
         duplicates: review.duplicateLineNumbers.length,
         duplicate_rows: review.duplicateLineNumbers,
         invalid: analysis.invalidRowCount,
@@ -102,6 +104,8 @@ export async function POST(request: NextRequest) {
     );
     return NextResponse.json({
       imported: result.importedIds.length,
+      matched: result.matchedLineNumbers?.length ?? 0,
+      matched_rows: result.matchedLineNumbers ?? [],
       duplicates: result.duplicateLineNumbers.length,
       duplicate_rows: result.duplicateLineNumbers,
       skipped: analysis.invalidRowCount,

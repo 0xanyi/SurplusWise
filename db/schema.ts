@@ -754,6 +754,71 @@ export const recurringOutgoings = pgTable(
   ],
 );
 
+// ─── Recurring Money Drafts ──────────────────────────────────────────────────
+
+/**
+ * One expected occurrence of a recurring-money record. These rows are drafts,
+ * not ledger movements: they become matched only by linking a real transaction.
+ * Snapshot fields keep an already-generated expectation stable if its schedule
+ * is edited later.
+ */
+export const recurringMoneyDrafts = pgTable(
+  "recurring_money_drafts",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    recurringMoneyId: text("recurring_money_id")
+      .notNull()
+      .references(() => recurringOutgoings.id, { onDelete: "cascade" }),
+    transactionId: text("transaction_id").references(() => transactions.id, {
+      onDelete: "set null",
+    }),
+    periodMonth: date("period_month", { mode: "string" }).notNull(),
+    dueDate: date("due_date", { mode: "string" }).notNull(),
+    expectedAmount: decimal("expected_amount", { precision: 10, scale: 2 }).notNull(),
+    type: transactionTypeEnum("type").notNull(),
+    category: text("category"),
+    payee: text("payee"),
+    clientId: text("client_id").references(() => clients.id, { onDelete: "set null" }),
+    givingRecipientId: text("giving_recipient_id").references(() => givingRecipients.id, {
+      onDelete: "restrict",
+    }),
+    givingDesignationId: text("giving_designation_id").references(() => givingDesignations.id, {
+      onDelete: "restrict",
+    }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("idx_recurring_money_drafts_period").on(t.recurringMoneyId, t.periodMonth),
+    uniqueIndex("idx_recurring_money_drafts_transaction").on(t.transactionId),
+    index("idx_recurring_money_drafts_workspace_due").on(
+      t.workspaceId,
+      t.periodMonth,
+      t.dueDate,
+    ),
+    check(
+      "chk_recurring_money_drafts_period_month_day",
+      sql`EXTRACT(DAY FROM ${t.periodMonth}) = 1`,
+    ),
+    check("chk_recurring_money_drafts_positive_amount", sql`${t.expectedAmount} > 0`),
+    check(
+      "chk_recurring_money_drafts_giving_attribution",
+      sql`(${t.givingRecipientId} IS NULL AND ${t.givingDesignationId} IS NULL) OR (${t.type} = 'giving' AND ${t.givingRecipientId} IS NOT NULL)`,
+    ),
+    check(
+      "chk_recurring_money_drafts_client_type",
+      sql`${t.type} = 'expense' OR ${t.clientId} IS NULL`,
+    ),
+  ],
+);
+
 // ─── Outgoing Payment Logs ───────────────────────────────────────────────────
 
 /**
