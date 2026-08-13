@@ -19,6 +19,7 @@ All notable changes to Sika will be documented in this file.
 - Giving transactions can now hold multiple optional PDF or image supporting documents;
   existing giving receipt attachments are preserved during migration
 - Added a date-filtered giving review that identifies gifts without supporting documents
+- Added annual personal giving summaries by recipient and designation with CSV export
 
 ### Reusable imports and payees
 

@@ -89,6 +89,7 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - ✅ Optional giving-to-income context by reporting period
 - ✅ Multiple optional supporting documents per gift
 - ✅ Missing supporting-document review for giving
+- ✅ Annual giving summaries by recipient and designation
 - ✅ CRUD operations for all transactions
 - ✅ Search and filter transactions
 - ✅ Date range filtering with database-level optimization

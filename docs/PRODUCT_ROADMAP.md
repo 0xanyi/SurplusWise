@@ -58,7 +58,7 @@ Follow-up work in this phase:
 - Optional giving-to-income consistency view — implemented
 - Multiple supporting documents per gift — implemented
 - Missing-receipt review — implemented
-- Annual giving summary by recipient and designation
+- Annual giving summary by recipient and designation — implemented
 
 Sika summaries are personal records, not official tax receipts issued on behalf
 of a recipient.
