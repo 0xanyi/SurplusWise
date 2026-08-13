@@ -23,8 +23,10 @@ All notable changes to Sika will be documented in this file.
   and showing partial or completed settlement without changing ledger totals
 - Added a workspace-scoped notification inbox for income and payments due within
   seven days, with live outstanding amounts, unread badges, and durable read state
+- Added optional workspace-scoped Web Push and SMTP delivery for unread due-money
+  reminders, with a token-protected dispatcher and per-occurrence deduplication
 - Added integrity checks for incompatible attribution and safe type changes.
-  Web Push, SMTP delivery, and additional alert types remain planned follow-up work
+  Additional alert types remain planned follow-up work
 
 ### Giving recipients and funds
 

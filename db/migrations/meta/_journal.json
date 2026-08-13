@@ -204,6 +204,13 @@
       "when": 1786661737447,
       "tag": "0028_dark_fallen_one",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1786663071251,
+      "tag": "0029_little_rockslide",
+      "breakpoints": true
     }
   ]
 }

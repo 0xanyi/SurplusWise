@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { validDispatchToken } from "@/lib/push-notifications";
 import {
-  PushConfigurationError,
-  dispatchDuePush,
-  validDispatchToken,
-} from "@/lib/push-notifications";
+  NotificationConfigurationError,
+  dispatchConfiguredNotifications,
+} from "@/lib/notification-dispatch";
 
 export const runtime = "nodejs";
 
@@ -17,12 +17,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    return NextResponse.json(await dispatchDuePush());
+    return NextResponse.json(await dispatchConfiguredNotifications());
   } catch (error) {
-    if (error instanceof PushConfigurationError) {
+    if (error instanceof NotificationConfigurationError) {
       return NextResponse.json({ error: error.message }, { status: 503 });
     }
-    console.error("Failed to dispatch Web Push notifications:", error);
+    console.error("Failed to dispatch notifications:", error);
     return NextResponse.json({ error: "Failed to dispatch notifications" }, { status: 500 });
   }
 }

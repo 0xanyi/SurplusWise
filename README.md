@@ -11,7 +11,7 @@ workspaces keep data fully isolated.
 *Sika* is Twi for "money".
 
 Your financial data stays on your own server. Nothing is sent anywhere unless you
-explicitly enable the optional AI and storage integrations.
+explicitly enable optional AI, storage, or notification delivery integrations.
 
 ## Quick start
 
@@ -53,10 +53,11 @@ Set `OPENAI_API_KEY` to enable receipt scanning, and the `S3_*` variables to sto
 receipt images. The AI provider is configurable per user in Settings and works
 with any OpenAI-compatible endpoint, including a local Ollama instance.
 
-Browser due-money reminders are also optional and self-hosted. Generate a VAPID
-key pair with `npx web-push generate-vapid-keys --json`, configure the three
-`WEB_PUSH_VAPID_*` variables plus `NOTIFICATION_DISPATCH_TOKEN`, then invoke the
-token-protected dispatcher from system cron (hourly is a sensible default):
+Due-money delivery is also optional and self-hosted. Browser Push uses a VAPID
+key pair generated with `npx web-push generate-vapid-keys --json`; email uses
+your own SMTP server through `SMTP_URL` and `SMTP_FROM`. Configure either channel
+plus `NOTIFICATION_DISPATCH_TOKEN`, then invoke the token-protected dispatcher
+from system cron (hourly is a sensible default):
 
 ```bash
 curl --fail --request POST \
@@ -64,8 +65,9 @@ curl --fail --request POST \
   "$NEXT_PUBLIC_SITE_URL/api/notifications/dispatch"
 ```
 
-The token belongs in the header, never in the URL. Users must explicitly opt in
-per workspace in Settings; Sika does not prompt for browser permission on load.
+The token belongs in the header, never in the URL. Users explicitly opt into
+each channel per workspace in Settings; Sika does not prompt for browser
+permission on load, and SMTP is not required for account registration.
 
 See `.env.example` for the complete list.
 
@@ -150,7 +152,7 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - ✅ Toast notifications
 - ✅ Installable PWA with a privacy-safe offline fallback
 - ✅ Mobile-friendly design
-- ✅ In-app due-money inbox with optional self-hosted browser push reminders
+- ✅ In-app due-money inbox with optional self-hosted Web Push and SMTP reminders
 
 ### Upcoming Features
 - 📱 Advanced filtering options

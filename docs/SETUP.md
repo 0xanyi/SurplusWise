@@ -106,6 +106,8 @@ In the application service → Environment:
 | `WEB_PUSH_VAPID_PRIVATE_KEY` | No | VAPID private key (keep secret) |
 | `WEB_PUSH_VAPID_SUBJECT` | No | Operator contact URI, e.g. `mailto:admin@example.com` |
 | `NOTIFICATION_DISPATCH_TOKEN` | No | Bearer token protecting `/api/notifications/dispatch` |
+| `SMTP_URL` | No | SMTP connection URL; URL-encode credentials |
+| `SMTP_FROM` | No | Sender mailbox, e.g. `Sika <sika@example.com>` |
 | `OPENAI_API_KEY` | No | For AI receipt scanning |
 | `S3_ENDPOINT` | No | S3/MinIO endpoint |
 | `S3_BUCKET` | No | Bucket name |
