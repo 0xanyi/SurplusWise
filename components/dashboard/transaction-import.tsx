@@ -34,6 +34,8 @@ interface TransactionImportProps {
 
 interface ImportReview {
   ready: number;
+  matched: number;
+  matched_rows: number[];
   duplicates: number;
   duplicate_rows: number[];
   invalid: number;
@@ -132,13 +134,20 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
       const imported = (body as { imported?: number }).imported ?? 0;
       const skipped = (body as { skipped?: number }).skipped ?? 0;
       const duplicates = (body as { duplicates?: number }).duplicates ?? 0;
+      const matched = (body as { matched?: number }).matched ?? 0;
 
       toast({
         title: "Import complete",
-        description:
-          skipped + duplicates > 0
-            ? `${imported} imported, ${duplicates} duplicate${duplicates === 1 ? "" : "s"} and ${skipped} invalid skipped`
-            : `${imported} transactions added`,
+        description: [
+          `${imported} transaction${imported === 1 ? "" : "s"} added`,
+          matched > 0
+            ? `${matched} recurring match${matched === 1 ? "" : "es"}`
+            : null,
+          duplicates > 0
+            ? `${duplicates} duplicate${duplicates === 1 ? "" : "s"} skipped`
+            : null,
+          skipped > 0 ? `${skipped} invalid skipped` : null,
+        ].filter(Boolean).join(" · "),
       });
 
       setOpen(false);
@@ -316,7 +325,7 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
 
           {analysis && (
             <div className="space-y-6">
-              <div className="grid gap-3 rounded-xl border border-border/60 p-4 sm:grid-cols-4">
+              <div className="grid gap-3 rounded-xl border border-border/60 p-4 sm:grid-cols-5">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Rows found</p>
                   <p className="mt-1 text-2xl font-semibold tabular-nums">{analysis.totalRows}</p>
@@ -324,6 +333,10 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Ready to import</p>
                   <p className="mt-1 text-2xl font-semibold tabular-nums text-foreground">{review?.ready ?? analysis.validRowCount}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Recurring matches</p>
+                  <p className="mt-1 text-2xl font-semibold tabular-nums text-income">{review?.matched ?? "—"}</p>
                 </div>
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Duplicates</p>
@@ -469,7 +482,11 @@ export function TransactionImport({ onImported }: TransactionImportProps) {
                           <td className={`px-3 py-2 ${row.valid ? "text-foreground" : "text-expense"}`}>
                             {review?.duplicate_rows.includes(row.lineNumber)
                               ? "Duplicate — skip"
-                              : row.valid ? "Ready" : row.errors.join(", ")}
+                              : review?.matched_rows.includes(row.lineNumber)
+                                ? "Recurring match"
+                                : row.valid
+                                  ? "Ready"
+                                  : row.errors.join(", ")}
                           </td>
                         </tr>
                       ))}
