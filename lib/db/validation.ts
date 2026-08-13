@@ -106,6 +106,42 @@ export const givingDesignationUpdateSchema = z
   .object({ name: z.string().trim().min(1).max(120).optional(), isActive: z.boolean().optional() })
   .refine((value) => Object.keys(value).length > 0, { message: "At least one field is required" });
 
+export const givingCommitmentFrequencySchema = z.enum([
+  "one_time",
+  "monthly",
+  "quarterly",
+  "yearly",
+]);
+
+const givingCommitmentFields = {
+  recipientId: idSchema,
+  designationId: idSchema.nullish(),
+  name: z.string().trim().min(1, "name is required").max(120),
+  amount: amountSchema,
+  frequency: givingCommitmentFrequencySchema,
+  startDate: dateStringSchema,
+  endDate: dateStringSchema.nullish(),
+  notes: z.string().trim().max(1000).nullish(),
+};
+
+export const givingCommitmentCreateSchema = z.object(givingCommitmentFields).refine(
+  (value) => !value.endDate || value.endDate >= value.startDate,
+  { message: "end date must not be before start date" },
+);
+
+export const givingCommitmentUpdateSchema = z
+  .object({
+    designationId: givingCommitmentFields.designationId.optional(),
+    name: givingCommitmentFields.name.optional(),
+    amount: givingCommitmentFields.amount.optional(),
+    frequency: givingCommitmentFields.frequency.optional(),
+    startDate: givingCommitmentFields.startDate.optional(),
+    endDate: givingCommitmentFields.endDate.optional(),
+    notes: givingCommitmentFields.notes.optional(),
+    isActive: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: "At least one field is required" });
+
 export const workspaceCreateSchema = z.object({
   name: z.string().min(1, "name is required").max(100),
   type: workspaceTypeSchema,

@@ -32,6 +32,7 @@ export function GivingManagement() {
       setName("");
       setNotes("");
       query.refresh();
+      window.dispatchEvent(new Event("giving-recipients-changed"));
       toast({ title: "Recipient added" });
     } catch (error) {
       toast({ title: "Could not add recipient", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
@@ -51,6 +52,7 @@ export function GivingManagement() {
       });
       setDesignationNames((current) => ({ ...current, [recipientId]: "" }));
       query.refresh();
+      window.dispatchEvent(new Event("giving-recipients-changed"));
       toast({ title: "Fund added" });
     } catch (error) {
       toast({ title: "Could not add fund", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
@@ -65,6 +67,7 @@ export function GivingManagement() {
         body: JSON.stringify({ isActive: !isActive }),
       });
       query.refresh();
+      window.dispatchEvent(new Event("giving-recipients-changed"));
     } catch (error) {
       toast({ title: "Could not update giving record", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
     }

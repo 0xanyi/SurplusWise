@@ -20,6 +20,7 @@ import {
   transactionRuleCreateSchema,
   givingRecipientCreateSchema,
   givingDesignationCreateSchema,
+  givingCommitmentCreateSchema,
   categoryCreateSchema,
   categoryUpdateSchema,
   budgetPeriodSchema,
@@ -235,6 +236,34 @@ describe("giving recipient schemas", () => {
     assert.throws(() => givingRecipientCreateSchema.parse({ name: " " }));
     assert.throws(() =>
       givingDesignationCreateSchema.parse({ recipientId: "recipient-1", name: " " }),
+    );
+  });
+});
+
+describe("giving commitment schema", () => {
+  it("accepts bounded recurring commitments", () => {
+    assert.doesNotThrow(() =>
+      givingCommitmentCreateSchema.parse({
+        recipientId: "recipient-1",
+        name: "Partnership",
+        amount: 50,
+        frequency: "monthly",
+        startDate: "2026-01-01",
+        endDate: "2026-12-31",
+      }),
+    );
+  });
+
+  it("rejects inverted dates and non-positive amounts", () => {
+    assert.throws(() =>
+      givingCommitmentCreateSchema.parse({
+        recipientId: "recipient-1",
+        name: "Broken",
+        amount: 0,
+        frequency: "monthly",
+        startDate: "2026-12-31",
+        endDate: "2026-01-01",
+      }),
     );
   });
 });

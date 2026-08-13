@@ -11,6 +11,9 @@ All notable changes to Sika will be documented in this file.
 - Giving transactions can now carry recipient and designation attribution
   separately from their broad category; client attribution remains unavailable
   for giving because recipients are a distinct relationship
+- Added one-time, monthly, quarterly, and yearly giving commitments with custom
+  reporting periods that compare scheduled expectations against exactly
+  attributed giving transactions without generating ledger entries
 
 ### Reusable imports and payees
 
