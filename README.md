@@ -53,6 +53,20 @@ Set `OPENAI_API_KEY` to enable receipt scanning, and the `S3_*` variables to sto
 receipt images. The AI provider is configurable per user in Settings and works
 with any OpenAI-compatible endpoint, including a local Ollama instance.
 
+Browser due-money reminders are also optional and self-hosted. Generate a VAPID
+key pair with `npx web-push generate-vapid-keys --json`, configure the three
+`WEB_PUSH_VAPID_*` variables plus `NOTIFICATION_DISPATCH_TOKEN`, then invoke the
+token-protected dispatcher from system cron (hourly is a sensible default):
+
+```bash
+curl --fail --request POST \
+  --header "Authorization: Bearer $NOTIFICATION_DISPATCH_TOKEN" \
+  "$NEXT_PUBLIC_SITE_URL/api/notifications/dispatch"
+```
+
+The token belongs in the header, never in the URL. Users must explicitly opt in
+per workspace in Settings; Sika does not prompt for browser permission on load.
+
 See `.env.example` for the complete list.
 
 ### Before exposing it to the internet
@@ -136,9 +150,9 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - ✅ Toast notifications
 - ✅ Installable PWA with a privacy-safe offline fallback
 - ✅ Mobile-friendly design
+- ✅ In-app due-money inbox with optional self-hosted browser push reminders
 
 ### Upcoming Features
-- 🔔 Push notifications
 - 📱 Advanced filtering options
 - 🏦 Bank integration
 - 🔮 Spending predictions

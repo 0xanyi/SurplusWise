@@ -248,6 +248,85 @@ export const notificationStates = pgTable(
   ],
 );
 
+/** Workspace-level opt-in for delivery outside the in-app inbox. */
+export const pushNotificationPreferences = pgTable(
+  "push_notification_preferences",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    enabled: boolean("enabled").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("idx_push_notification_preferences_workspace").on(t.workspaceId),
+    index("idx_push_notification_preferences_user_workspace").on(t.userId, t.workspaceId),
+  ],
+);
+
+/** Browser push capability. Endpoints are secret bearer capabilities and never returned by APIs. */
+export const pushSubscriptions = pgTable(
+  "push_subscriptions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    endpoint: text("endpoint").notNull(),
+    p256dh: text("p256dh").notNull(),
+    auth: text("auth").notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    lastFailureAt: timestamp("last_failure_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("idx_push_subscriptions_workspace_endpoint").on(t.workspaceId, t.endpoint),
+    index("idx_push_subscriptions_workspace_enabled").on(t.workspaceId, t.enabled),
+  ],
+);
+
+/** Per-device delivery state, separate from the user's in-app read state. */
+export const notificationDeliveries = pgTable(
+  "notification_deliveries",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    subscriptionId: text("subscription_id")
+      .notNull()
+      .references(() => pushSubscriptions.id, { onDelete: "cascade" }),
+    eventKey: text("event_key").notNull(),
+    channel: text("channel").notNull().default("web_push"),
+    status: text("status").notNull().default("pending"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("idx_notification_deliveries_subscription_event_channel").on(
+      t.subscriptionId,
+      t.workspaceId,
+      t.eventKey,
+      t.channel,
+    ),
+    index("idx_notification_deliveries_workspace_status").on(t.workspaceId, t.status),
+  ],
+);
+
 export const goalCategoryEnum = pgEnum("goal_category", [
   "emergency_fund",
   "savings",

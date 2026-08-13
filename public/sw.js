@@ -171,3 +171,51 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(publicAssetResponse(url));
   }
 });
+
+self.addEventListener("push", (event) => {
+  const payload = (() => {
+    try {
+      return event.data?.json() ?? {};
+    } catch {
+      return {};
+    }
+  })();
+
+  const title = typeof payload.title === "string" ? payload.title : "Sika reminder";
+  const body = typeof payload.body === "string" ? payload.body : "Money is due soon.";
+  const href = typeof payload.href === "string" && payload.href.startsWith("/")
+    ? payload.href
+    : "/dashboard/notifications";
+  const tag = typeof payload.tag === "string" ? payload.tag : undefined;
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      tag,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: { href },
+    }),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const href = typeof event.notification.data?.href === "string"
+    && event.notification.data.href.startsWith("/")
+    ? event.notification.data.href
+    : "/dashboard/notifications";
+  const target = new URL(href, self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
+      for (const client of clients) {
+        if (new URL(client.url).origin === self.location.origin) {
+          await client.navigate(target);
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    }),
+  );
+});

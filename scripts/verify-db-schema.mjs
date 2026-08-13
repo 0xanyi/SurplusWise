@@ -19,6 +19,9 @@ const REQUIRED_TABLES = [
   "investment_events",
   "workspaces",
   "notification_states",
+  "push_notification_preferences",
+  "push_subscriptions",
+  "notification_deliveries",
 ];
 
 // Columns that guarantee latest migrations have been applied.
@@ -40,6 +43,9 @@ const REQUIRED_COLUMNS = [
   { table: "debts_credits", column: "workspace_id" },
   { table: "loans_given", column: "workspace_id" },
   { table: "investments", column: "workspace_id" },
+  { table: "push_notification_preferences", column: "enabled" },
+  { table: "push_subscriptions", column: "endpoint" },
+  { table: "notification_deliveries", column: "event_key" },
 ];
 
 const REQUIRED_INDEXES = ["users_singleton"];
