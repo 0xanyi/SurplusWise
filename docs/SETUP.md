@@ -102,6 +102,10 @@ In the application service → Environment:
 | `BETTER_AUTH_SECRET` | Yes | `openssl rand -base64 32` |
 | `SIKA_SETUP_TOKEN` | Yes | First-account setup secret, `openssl rand -hex 32` |
 | `NEXT_PUBLIC_SITE_URL` | Yes | Your public app URL |
+| `WEB_PUSH_VAPID_PUBLIC_KEY` | No | VAPID public key for browser reminders |
+| `WEB_PUSH_VAPID_PRIVATE_KEY` | No | VAPID private key (keep secret) |
+| `WEB_PUSH_VAPID_SUBJECT` | No | Operator contact URI, e.g. `mailto:admin@example.com` |
+| `NOTIFICATION_DISPATCH_TOKEN` | No | Bearer token protecting `/api/notifications/dispatch` |
 | `OPENAI_API_KEY` | No | For AI receipt scanning |
 | `S3_ENDPOINT` | No | S3/MinIO endpoint |
 | `S3_BUCKET` | No | Bucket name |
