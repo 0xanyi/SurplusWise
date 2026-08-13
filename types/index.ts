@@ -142,6 +142,24 @@ export interface ApiGivingDocumentReviewTransaction {
   giving_designation_name: string | null
 }
 
+export interface ApiAnnualGivingSummary {
+  year: number
+  gift_count: number
+  amount: number
+  recipients: Array<{
+    recipient_id: string | null
+    recipient_name: string
+    gift_count: number
+    amount: number
+    designations: Array<{
+      designation_id: string | null
+      designation_name: string
+      gift_count: number
+      amount: number
+    }>
+  }>
+}
+
 export interface ApiBudget {
   id: string
   category: string
