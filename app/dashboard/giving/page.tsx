@@ -1,5 +1,6 @@
 import { GivingManagement } from "@/components/dashboard/giving/giving-management";
 import { GivingCommitments } from "@/components/dashboard/giving/giving-commitments";
+import { GivingDocumentReview } from "@/components/dashboard/giving/giving-document-review";
 import { PageHeader } from "@/components/dashboard/page-header";
 
 export default function GivingPage() {
@@ -11,6 +12,7 @@ export default function GivingPage() {
         retain both its purpose and where it went.
       </p>
       <GivingCommitments />
+      <GivingDocumentReview />
       <div className="pt-2">
         <h2 className="font-display text-base font-semibold">Recipients & funds</h2>
         <p className="mt-1 text-xs text-muted-foreground">Manage where gifts go and the funds they support.</p>
