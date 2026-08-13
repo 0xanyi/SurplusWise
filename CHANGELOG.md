@@ -14,6 +14,8 @@ All notable changes to Sika will be documented in this file.
 - Added one-time, monthly, quarterly, and yearly giving commitments with custom
   reporting periods that compare scheduled expectations against exactly
   attributed giving transactions without generating ledger entries
+- Added an optional giving-to-income context for the selected giving period,
+  showing recorded income, all giving, and their percentage without assuming a target
 
 ### Reusable imports and payees
 
