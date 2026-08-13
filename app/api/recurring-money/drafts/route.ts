@@ -22,15 +22,17 @@ function toDraft(row: Awaited<ReturnType<typeof draftsService.list>>[number]) {
     client_id: row.clientId,
     giving_recipient_id: row.givingRecipientId,
     giving_designation_id: row.givingDesignationId,
-    status: row.transactionId ? "matched" : "draft",
-    transaction: row.transactionId
-      ? {
-          id: row.transactionId,
-          amount: Number(row.matchedAmount),
-          date: row.matchedDate,
-          payee: row.matchedPayee,
-        }
-      : null,
+    status: row.status,
+    recorded_amount: row.recordedAmount,
+    outstanding_amount: row.outstandingAmount,
+    overpaid_amount: row.overpaidAmount,
+    settlements: row.settlements.map((settlement) => ({
+      id: settlement.id,
+      transaction_id: settlement.transactionId,
+      amount: Number(settlement.amount),
+      date: settlement.date,
+      payee: settlement.payee,
+    })),
     created_at: row.createdAt.toISOString(),
     updated_at: row.updatedAt.toISOString(),
   };
@@ -44,8 +46,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       period_month: periodMonth,
       drafts: rows.map(toDraft),
-      matched: rows.filter((row) => row.transactionId).length,
-      outstanding: rows.filter((row) => !row.transactionId).length,
+      settled: rows.filter((row) => row.status === "settled").length,
+      overpaid: rows.filter((row) => row.status === "overpaid").length,
+      partial: rows.filter((row) => row.status === "partial").length,
+      outstanding: rows.filter(
+        (row) => row.status === "draft" || row.status === "partial",
+      ).length,
     });
   } catch (error) {
     return errorResponse(error, "Failed to fetch recurring money drafts");

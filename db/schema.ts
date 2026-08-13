@@ -775,9 +775,6 @@ export const recurringMoneyDrafts = pgTable(
     recurringMoneyId: text("recurring_money_id")
       .notNull()
       .references(() => recurringOutgoings.id, { onDelete: "cascade" }),
-    transactionId: text("transaction_id").references(() => transactions.id, {
-      onDelete: "set null",
-    }),
     periodMonth: date("period_month", { mode: "string" }).notNull(),
     dueDate: date("due_date", { mode: "string" }).notNull(),
     expectedAmount: decimal("expected_amount", { precision: 10, scale: 2 }).notNull(),
@@ -797,7 +794,6 @@ export const recurringMoneyDrafts = pgTable(
   },
   (t) => [
     uniqueIndex("idx_recurring_money_drafts_period").on(t.recurringMoneyId, t.periodMonth),
-    uniqueIndex("idx_recurring_money_drafts_transaction").on(t.transactionId),
     index("idx_recurring_money_drafts_workspace_due").on(
       t.workspaceId,
       t.periodMonth,
@@ -816,6 +812,31 @@ export const recurringMoneyDrafts = pgTable(
       "chk_recurring_money_drafts_client_type",
       sql`${t.type} = 'expense' OR ${t.clientId} IS NULL`,
     ),
+  ],
+);
+
+/** Real ledger transactions allocated to an expected recurring occurrence. */
+export const recurringMoneyDraftSettlements = pgTable(
+  "recurring_money_draft_settlements",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    draftId: text("draft_id")
+      .notNull()
+      .references(() => recurringMoneyDrafts.id, { onDelete: "cascade" }),
+    transactionId: text("transaction_id")
+      .notNull()
+      .references(() => transactions.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_recurring_money_draft_settlements_draft").on(t.draftId),
+    uniqueIndex("idx_recurring_money_draft_settlements_transaction").on(t.transactionId),
   ],
 );
 

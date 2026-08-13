@@ -12,11 +12,14 @@ All notable changes to Sika will be documented in this file.
   attribution, recovery terms, and outgoing payment logs remain expense-only
 - Added idempotent monthly expectation drafts that snapshot due dates and amounts
   without entering planned money into the ledger
-- Transaction imports now match exact-amount recurring drafts within a seven-day
-  window when the payee agrees or the candidate is otherwise unambiguous, carrying
-  the recurring category and attribution onto the cleared transaction
+- Transaction imports now match recurring drafts within a seven-day window when
+  the payee agrees or the candidate is otherwise unambiguous, carrying the
+  recurring category and attribution onto the cleared transaction
+- Monthly expectations can be adjusted without changing their recurring template,
+  and multiple ledger transactions can partially settle one expectation with
+  outstanding and overpaid amounts reported separately
 - Added integrity checks for incompatible attribution and safe type changes.
-  Variable settlement, calendar views, and notifications remain planned follow-up work
+  Calendar views and notifications remain planned follow-up work
 
 ### Giving recipients and funds
 
