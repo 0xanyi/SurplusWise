@@ -1,15 +1,19 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import webpush from "web-push";
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
-  notificationDeliveries,
   pushNotificationPreferences,
   pushSubscriptions,
 } from "@/db/schema";
 import * as notificationsService from "@/lib/db/notifications";
 import { userIdSchema, workspaceIdSchema } from "@/lib/db/validation";
 import { z } from "zod";
+import {
+  claimDelivery,
+  completeDeliveries,
+  releaseDeliveries,
+} from "@/lib/notification-deliveries";
 
 const endpointSchema = z.string().url().max(2048).refine(
   (value) => new URL(value).protocol === "https:",
@@ -209,43 +213,6 @@ export interface DispatchSummary {
   disabled: number;
 }
 
-async function claimDelivery(subscriptionId: string, userId: string, workspaceId: string, eventKey: string) {
-  const now = new Date();
-  const inserted = await db
-    .insert(notificationDeliveries)
-    .values({
-      id: crypto.randomUUID(),
-      subscriptionId,
-      userId,
-      workspaceId,
-      eventKey,
-      status: "pending",
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoNothing()
-    .returning({ id: notificationDeliveries.id });
-  if (inserted[0]) return inserted[0].id;
-
-  // A crashed worker must not suppress this occurrence forever.
-  const staleBefore = new Date(now.getTime() - 15 * 60_000);
-  const reclaimed = await db
-    .update(notificationDeliveries)
-    .set({ updatedAt: now })
-    .where(
-      and(
-        eq(notificationDeliveries.subscriptionId, subscriptionId),
-        eq(notificationDeliveries.workspaceId, workspaceId),
-        eq(notificationDeliveries.eventKey, eventKey),
-        eq(notificationDeliveries.channel, "web_push"),
-        eq(notificationDeliveries.status, "pending"),
-        lt(notificationDeliveries.updatedAt, staleBefore),
-      ),
-    )
-    .returning({ id: notificationDeliveries.id });
-  return reclaimed[0]?.id ?? null;
-}
-
 export async function dispatchDuePush(options: { today?: string; send?: PushSender } = {}) {
   const config = getDeliveryConfiguration();
   const send = options.send ?? webpush.sendNotification.bind(webpush);
@@ -293,12 +260,14 @@ export async function dispatchDuePush(options: { today?: string; send?: PushSend
     }
 
     for (const notification of due) {
-      const deliveryId = await claimDelivery(
-        subscription.id,
-        subscription.userId,
-        subscription.workspaceId,
-        notification.id,
-      );
+      const deliveryId = await claimDelivery({
+        subscriptionId: subscription.id,
+        userId: subscription.userId,
+        workspaceId: subscription.workspaceId,
+        destinationKey: `push:${subscription.id}`,
+        eventKey: notification.id,
+        channel: "web_push",
+      });
       if (!deliveryId) {
         summary.skipped += 1;
         continue;
@@ -318,18 +287,6 @@ export async function dispatchDuePush(options: { today?: string; send?: PushSend
           }),
           { TTL: 86_400, vapidDetails: config },
         );
-        const sentAt = new Date();
-        await db.transaction(async (tx) => {
-          await tx
-            .update(notificationDeliveries)
-            .set({ status: "sent", sentAt, updatedAt: sentAt })
-            .where(eq(notificationDeliveries.id, deliveryId));
-          await tx
-            .update(pushSubscriptions)
-            .set({ lastSuccessAt: sentAt, updatedAt: sentAt })
-            .where(eq(pushSubscriptions.id, subscription.id));
-        });
-        summary.sent += 1;
       } catch (error) {
         const statusCode = (error as { statusCode?: unknown }).statusCode;
         const failedAt = new Date();
@@ -343,9 +300,16 @@ export async function dispatchDuePush(options: { today?: string; send?: PushSend
           summary.failed += 1;
         }
         // Failed attempts may be retried; successful delivery is the deduplication boundary.
-        await db.delete(notificationDeliveries).where(eq(notificationDeliveries.id, deliveryId));
+        await releaseDeliveries([deliveryId]);
         break;
       }
+      const sentAt = new Date();
+      await completeDeliveries([deliveryId], sentAt);
+      await db
+        .update(pushSubscriptions)
+        .set({ lastSuccessAt: sentAt, updatedAt: sentAt })
+        .where(eq(pushSubscriptions.id, subscription.id));
+      summary.sent += 1;
     }
   }
 

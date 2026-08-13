@@ -112,6 +112,8 @@ Use the exact command/order runbook here:
 | `WEB_PUSH_VAPID_PRIVATE_KEY` | No | VAPID private key (keep secret) |
 | `WEB_PUSH_VAPID_SUBJECT` | No | Operator contact URI, e.g. `mailto:admin@example.com` |
 | `NOTIFICATION_DISPATCH_TOKEN` | No | Bearer token protecting the cron dispatcher |
+| `SMTP_URL` | No | SMTP connection URL; URL-encode credentials |
+| `SMTP_FROM` | No | Sender mailbox, e.g. `Sika <sika@example.com>` |
 | `OPENAI_API_KEY` | No | For AI-powered receipt scanning |
 | `S3_ENDPOINT` | No | S3/MinIO endpoint URL |
 | `S3_BUCKET` | No | Storage bucket name |
@@ -126,7 +128,7 @@ Use the exact command/order runbook here:
 | `DB_SCHEMA_CHECK_RETRIES` | No | DB readiness retries for schema check (default 20) |
 | `DB_SCHEMA_CHECK_RETRY_DELAY_MS` | No | Delay between schema-check retries in ms (default 2000) |
 
-To deliver optional browser reminders, configure the four Web Push variables,
+To deliver optional browser or email reminders, configure Web Push and/or SMTP,
 then create an hourly system cron job that sends `POST` to
 `$NEXT_PUBLIC_SITE_URL/api/notifications/dispatch` with
 `Authorization: Bearer $NOTIFICATION_DISPATCH_TOKEN`. Keep the token in the

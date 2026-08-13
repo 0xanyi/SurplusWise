@@ -269,6 +269,27 @@ export const pushNotificationPreferences = pgTable(
   ],
 );
 
+/** Workspace-level opt-in for due-money reminders sent to the account email. */
+export const emailNotificationPreferences = pgTable(
+  "email_notification_preferences",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    enabled: boolean("enabled").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("idx_email_notification_preferences_workspace").on(t.workspaceId),
+    index("idx_email_notification_preferences_user_workspace").on(t.userId, t.workspaceId),
+  ],
+);
+
 /** Browser push capability. Endpoints are secret bearer capabilities and never returned by APIs. */
 export const pushSubscriptions = pgTable(
   "push_subscriptions",
@@ -307,8 +328,8 @@ export const notificationDeliveries = pgTable(
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     subscriptionId: text("subscription_id")
-      .notNull()
       .references(() => pushSubscriptions.id, { onDelete: "cascade" }),
+    destinationKey: text("destination_key").notNull(),
     eventKey: text("event_key").notNull(),
     channel: text("channel").notNull().default("web_push"),
     status: text("status").notNull().default("pending"),
@@ -317,8 +338,8 @@ export const notificationDeliveries = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("idx_notification_deliveries_subscription_event_channel").on(
-      t.subscriptionId,
+    uniqueIndex("idx_notification_deliveries_destination_event_channel").on(
+      t.destinationKey,
       t.workspaceId,
       t.eventKey,
       t.channel,

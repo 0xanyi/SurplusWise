@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/dashboard/page-header";
 import { SettingsNav, type SettingsSection } from "@/components/dashboard/settings-nav";
 import { TransactionRulesManagement } from "@/components/dashboard/transaction-rules-management";
 import { PushNotificationSettings } from "@/components/dashboard/push-notification-settings";
+import { EmailNotificationSettings } from "@/components/dashboard/email-notification-settings";
 
 const sections: SettingsSection[] = [
   { id: "notifications", label: "Notifications" },
@@ -25,8 +26,9 @@ export default function SettingsPage() {
         <SettingsNav sections={sections} />
 
         <div className="flex min-w-0 flex-col gap-[18px]">
-          <section id="notifications" className="scroll-mt-6">
+          <section id="notifications" className="scroll-mt-6 space-y-[18px]">
             <PushNotificationSettings />
+            <EmailNotificationSettings />
           </section>
 
           <section id="ai-provider" className="scroll-mt-6">

@@ -19,6 +19,7 @@ const REQUIRED_TABLES = [
   "investment_events",
   "workspaces",
   "notification_states",
+  "email_notification_preferences",
   "push_notification_preferences",
   "push_subscriptions",
   "notification_deliveries",
@@ -46,6 +47,7 @@ const REQUIRED_COLUMNS = [
   { table: "push_notification_preferences", column: "enabled" },
   { table: "push_subscriptions", column: "endpoint" },
   { table: "notification_deliveries", column: "event_key" },
+  { table: "notification_deliveries", column: "destination_key" },
 ];
 
 const REQUIRED_INDEXES = ["users_singleton"];
