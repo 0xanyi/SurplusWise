@@ -1,8 +1,20 @@
-import { and, asc, count, eq } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNull, lte } from "drizzle-orm";
 import { db } from "@/db/client";
-import { transactionDocuments, transactions } from "@/db/schema";
+import {
+  givingDesignations,
+  givingRecipients,
+  transactionDocuments,
+  transactions,
+} from "@/db/schema";
 import { MAX_SUPPORTING_DOCUMENTS, safeDocumentFileName } from "@/lib/supporting-documents";
-import { idSchema, userIdSchema, workspaceIdSchema } from "./validation";
+import {
+  dateStringSchema,
+  idSchema,
+  pageSchema,
+  pageSizeSchema,
+  userIdSchema,
+  workspaceIdSchema,
+} from "./validation";
 
 async function getOwnedTransaction(
   userId: string,
@@ -44,6 +56,64 @@ export async function list(userId: string, workspaceId: string, transactionId: s
       ),
     )
     .orderBy(asc(transactionDocuments.createdAt));
+}
+
+export async function listMissingForGiving(
+  userId: string,
+  workspaceId: string,
+  startDate: string,
+  endDate: string,
+  page = 0,
+  pageSize = 10,
+) {
+  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
+  dateStringSchema.parse(startDate);
+  dateStringSchema.parse(endDate);
+  pageSchema.parse(page);
+  pageSizeSchema.parse(pageSize);
+  if (endDate < startDate) throw new Error("period end must not be before period start");
+
+  const conditions = and(
+    eq(transactions.userId, userId),
+    eq(transactions.workspaceId, workspaceId),
+    eq(transactions.type, "giving"),
+    gte(transactions.date, startDate),
+    lte(transactions.date, endDate),
+    isNull(transactions.receiptStorageId),
+    isNull(transactionDocuments.id),
+  );
+  const documentJoin = and(
+    eq(transactionDocuments.transactionId, transactions.id),
+    eq(transactionDocuments.userId, userId),
+    eq(transactionDocuments.workspaceId, workspaceId),
+  );
+  const [totalResult] = await db
+    .select({ value: count() })
+    .from(transactions)
+    .leftJoin(transactionDocuments, documentJoin)
+    .where(conditions);
+  const total = totalResult?.value ?? 0;
+  const rows = await db
+    .select({
+      id: transactions.id,
+      amount: transactions.amount,
+      date: transactions.date,
+      category: transactions.category,
+      payee: transactions.payee,
+      givingRecipientName: givingRecipients.name,
+      givingDesignationName: givingDesignations.name,
+    })
+    .from(transactions)
+    .leftJoin(transactionDocuments, documentJoin)
+    .leftJoin(givingRecipients, eq(transactions.givingRecipientId, givingRecipients.id))
+    .leftJoin(givingDesignations, eq(transactions.givingDesignationId, givingDesignations.id))
+    .where(conditions)
+    .orderBy(desc(transactions.date), desc(transactions.createdAt))
+    .limit(pageSize)
+    .offset(page * pageSize);
+
+  return { rows, total, page, pageSize, hasMore: (page + 1) * pageSize < total };
 }
 
 export async function assertCanUpload(

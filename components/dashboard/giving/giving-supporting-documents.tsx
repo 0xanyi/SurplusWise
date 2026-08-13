@@ -5,6 +5,7 @@ import { Download, FileText, Loader2, Paperclip, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { apiFetch, apiFetchBlob, useApiQuery } from "@/hooks/use-api";
 import { useToast } from "@/hooks/use-toast";
+import { TRANSACTION_CHANGED_EVENT } from "@/lib/client-events";
 import type { ApiTransactionDocument } from "@/types";
 
 interface DocumentsResponse {
@@ -35,6 +36,7 @@ export function GivingSupportingDocuments({ transactionId }: { transactionId: st
         body: formData,
       });
       query.refresh();
+      window.dispatchEvent(new Event(TRANSACTION_CHANGED_EVENT));
       toast({ title: "Supporting document added" });
     } catch (error) {
       toast({
@@ -74,6 +76,7 @@ export function GivingSupportingDocuments({ transactionId }: { transactionId: st
     try {
       await apiFetch(document.download_url, { method: "DELETE" });
       query.refresh();
+      window.dispatchEvent(new Event(TRANSACTION_CHANGED_EVENT));
       toast({ title: "Supporting document removed" });
     } catch (error) {
       toast({

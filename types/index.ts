@@ -132,6 +132,16 @@ export interface ApiTransactionDocument {
   download_url: string
 }
 
+export interface ApiGivingDocumentReviewTransaction {
+  id: string
+  amount: number
+  date: string
+  category: string
+  payee: string | null
+  giving_recipient_name: string | null
+  giving_designation_name: string | null
+}
+
 export interface ApiBudget {
   id: string
   category: string

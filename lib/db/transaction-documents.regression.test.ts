@@ -155,5 +155,105 @@ describe(
         await db.delete(users).where(eq(users.id, userId));
       }
     });
+
+    it("finds only in-period gifts without legacy or supporting documents", async () => {
+      const userId = crypto.randomUUID();
+      const workspaceId = crypto.randomUUID();
+      const otherWorkspaceId = crypto.randomUUID();
+      await db.insert(users).values({
+        id: userId,
+        name: "Missing document test user",
+        email: `missing-documents-${userId.slice(0, 8)}@example.com`,
+      });
+      await db.insert(workspaces).values([
+        { id: workspaceId, userId, name: "Personal", type: "personal", currency: "GBP", isDefault: true },
+        { id: otherWorkspaceId, userId, name: "Other", type: "personal", currency: "GBP", isDefault: false },
+      ]);
+
+      try {
+        const olderMissing = await transactionsService.create(userId, workspaceId, {
+          amount: 25,
+          date: "2026-03-01",
+          type: "giving",
+          category: "Offering",
+        });
+        const newerMissing = await transactionsService.create(userId, workspaceId, {
+          amount: 50,
+          date: "2026-05-01",
+          type: "giving",
+          category: "Offering",
+        });
+        const documented = await transactionsService.create(userId, workspaceId, {
+          amount: 75,
+          date: "2026-04-01",
+          type: "giving",
+          category: "Offering",
+        });
+        await documentsService.create(userId, workspaceId, documented.id, {
+          storageKey: "supporting-documents/evidence.pdf",
+          fileName: "evidence.pdf",
+          mimeType: "application/pdf",
+          sizeBytes: 100,
+        });
+        await transactionsService.create(userId, workspaceId, {
+          amount: 100,
+          date: "2026-06-01",
+          type: "giving",
+          category: "Offering",
+          receiptStorageId: "receipts/legacy.pdf",
+        });
+        await transactionsService.create(userId, workspaceId, {
+          amount: 20,
+          date: "2025-12-31",
+          type: "giving",
+          category: "Offering",
+        });
+        await transactionsService.create(userId, otherWorkspaceId, {
+          amount: 30,
+          date: "2026-02-01",
+          type: "giving",
+          category: "Offering",
+        });
+        await transactionsService.create(userId, workspaceId, {
+          amount: 10,
+          date: "2026-01-01",
+          type: "expense",
+          category: "Food",
+        });
+
+        const firstPage = await documentsService.listMissingForGiving(
+          userId,
+          workspaceId,
+          "2026-01-01",
+          "2026-12-31",
+          0,
+          1,
+        );
+        assert.equal(firstPage.total, 2);
+        assert.equal(firstPage.hasMore, true);
+        assert.deepEqual(firstPage.rows.map((row) => row.id), [newerMissing.id]);
+        const secondPage = await documentsService.listMissingForGiving(
+          userId,
+          workspaceId,
+          "2026-01-01",
+          "2026-12-31",
+          1,
+          1,
+        );
+        assert.equal(secondPage.hasMore, false);
+        assert.deepEqual(secondPage.rows.map((row) => row.id), [olderMissing.id]);
+        await assert.rejects(
+          () => documentsService.listMissingForGiving(
+            userId,
+            workspaceId,
+            "2026-12-31",
+            "2026-01-01",
+          ),
+          /period end must not be before period start/,
+        );
+      } finally {
+        await db.delete(users).where(eq(users.id, userId));
+      }
+    });
   },
 );
