@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { transactions } from "@/db/schema";
+import { transactionDocuments, transactions } from "@/db/schema";
 import * as clientsService from "./clients";
 import * as financialAccountsService from "./financial-accounts";
 import * as givingRecipientsService from "./giving-recipients";
@@ -609,32 +609,53 @@ export async function update(userId: string, id: string, input: UpdateInput) {
     );
   }
 
-  const [row] = await db
-    .update(transactions)
-    .set({
-      ...(input.amount !== undefined && { amount: String(input.amount) }),
-      ...(input.date !== undefined && { date: input.date }),
-      ...(input.type !== undefined && { type: input.type }),
-      ...(input.accountId !== undefined && { accountId: input.accountId ?? null }),
-      ...(input.status !== undefined && { status: input.status }),
-      ...(input.needsReview !== undefined && { needsReview: input.needsReview }),
-      ...(input.category !== undefined && { category: input.category }),
-      ...(input.payee !== undefined && { payee: input.payee?.trim() || null }),
-      ...(input.clientId !== undefined && { clientId: input.clientId ?? null }),
-      ...(input.givingRecipientId !== undefined && {
-        givingRecipientId: input.givingRecipientId ?? null,
-      }),
-      ...(input.givingDesignationId !== undefined && {
-        givingDesignationId: input.givingDesignationId ?? null,
-      }),
-      ...(input.notes !== undefined && { notes: input.notes }),
-      ...(input.tags !== undefined && { tags: input.tags }),
-      ...(input.receiptStorageId !== undefined && { receiptStorageId: input.receiptStorageId }),
-      updatedAt: new Date(),
-    })
-    .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
-    .returning();
-  return row;
+  return db.transaction(async (tx) => {
+    if (existing.type === "giving" && effectiveType !== "giving") {
+      await tx
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
+        .limit(1)
+        .for("update");
+      const [document] = await tx
+        .select({ id: transactionDocuments.id })
+        .from(transactionDocuments)
+        .where(eq(transactionDocuments.transactionId, id))
+        .limit(1);
+      if (document) {
+        throw new GivingAttributionError(
+          "Remove this gift's supporting documents before changing its type",
+        );
+      }
+    }
+
+    const [row] = await tx
+      .update(transactions)
+      .set({
+        ...(input.amount !== undefined && { amount: String(input.amount) }),
+        ...(input.date !== undefined && { date: input.date }),
+        ...(input.type !== undefined && { type: input.type }),
+        ...(input.accountId !== undefined && { accountId: input.accountId ?? null }),
+        ...(input.status !== undefined && { status: input.status }),
+        ...(input.needsReview !== undefined && { needsReview: input.needsReview }),
+        ...(input.category !== undefined && { category: input.category }),
+        ...(input.payee !== undefined && { payee: input.payee?.trim() || null }),
+        ...(input.clientId !== undefined && { clientId: input.clientId ?? null }),
+        ...(input.givingRecipientId !== undefined && {
+          givingRecipientId: input.givingRecipientId ?? null,
+        }),
+        ...(input.givingDesignationId !== undefined && {
+          givingDesignationId: input.givingDesignationId ?? null,
+        }),
+        ...(input.notes !== undefined && { notes: input.notes }),
+        ...(input.tags !== undefined && { tags: input.tags }),
+        ...(input.receiptStorageId !== undefined && { receiptStorageId: input.receiptStorageId }),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
+      .returning();
+    return row;
+  });
 }
 
 /** Delete a transaction. Throws if not found / unauthorized. */

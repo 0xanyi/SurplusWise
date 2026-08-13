@@ -16,6 +16,8 @@ All notable changes to Sika will be documented in this file.
   attributed giving transactions without generating ledger entries
 - Added an optional giving-to-income context for the selected giving period,
   showing recorded income, all giving, and their percentage without assuming a target
+- Giving transactions can now hold multiple optional PDF or image supporting documents;
+  existing giving receipt attachments are preserved during migration
 
 ### Reusable imports and payees
 

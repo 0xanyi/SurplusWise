@@ -123,6 +123,15 @@ export interface ApiTransaction {
   created_at: string | null
 }
 
+export interface ApiTransactionDocument {
+  id: string
+  file_name: string
+  mime_type: string | null
+  size_bytes: number | null
+  created_at: string
+  download_url: string
+}
+
 export interface ApiBudget {
   id: string
   category: string

@@ -1,5 +1,7 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuth, requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as txService from "@/lib/db/transactions";
+import * as documentsService from "@/lib/db/transaction-documents";
+import { deleteStoredDocument, isStorageConfigured } from "@/lib/storage";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
@@ -133,10 +135,21 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
 
+    const documents = await documentsService.listForTransactionDeletion(userId, workspaceId, id);
     await txService.remove(userId, id);
+    if (isStorageConfigured()) {
+      await Promise.all(
+        documents.map(async (document) => {
+          if (/^https?:\/\//i.test(document.storageKey)) return;
+          await deleteStoredDocument(document.storageKey).catch((error) => {
+            console.error("Failed to delete stored transaction document:", error);
+          });
+        }),
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
