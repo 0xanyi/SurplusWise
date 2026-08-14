@@ -10,6 +10,7 @@ import {
   workspaceIdSchema,
 } from "./validation";
 import { computeBudgetUsage } from "./helpers";
+import { getNextBudgetRange } from "@/lib/budget-periods";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -81,6 +82,75 @@ export async function create(userId: string, workspaceId: string, input: CreateI
     })
     .returning();
   return row;
+}
+
+/** Create the same budget for its next calendar period and archive this occurrence. */
+export async function copyForward(userId: string, workspaceId: string, id: string) {
+  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
+  idSchema.parse(id);
+
+  return db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select()
+      .from(budgets)
+      .where(
+        and(
+          eq(budgets.id, id),
+          eq(budgets.userId, userId),
+          eq(budgets.workspaceId, workspaceId),
+        ),
+      )
+      .for("update")
+      .limit(1);
+
+    if (!existing) throw new Error("Budget not found or unauthorized");
+    if (!existing.isActive) throw new Error("Budget has already been copied forward");
+
+    const { startDate, endDate } = getNextBudgetRange(existing.endDate, existing.period);
+    const [conflict] = await tx
+      .select({ id: budgets.id })
+      .from(budgets)
+      .where(
+        and(
+          eq(budgets.userId, userId),
+          eq(budgets.workspaceId, workspaceId),
+          eq(budgets.category, existing.category),
+          eq(budgets.type, existing.type),
+          eq(budgets.startDate, startDate),
+          eq(budgets.endDate, endDate),
+        ),
+      )
+      .limit(1);
+
+    if (conflict) throw new Error("A budget for the next period already exists");
+
+    const now = new Date();
+    const [nextBudget] = await tx
+      .insert(budgets)
+      .values({
+        id: genId(),
+        userId,
+        workspaceId,
+        category: existing.category,
+        amount: existing.amount,
+        period: existing.period,
+        startDate,
+        endDate,
+        type: existing.type,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    await tx
+      .update(budgets)
+      .set({ isActive: false, updatedAt: now })
+      .where(eq(budgets.id, existing.id));
+
+    return nextBudget;
+  });
 }
 
 /** Partial update. Throws if not found / unauthorized. */
