@@ -53,7 +53,7 @@ describe(
       }
     });
 
-    it("stores non-owner memberships without activating shared access prematurely", async () => {
+    it("resolves shared workspace roles without granting owner mutations", async () => {
       const ownerId = crypto.randomUUID();
       const memberId = crypto.randomUUID();
       await db.insert(users).values([
@@ -76,6 +76,7 @@ describe(
           currency: "GBP",
         });
 
+        assert.equal(await workspacesService.getAccess(memberId, workspace.id), null);
         await db.insert(workspaceMemberships).values({
           workspaceId: workspace.id,
           userId: memberId,
@@ -83,7 +84,25 @@ describe(
         });
 
         assert.equal(await workspacesService.getById(memberId, workspace.id), null);
-        assert.deepEqual(await workspacesService.list(memberId), []);
+        assert.equal(
+          (await workspacesService.getAccess(memberId, workspace.id))?.role,
+          "viewer",
+        );
+        assert.deepEqual(
+          (await workspacesService.list(memberId)).map((row) => ({
+            id: row.id,
+            role: row.role,
+            isDefault: row.isDefault,
+          })),
+          [{ id: workspace.id, role: "viewer", isDefault: false }],
+        );
+        assert.deepEqual(
+          (await workspacesService.list(ownerId)).map((row) => ({
+            id: row.id,
+            role: row.role,
+          })),
+          [{ id: workspace.id, role: "owner" }],
+        );
         await assert.rejects(
           workspacesService.update(memberId, workspace.id, { name: "Renamed" }),
           /not found or unauthorized/,
@@ -92,6 +111,14 @@ describe(
         await db.delete(users).where(eq(users.id, ownerId));
         await db.delete(users).where(eq(users.id, memberId));
       }
+    });
+
+    it("orders role permissions from viewer to owner", () => {
+      assert.equal(workspacesService.hasWorkspaceRole("viewer", "viewer"), true);
+      assert.equal(workspacesService.hasWorkspaceRole("viewer", "editor"), false);
+      assert.equal(workspacesService.hasWorkspaceRole("editor", "viewer"), true);
+      assert.equal(workspacesService.hasWorkspaceRole("editor", "owner"), false);
+      assert.equal(workspacesService.hasWorkspaceRole("owner", "editor"), true);
     });
   },
 );

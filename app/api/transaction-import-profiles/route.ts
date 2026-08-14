@@ -15,7 +15,7 @@ function toProfile(row: Awaited<ReturnType<typeof profileService.list>>[number])
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const accountId = request.nextUrl.searchParams.get("accountId") ?? undefined;
     const profiles = await profileService.list(userId, workspaceId, accountId);
     return NextResponse.json({ profiles: profiles.map(toProfile) });

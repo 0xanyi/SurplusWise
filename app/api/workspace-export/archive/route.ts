@@ -32,7 +32,7 @@ export function workspaceArchiveResponse(
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
     return workspaceArchiveResponse(await createWorkspaceArchive(userId, workspaceId));
   } catch (error) {
     if (error instanceof WorkspaceArchiveError) {

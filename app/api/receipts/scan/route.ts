@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { uploadReceipt } from "@/lib/storage";
 import { getActiveSettings } from "@/lib/db/ai-provider-settings";
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Auth check -----------------------------------------------------------
-    const userId = await requireAuth();
+    const { actorUserId } = await requireAuthWithWorkspace();
 
     // Parse & validate file ------------------------------------------------
     const formData = await request.formData();
@@ -221,7 +221,11 @@ export async function POST(request: NextRequest) {
 
     // OCR extraction -------------------------------------------------------
     const base64Image = buffer.toString("base64");
-    const receiptData = await extractReceiptData(base64Image, detectedMime, userId);
+    const receiptData = await extractReceiptData(
+      base64Image,
+      detectedMime,
+      actorUserId,
+    );
 
     // Upload to S3-compatible storage --------------------------------------
     const { key, url } = await uploadReceipt(buffer, detectedMime);

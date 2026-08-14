@@ -30,7 +30,7 @@ function toRecurringMoney(row: Awaited<ReturnType<typeof recurringMoneyService.l
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const rows = await recurringMoneyService.list(userId, workspaceId);
     const active = rows.filter((row) => row.isActive);
     return NextResponse.json({

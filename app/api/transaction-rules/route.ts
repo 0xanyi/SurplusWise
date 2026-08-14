@@ -21,7 +21,7 @@ function toRule(row: Awaited<ReturnType<typeof rulesService.list>>[number]) {
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const rules = await rulesService.list(userId, workspaceId);
     return NextResponse.json({ rules: rules.map(toRule) });
   } catch (error) {

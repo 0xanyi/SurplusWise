@@ -30,7 +30,7 @@ function pushErrorResponse(error: unknown) {
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
     return NextResponse.json(await getSubscriptionStatus(userId, workspaceId));
   } catch (error) {
     return pushErrorResponse(error);
@@ -39,7 +39,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
     const body = requestSchema.parse(await request.json());
 
     if (body.action === "subscribe") {

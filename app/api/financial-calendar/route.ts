@@ -7,7 +7,7 @@ import { periodMonthSchema } from "@/lib/db/validation";
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const parsedBody: unknown = await request.json().catch(() => ({}));
     const body =
       parsedBody && typeof parsedBody === "object"

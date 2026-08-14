@@ -22,7 +22,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
     const activities = await goalActivitiesService.list(userId, workspaceId, id);
     return NextResponse.json({ activities: activities.map(toActivity) });

@@ -5,7 +5,7 @@ import * as accountService from "@/lib/db/financial-accounts";
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const transfers = await accountService.listTransfers(userId, workspaceId);
     return NextResponse.json({
       transfers: transfers.map((row) => ({

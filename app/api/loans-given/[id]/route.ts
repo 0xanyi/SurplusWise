@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as loansService from "@/lib/db/loans-given";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
@@ -8,7 +8,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
@@ -65,7 +65,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace();
     const { id } = await params;
 
     await loansService.remove(userId, id);

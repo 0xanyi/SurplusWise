@@ -1,4 +1,4 @@
-import { requireAuthWithWorkspace } from "@/lib/auth-server";
+import { requireAuth } from "@/lib/auth-server";
 import {
   getOrCreateSettings,
   updateSettings,
@@ -9,7 +9,7 @@ import { ZodError } from "zod";
 
 export async function GET() {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const userId = await requireAuth();
     const settings = await getOrCreateSettings(userId);
 
     return NextResponse.json({
@@ -38,7 +38,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const userId = await requireAuth();
     const body = await request.json();
 
     const settings = await updateSettings(userId, {

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { workspaceMemberships, workspaces } from "@/db/schema";
 import { userIdSchema, idSchema, workspaceCreateSchema, workspaceUpdateSchema } from "./validation";
@@ -6,6 +6,13 @@ import { userIdSchema, idSchema, workspaceCreateSchema, workspaceUpdateSchema } 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type WorkspaceType = "personal" | "business";
+export type WorkspaceRole = "owner" | "editor" | "viewer";
+
+const ROLE_RANK: Record<WorkspaceRole, number> = {
+  viewer: 1,
+  editor: 2,
+  owner: 3,
+};
 
 export interface CreateInput {
   name: string;
@@ -28,14 +35,78 @@ function genId() {
 
 // ─── Service functions ───────────────────────────────────────────────────────
 
-/** List all workspaces for a user. */
+export function hasWorkspaceRole(
+  role: WorkspaceRole,
+  requiredRole: WorkspaceRole,
+) {
+  return ROLE_RANK[role] >= ROLE_RANK[requiredRole];
+}
+
+/** List all workspaces the user owns or belongs to. */
 export async function list(userId: string) {
   userIdSchema.parse(userId);
   return db
-    .select()
+    .select({
+      id: workspaces.id,
+      userId: workspaces.userId,
+      name: workspaces.name,
+      type: workspaces.type,
+      currency: workspaces.currency,
+      envelopeBudgetingEnabled: workspaces.envelopeBudgetingEnabled,
+      isDefault: sql<boolean>`${workspaces.userId} = ${userId} and ${workspaces.isDefault}`,
+      createdAt: workspaces.createdAt,
+      updatedAt: workspaces.updatedAt,
+      role: sql<WorkspaceRole>`case when ${workspaces.userId} = ${userId} then 'owner'::workspace_role else ${workspaceMemberships.role} end`,
+    })
     .from(workspaces)
-    .where(eq(workspaces.userId, userId))
+    .leftJoin(
+      workspaceMemberships,
+      and(
+        eq(workspaceMemberships.workspaceId, workspaces.id),
+        eq(workspaceMemberships.userId, userId),
+      ),
+    )
+    .where(
+      or(
+        eq(workspaces.userId, userId),
+        isNotNull(workspaceMemberships.userId),
+      ),
+    )
     .orderBy(workspaces.createdAt);
+}
+
+export async function getAccess(userId: string, id: string) {
+  userIdSchema.parse(userId);
+  idSchema.parse(id);
+  const [row] = await db
+    .select({
+      workspace: workspaces,
+      membershipRole: workspaceMemberships.role,
+    })
+    .from(workspaces)
+    .leftJoin(
+      workspaceMemberships,
+      and(
+        eq(workspaceMemberships.workspaceId, workspaces.id),
+        eq(workspaceMemberships.userId, userId),
+      ),
+    )
+    .where(
+      and(
+        eq(workspaces.id, id),
+        or(
+          eq(workspaces.userId, userId),
+          isNotNull(workspaceMemberships.userId),
+        ),
+      ),
+    )
+    .limit(1);
+
+  if (!row) return null;
+  return {
+    workspace: row.workspace,
+    role: row.workspace.userId === userId ? "owner" : row.membershipRole!,
+  };
 }
 
 /** Get a single workspace by ID (null if not found or wrong user). */

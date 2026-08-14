@@ -21,7 +21,7 @@ function toLoan(row: Record<string, unknown>) {
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const loans = await loansService.list(userId, workspaceId);
     const summary = await loansService.getSummary(userId, workspaceId);
 

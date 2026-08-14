@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as statementsService from "@/lib/db/debt-statements";
 import { errorResponse } from "@/lib/api-errors";
 import { NextRequest, NextResponse } from "next/server";
@@ -7,7 +7,7 @@ type Params = { params: Promise<{ id: string; statementId: string }> };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace();
     const { id, statementId } = await params;
     const body = await request.json();
 
@@ -73,7 +73,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace();
     const { id, statementId } = await params;
 
     await statementsService.removeStatement(userId, id, statementId);

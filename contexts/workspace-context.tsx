@@ -17,6 +17,7 @@ export interface Workspace {
   type: "personal" | "business";
   currency: string;
   envelope_budgeting_enabled: boolean;
+  role: "owner" | "editor" | "viewer";
   is_default: boolean;
   created_at: string | null;
   updated_at: string | null;

@@ -28,7 +28,7 @@ function toDebt(row: Record<string, unknown>) {
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const [debts, summary, upcoming] = await Promise.all([
       debtsService.list(userId, workspaceId),
       debtsService.getSummary(userId, workspaceId),

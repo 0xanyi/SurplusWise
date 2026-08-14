@@ -25,7 +25,7 @@ export function toClient(row: clientsService.ClientWithRollup) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const activeParam = request.nextUrl.searchParams.get("active");
     const isActive = activeParam === null ? undefined : activeParam === "true";
 

@@ -1,4 +1,4 @@
-import { requireAuth, requireAuthWithWorkspace } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as txService from "@/lib/db/transactions";
 import * as documentsService from "@/lib/db/transaction-documents";
 import { deleteStoredDocument, isStorageConfigured } from "@/lib/storage";
@@ -33,7 +33,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
     const row = await txService.getById(userId, id);
@@ -62,7 +62,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 

@@ -22,7 +22,7 @@ function toAccount(row: Awaited<ReturnType<typeof accountService.list>>[number])
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const includeInactive = request.nextUrl.searchParams.get("includeInactive") === "true";
     const accounts = await accountService.list(userId, workspaceId, includeInactive);
     return NextResponse.json({ accounts: accounts.map(toAccount) });

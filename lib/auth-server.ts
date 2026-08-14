@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { auth } from "./auth";
 import * as workspaceService from "./db/workspaces";
+import type { WorkspaceRole } from "./db/workspaces";
 
 // ─── Core server helpers ─────────────────────────────────────────────────────
 
@@ -33,32 +34,49 @@ export async function requireAuth(): Promise<string> {
 }
 
 /**
- * Return both the authenticated user's id and the active workspace id.
- * The workspace is resolved from the `x-workspace-id` header. If not set,
- * falls back to the user's default workspace (creating it if needed).
+ * Resolve the active workspace and enforce its minimum role.
+ * `userId` remains the workspace owner's ledger identity for compatibility
+ * with workspace-scoped services; `actorUserId` is the signed-in member.
+ * Without an `x-workspace-id` header, use the actor's own default workspace.
  */
-export async function requireAuthWithWorkspace(): Promise<{
+export async function requireAuthWithWorkspace(
+  requiredRole: WorkspaceRole = "editor",
+): Promise<{
   userId: string;
+  actorUserId: string;
   workspaceId: string;
+  role: WorkspaceRole;
 }> {
   const session = await getSession();
   if (!session) {
     throw new Error("Unauthorized");
   }
-  const userId = session.user.id;
+  const actorUserId = session.user.id;
 
   const h = await headers();
   const headerWorkspaceId = h.get("x-workspace-id");
 
   if (headerWorkspaceId) {
-    // Verify the workspace belongs to this user
-    const ws = await workspaceService.getById(userId, headerWorkspaceId);
-    if (ws) {
-      return { userId, workspaceId: ws.id };
+    const access = await workspaceService.getAccess(actorUserId, headerWorkspaceId);
+    if (access) {
+      if (!workspaceService.hasWorkspaceRole(access.role, requiredRole)) {
+        throw new Error("Unauthorized");
+      }
+      return {
+        userId: access.workspace.userId,
+        actorUserId,
+        workspaceId: access.workspace.id,
+        role: access.role,
+      };
     }
   }
 
   // Fall back to default workspace
-  const defaultWs = await workspaceService.getOrCreateDefault(userId);
-  return { userId, workspaceId: defaultWs.id };
+  const defaultWs = await workspaceService.getOrCreateDefault(actorUserId);
+  return {
+    userId: actorUserId,
+    actorUserId,
+    workspaceId: defaultWs.id,
+    role: "owner",
+  };
 }
