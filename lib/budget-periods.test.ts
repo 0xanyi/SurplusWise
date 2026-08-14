@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { getCurrentBudgetRange, getNextBudgetRange } from "./budget-periods";
+import {
+  getCurrentBudgetRange,
+  getNextBudgetRange,
+  getRolledBudgetAmount,
+} from "./budget-periods";
 
 describe("budget period ranges", () => {
   const now = new Date("2028-05-18T12:00:00Z");
@@ -40,5 +44,12 @@ describe("budget period ranges", () => {
       startDate: "2029-01-01",
       endDate: "2029-12-31",
     });
+  });
+
+  it("adds only an unused balance to the next budget", () => {
+    assert.equal(getRolledBudgetAmount(500, 125.25), 625.25);
+    assert.equal(getRolledBudgetAmount(500, 0), 500);
+    assert.equal(getRolledBudgetAmount(500, -75), 500);
+    assert.equal(getRolledBudgetAmount(10.01, 0.02), 10.03);
   });
 });

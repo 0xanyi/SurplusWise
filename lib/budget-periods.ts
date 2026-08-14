@@ -38,3 +38,7 @@ export function getNextBudgetRange(endDate: string, period: BudgetPeriod): Budge
     endDate: toIsoDate(endOfPeriod(start, period)),
   };
 }
+
+export function getRolledBudgetAmount(amount: number, remaining: number) {
+  return Math.round((amount + Math.max(remaining, 0)) * 100) / 100;
+}

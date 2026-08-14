@@ -6,7 +6,11 @@ import { useApiQuery, apiFetch } from "@/hooks/use-api";
 import type { ApiBudget, TransactionType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
-import { getCurrentBudgetRange, getNextBudgetRange } from "@/lib/budget-periods";
+import {
+  getCurrentBudgetRange,
+  getNextBudgetRange,
+  getRolledBudgetAmount,
+} from "@/lib/budget-periods";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -62,6 +68,8 @@ export function BudgetManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [copyingBudgetId, setCopyingBudgetId] = useState<string | null>(null);
+  const [copyingBudget, setCopyingBudget] = useState<ApiBudget | null>(null);
+  const [carryRemaining, setCarryRemaining] = useState(false);
   const [editingBudget, setEditingBudget] = useState<ApiBudget | null>(null);
 
   const [formData, setFormData] = useState({
@@ -160,20 +168,20 @@ export function BudgetManagement() {
     }
   };
 
-  const handleCopyForward = async (budget: ApiBudget) => {
-    const next = getNextBudgetRange(budget.end_date, budget.period);
-    if (
-      !confirm(
-        `Copy “${budget.category}” to ${formatBudgetDate(next.startDate)} – ${formatBudgetDate(next.endDate)}? The current period will be archived.`,
-      )
-    ) {
-      return;
-    }
+  const handleCopyForward = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!copyingBudget) return;
 
-    setCopyingBudgetId(budget.id);
+    setCopyingBudgetId(copyingBudget.id);
     try {
-      await apiFetch(`/api/budgets/${budget.id}/copy-forward`, { method: "POST" });
+      await apiFetch(`/api/budgets/${copyingBudget.id}/copy-forward`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ carryRemaining }),
+      });
       toast({ title: "Success", description: "Budget copied to the next period" });
+      setCopyingBudget(null);
+      setCarryRemaining(false);
       refreshBudgets();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to copy budget";
@@ -181,6 +189,11 @@ export function BudgetManagement() {
     } finally {
       setCopyingBudgetId(null);
     }
+  };
+
+  const openCopyDialog = (budget: ApiBudget) => {
+    setCopyingBudget(budget);
+    setCarryRemaining(false);
   };
 
   const openEditDialog = (budget: ApiBudget) => {
@@ -339,6 +352,90 @@ export function BudgetManagement() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={copyingBudget !== null}
+        onOpenChange={(open) => {
+          if (!open && copyingBudgetId === null) {
+            setCopyingBudget(null);
+            setCarryRemaining(false);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Copy budget to next period</DialogTitle>
+            {copyingBudget && (
+              <DialogDescription>
+                {formatBudgetDate(getNextBudgetRange(copyingBudget.end_date, copyingBudget.period).startDate)} –{" "}
+                {formatBudgetDate(getNextBudgetRange(copyingBudget.end_date, copyingBudget.period).endDate)}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          {copyingBudget && (
+            <form onSubmit={handleCopyForward} className="space-y-4">
+              <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Base budget</span>
+                  <span className="font-semibold tabular-nums">{formatCurrency(copyingBudget.amount)}</span>
+                </div>
+                {carryRemaining && copyingBudget.remaining > 0 && (
+                  <div className="mt-2 flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Unused balance</span>
+                    <span className="font-semibold tabular-nums">+{formatCurrency(copyingBudget.remaining)}</span>
+                  </div>
+                )}
+                <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3 text-sm">
+                  <span>Next budget</span>
+                  <span className="font-semibold tabular-nums">
+                    {formatCurrency(
+                      carryRemaining
+                        ? getRolledBudgetAmount(copyingBudget.amount, copyingBudget.remaining)
+                        : copyingBudget.amount,
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {copyingBudget.type !== "income" && copyingBudget.remaining > 0 && (
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border/60 p-4">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-4 accent-foreground"
+                    checked={carryRemaining}
+                    onChange={(event) => setCarryRemaining(event.target.checked)}
+                  />
+                  <span>
+                    <span className="block text-sm font-medium">Carry unused balance forward</span>
+                    <span className="block text-xs text-muted-foreground">
+                      Add {formatCurrency(copyingBudget.remaining)} left in this period to the next budget.
+                    </span>
+                  </span>
+                </label>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                The current period will be archived so its spending history remains unchanged.
+              </p>
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={copyingBudgetId !== null}
+                  onClick={() => setCopyingBudget(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={copyingBudgetId !== null}>
+                  {copyingBudgetId ? "Copying..." : "Copy Budget"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {budgets.length === 0 ? (
           <Card>
@@ -380,7 +477,7 @@ export function BudgetManagement() {
                         className="h-8 w-8"
                         aria-label={`Copy ${budget.category} budget to the next period`}
                         disabled={copyingBudgetId !== null}
-                        onClick={() => handleCopyForward(budget)}
+                        onClick={() => openCopyDialog(budget)}
                       >
                         <CopyPlus className="h-3.5 w-3.5" />
                       </Button>

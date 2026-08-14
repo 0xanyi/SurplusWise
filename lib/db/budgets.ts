@@ -10,7 +10,7 @@ import {
   workspaceIdSchema,
 } from "./validation";
 import { computeBudgetUsage } from "./helpers";
-import { getNextBudgetRange } from "@/lib/budget-periods";
+import { getNextBudgetRange, getRolledBudgetAmount } from "@/lib/budget-periods";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -85,7 +85,12 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 }
 
 /** Create the same budget for its next calendar period and archive this occurrence. */
-export async function copyForward(userId: string, workspaceId: string, id: string) {
+export async function copyForward(
+  userId: string,
+  workspaceId: string,
+  id: string,
+  options: { carryRemaining?: boolean } = {},
+) {
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
@@ -106,6 +111,9 @@ export async function copyForward(userId: string, workspaceId: string, id: strin
 
     if (!existing) throw new Error("Budget not found or unauthorized");
     if (!existing.isActive) throw new Error("Budget has already been copied forward");
+    if (options.carryRemaining && existing.type === "income") {
+      throw new Error("Rollover is only available for expense and giving budgets");
+    }
 
     const { startDate, endDate } = getNextBudgetRange(existing.endDate, existing.period);
     const [conflict] = await tx
@@ -125,6 +133,24 @@ export async function copyForward(userId: string, workspaceId: string, id: strin
 
     if (conflict) throw new Error("A budget for the next period already exists");
 
+    let nextAmount = Number(existing.amount);
+    if (options.carryRemaining) {
+      const [{ total }] = await tx
+        .select({ total: sql<string>`coalesce(sum(${transactions.amount}), 0)` })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.userId, userId),
+            eq(transactions.workspaceId, workspaceId),
+            eq(transactions.category, existing.category),
+            eq(transactions.type, existing.type),
+            gte(transactions.date, existing.startDate),
+            lte(transactions.date, existing.endDate),
+          ),
+        );
+      nextAmount = getRolledBudgetAmount(nextAmount, nextAmount - Number(total));
+    }
+
     const now = new Date();
     const [nextBudget] = await tx
       .insert(budgets)
@@ -133,7 +159,7 @@ export async function copyForward(userId: string, workspaceId: string, id: strin
         userId,
         workspaceId,
         category: existing.category,
-        amount: existing.amount,
+        amount: String(nextAmount),
         period: existing.period,
         startDate,
         endDate,
