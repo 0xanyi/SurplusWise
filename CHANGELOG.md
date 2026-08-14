@@ -29,6 +29,8 @@ All notable changes to Sika will be documented in this file.
   and disappear automatically when marked reviewed
 - Active budgets now notify at 80% usage and again when exceeded, across the
   in-app inbox, Web Push, and SMTP
+- Added opt-in backup monitoring with a token-protected success-report endpoint
+  and durable last-success status in Settings
 - Added integrity checks for incompatible attribution and safe type changes.
   Stale-backup alerts remain planned follow-up work
 
