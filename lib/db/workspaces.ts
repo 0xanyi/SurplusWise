@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
-import { workspaces } from "@/db/schema";
+import { workspaceMemberships, workspaces } from "@/db/schema";
 import { userIdSchema, idSchema, workspaceCreateSchema, workspaceUpdateSchema } from "./validation";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -64,19 +64,29 @@ export async function getOrCreateDefault(userId: string) {
 
   const id = genId();
   const now = new Date();
-  const [row] = await db
-    .insert(workspaces)
-    .values({
-      id,
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(workspaces)
+      .values({
+        id,
+        userId,
+        name: "Personal",
+        type: "personal",
+        isDefault: true,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    await tx.insert(workspaceMemberships).values({
+      workspaceId: id,
       userId,
-      name: "Personal",
-      type: "personal",
-      isDefault: true,
+      role: "owner",
       createdAt: now,
-      updatedAt: now,
-    })
-    .returning();
-  return row;
+    });
+
+    return row;
+  });
 }
 
 /** Create a new workspace. */
@@ -93,20 +103,30 @@ export async function create(userId: string, input: CreateInput) {
     .where(eq(workspaces.userId, userId))
     .limit(1);
 
-  const [row] = await db
-    .insert(workspaces)
-    .values({
-      id,
+  return db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(workspaces)
+      .values({
+        id,
+        userId,
+        name: validInput.name,
+        type: validInput.type,
+        currency: validInput.currency,
+        isDefault: existing.length === 0,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning();
+
+    await tx.insert(workspaceMemberships).values({
+      workspaceId: id,
       userId,
-      name: validInput.name,
-      type: validInput.type,
-      currency: validInput.currency,
-      isDefault: existing.length === 0,
+      role: "owner",
       createdAt: now,
-      updatedAt: now,
-    })
-    .returning();
-  return row;
+    });
+
+    return row;
+  });
 }
 
 /** Update a workspace. */

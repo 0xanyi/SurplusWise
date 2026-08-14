@@ -18,6 +18,7 @@ const REQUIRED_TABLES = [
   "investments",
   "investment_events",
   "workspaces",
+  "workspace_memberships",
   "notification_states",
   "email_notification_preferences",
   "push_notification_preferences",
@@ -38,6 +39,7 @@ const REQUIRED_COLUMNS = [
   { table: "investments", column: "current_value" },
   // migration 0009 — workspaces
   { table: "workspaces", column: "type" },
+  { table: "workspace_memberships", column: "role" },
   { table: "transactions", column: "workspace_id" },
   { table: "categories", column: "workspace_id" },
   { table: "budgets", column: "workspace_id" },
@@ -52,7 +54,7 @@ const REQUIRED_COLUMNS = [
   { table: "backup_status", column: "last_successful_at" },
 ];
 
-const REQUIRED_INDEXES = ["users_singleton"];
+const REQUIRED_INDEXES = ["idx_workspace_memberships_user_workspace"];
 
 const RETRIES = Number(process.env.DB_SCHEMA_CHECK_RETRIES ?? "20");
 const RETRY_DELAY_MS = Number(process.env.DB_SCHEMA_CHECK_RETRY_DELAY_MS ?? "2000");
@@ -142,9 +144,8 @@ async function verifySchema(client) {
     const result = await client.query(
       `
       SELECT COALESCE(
-        i.indisunique
-          AND table_rel.relname = 'users'
-          AND pg_get_expr(i.indexprs, i.indrelid) = 'true',
+        table_rel.relname = 'workspace_memberships'
+          AND pg_get_indexdef(i.indexrelid) LIKE '%(user_id, workspace_id)%',
         false
       ) AS valid
       FROM pg_class index_rel

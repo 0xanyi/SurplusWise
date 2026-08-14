@@ -86,7 +86,7 @@ of a recipient.
 
 ## Phase 6 — Shared finances
 
-- Workspace memberships rather than open registration
+- Workspace memberships rather than open registration — foundation implemented
 - Owner, editor, and viewer roles
 - Separate identities with a shared ledger
 - Assigned transaction review and audit history

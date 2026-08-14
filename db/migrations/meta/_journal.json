@@ -232,6 +232,13 @@
       "when": 1786689686416,
       "tag": "0032_fearless_wolverine",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1786713031930,
+      "tag": "0033_known_captain_marvel",
+      "breakpoints": true
     }
   ]
 }
