@@ -74,13 +74,15 @@ of a recipient.
 
 ## Phase 5 — Planning and resilience
 
+**Status: implemented**
+
 - Budget copy-forward, unused-balance rollover, and dated sinking-fund plans — implemented
 - Fund-by-date targets and planned/funded/spent states — implemented
 - Optional workspace-level envelope budgeting — implemented for monthly plans
 - Full JSON/ZIP export of all workspace data and receipt files — implemented
 - Validated backup and restore commands — implemented
 - Backup status in Settings — external validated-success reporting implemented
-- Custom reports and year-over-year comparisons
+- Custom reports and year-over-year comparisons — implemented
 
 ## Phase 6 — Shared finances
 

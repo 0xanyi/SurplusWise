@@ -462,6 +462,7 @@ export const analyticsQuerySchema = z
     period: analyticsPeriodSchema,
     startDate: dateStringSchema.optional(),
     endDate: dateStringSchema.optional(),
+    comparison: z.enum(["previous-period", "previous-year"]).optional(),
   })
   .refine(
     (data) => {

@@ -1,6 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { getDateRange, getPreviousDateRange } from "./helpers";
+import {
+  getComparisonDateRange,
+  getDateRange,
+  getPreviousDateRange,
+} from "./helpers";
 import type { Period } from "./helpers";
 
 // ─── getDateRange ────────────────────────────────────────────────────────────
@@ -100,6 +104,38 @@ describe("getPreviousDateRange", () => {
     assert.deepStrictEqual(
       getPreviousDateRange({ startDate: "2026-03-10", endDate: "2026-03-10" }),
       { startDate: "2026-03-09", endDate: "2026-03-09" },
+    );
+  });
+});
+
+describe("getComparisonDateRange", () => {
+  it("uses the immediately preceding range by default", () => {
+    assert.deepStrictEqual(
+      getComparisonDateRange(
+        { startDate: "2026-03-10", endDate: "2026-03-16" },
+        "previous-period",
+      ),
+      { startDate: "2026-03-03", endDate: "2026-03-09" },
+    );
+  });
+
+  it("aligns a range to the same dates in the previous year", () => {
+    assert.deepStrictEqual(
+      getComparisonDateRange(
+        { startDate: "2026-03-10", endDate: "2026-03-16" },
+        "previous-year",
+      ),
+      { startDate: "2025-03-10", endDate: "2025-03-16" },
+    );
+  });
+
+  it("clamps leap day to the last day of February", () => {
+    assert.deepStrictEqual(
+      getComparisonDateRange(
+        { startDate: "2024-02-29", endDate: "2024-02-29" },
+        "previous-year",
+      ),
+      { startDate: "2023-02-28", endDate: "2023-02-28" },
     );
   });
 });

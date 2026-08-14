@@ -7,8 +7,8 @@ import {
   analyticsQuerySchema,
   workspaceIdSchema,
 } from "./validation";
-import { getDateRange, getPreviousDateRange } from "./helpers";
-import type { Period, DateRange } from "./helpers";
+import { getComparisonDateRange, getDateRange } from "./helpers";
+import type { ComparisonMode, Period, DateRange } from "./helpers";
 
 // Re-export so existing consumers don't break
 export { getDateRange };
@@ -66,6 +66,7 @@ export interface AnalyticsResult {
   monthlyTrends: MonthlyTrend[];
   period: DateRange;
   previousPeriod: DateRange;
+  comparisonMode: ComparisonMode;
   comparisons: {
     expensesChange: number | null;
     givingsChange: number | null;
@@ -432,6 +433,7 @@ export async function getAnalytics(
   workspaceId: string,
   period: Period,
   custom?: Partial<DateRange>,
+  comparisonMode: ComparisonMode = "previous-period",
 ): Promise<AnalyticsResult> {
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
@@ -439,9 +441,10 @@ export async function getAnalytics(
     period,
     startDate: custom?.startDate,
     endDate: custom?.endDate,
+    comparison: comparisonMode,
   });
   const range = getDateRange(period, custom);
-  const previousRange = getPreviousDateRange(range);
+  const previousRange = getComparisonDateRange(range, comparisonMode);
 
   const where = and(
     eq(transactions.userId, userId),
@@ -696,6 +699,7 @@ export async function getAnalytics(
     monthlyTrends,
     period: range,
     previousPeriod: previousRange,
+    comparisonMode,
     comparisons: {
       expensesChange: getPercentChange(totalExpenses, previousTotals.totalExpenses),
       givingsChange: getPercentChange(totalGivings, previousTotals.totalGivings),

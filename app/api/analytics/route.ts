@@ -1,6 +1,6 @@
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import { getAnalytics } from "@/lib/db/analytics";
-import type { Period } from "@/lib/db/helpers";
+import type { ComparisonMode, Period } from "@/lib/db/helpers";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
@@ -12,12 +12,15 @@ export async function GET(request: NextRequest) {
     const period = (searchParams.get("period") || "month") as Period;
     const startDate = searchParams.get("startDate") ?? undefined;
     const endDate = searchParams.get("endDate") ?? undefined;
+    const comparison = (searchParams.get("comparison") ||
+      "previous-period") as ComparisonMode;
 
     const result = await getAnalytics(
       userId,
       workspaceId,
       period,
       startDate || endDate ? { startDate, endDate } : undefined,
+      comparison,
     );
 
     // Build the object-keyed maps the frontend also consumes (backward compat)
@@ -53,6 +56,7 @@ export async function GET(request: NextRequest) {
       transactionCount: result.transactionCount,
       period: result.period,
       previousPeriod: result.previousPeriod,
+      comparisonMode: result.comparisonMode,
       comparisons: result.comparisons,
       outgoingPaymentsTotal: result.outgoingPaymentsTotal,
       debtPaymentsTotal: result.debtPaymentsTotal,
