@@ -15,6 +15,7 @@ import {
 } from "@/db/schema";
 import { workspaceExportResponse } from "@/app/api/workspace-export/route";
 import {
+  createWorkspaceArchiveSource,
   createWorkspaceExport,
   WORKSPACE_EXPORT_DATASETS,
   WORKSPACE_EXPORT_FORMAT,
@@ -65,7 +66,7 @@ describe(
             date: "2026-08-01",
             type: "giving",
             category: "Community",
-            receiptStorageId: "private/receipt-storage-key",
+            receiptStorageId: "private/document-object-key",
           },
           {
             id: otherTransactionId,
@@ -75,6 +76,7 @@ describe(
             date: "2026-08-02",
             type: "income",
             category: "Secret client",
+            receiptStorageId: "other-workspace/private-receipt",
           },
         ]);
         await db.insert(transactionDocuments).values({
@@ -143,6 +145,20 @@ describe(
         assert.doesNotMatch(serialized, /private\/receipt-storage-key|private\/document-object-key/);
         assert.doesNotMatch(serialized, /private-capability|private-p256dh-key|private-push-auth/);
         assert.doesNotMatch(serialized, /encrypted-private-ai-key/);
+
+        const archiveSource = await createWorkspaceArchiveSource(
+          userId,
+          workspaceId,
+          generatedAt,
+        );
+        assert.equal(archiveSource.files.length, 1, "does not duplicate a backfilled receipt");
+        assert.equal(archiveSource.files[0]?.transactionId, transactionId);
+        assert.equal(archiveSource.files[0]?.storageKey, "private/document-object-key");
+        assert.doesNotMatch(JSON.stringify(archiveSource.files), /other-workspace/);
+        assert.doesNotMatch(
+          JSON.stringify(archiveSource.workspaceExport),
+          /private\/document-object-key/,
+        );
 
         await assert.rejects(
           createWorkspaceExport(crypto.randomUUID(), workspaceId),

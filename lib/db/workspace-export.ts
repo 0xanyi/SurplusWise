@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   accountTransfers,
@@ -86,6 +86,16 @@ export interface WorkspaceExport {
   generatedAt: string;
   workspace: typeof workspaces.$inferSelect;
   data: ExportDatasets;
+}
+
+export interface WorkspaceExportFile {
+  documentId: string | null;
+  transactionId: string;
+  storageKey: string;
+  fileName: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  source: "supporting_document" | "legacy_receipt";
 }
 
 function childRows<Row>(rows: Array<{ child: Row }>): Row[] {
@@ -260,6 +270,69 @@ export async function createWorkspaceExport(
 ): Promise<WorkspaceExport> {
   return db.transaction(
     (tx) => readWorkspaceExport(tx, userId, workspaceId, generatedAt),
+    { isolationLevel: "repeatable read", accessMode: "read only" },
+  );
+}
+
+/** Return the public JSON payload and private storage references from one snapshot. */
+export async function createWorkspaceArchiveSource(
+  userId: string,
+  workspaceId: string,
+  generatedAt = new Date(),
+): Promise<{ workspaceExport: WorkspaceExport; files: WorkspaceExportFile[] }> {
+  return db.transaction(
+    async (tx) => {
+      const workspaceExport = await readWorkspaceExport(tx, userId, workspaceId, generatedAt);
+      const documents = await tx
+        .select({
+          documentId: transactionDocuments.id,
+          transactionId: transactionDocuments.transactionId,
+          storageKey: transactionDocuments.storageKey,
+          fileName: transactionDocuments.fileName,
+          mimeType: transactionDocuments.mimeType,
+          sizeBytes: transactionDocuments.sizeBytes,
+        })
+        .from(transactionDocuments)
+        .where(eq(transactionDocuments.workspaceId, workspaceId));
+      const legacyReceipts = await tx
+        .select({
+          transactionId: transactions.id,
+          storageKey: transactions.receiptStorageId,
+        })
+        .from(transactions)
+        .where(
+          and(
+            eq(transactions.workspaceId, workspaceId),
+            isNotNull(transactions.receiptStorageId),
+          ),
+        );
+
+      const files: WorkspaceExportFile[] = documents.map((document) => ({
+        ...document,
+        source: "supporting_document",
+      }));
+      const documentedReceipts = new Set(
+        documents.map((document) => `${document.transactionId}\0${document.storageKey}`),
+      );
+      for (const receipt of legacyReceipts) {
+        if (
+          receipt.storageKey &&
+          !documentedReceipts.has(`${receipt.transactionId}\0${receipt.storageKey}`)
+        ) {
+          files.push({
+            documentId: null,
+            transactionId: receipt.transactionId,
+            storageKey: receipt.storageKey,
+            fileName: "Receipt",
+            mimeType: null,
+            sizeBytes: null,
+            source: "legacy_receipt",
+          });
+        }
+      }
+
+      return { workspaceExport, files };
+    },
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
 }
