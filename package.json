@@ -11,6 +11,9 @@
     "start": "next start",
     "lint": "eslint .",
     "test": "node --import tsx --test --test-concurrency=1 \"lib/**/*.test.ts\"",
+    "backup:create": "node scripts/create-backup.mjs",
+    "backup:validate": "node scripts/validate-backup.mjs",
+    "backup:restore": "node scripts/restore-backup.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
