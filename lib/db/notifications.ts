@@ -1,6 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { notificationStates } from "@/db/schema";
+import { notificationStates, workspaces } from "@/db/schema";
+import { getBackupStatus } from "@/lib/backup-status";
 import * as budgetsService from "./budgets";
 import * as calendarService from "./financial-calendar";
 import * as transactionsService from "./transactions";
@@ -8,6 +9,7 @@ import { idSchema, userIdSchema, workspaceIdSchema } from "./validation";
 import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
 
 const DUE_WINDOW_DAYS = 7;
+const BACKUP_STALE_MS = 48 * 60 * 60 * 1000;
 
 function shiftMonth(periodMonth: string) {
   const [year, month] = periodMonth.split("-").map(Number);
@@ -30,12 +32,12 @@ function description(type: calendarService.CalendarEventType, days: number) {
 
 type Notification = {
   id: string;
-  kind: "due_money" | "review_item" | "budget_limit";
+  kind: "due_money" | "review_item" | "budget_limit" | "stale_backup";
   date: string;
   title: string;
   description: string;
-  amount: number;
-  type: calendarService.CalendarEventType;
+  amount: number | null;
+  type: calendarService.CalendarEventType | null;
   daysUntilDue: number | null;
   href: string;
   readAt: Date | null;
@@ -154,14 +156,53 @@ export async function listBudgetLimits(
   });
 }
 
+export async function listBackupAlerts(userId: string, workspaceId: string, now = new Date()) {
+  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
+  const [workspace] = await db
+    .select({ isDefault: workspaces.isDefault })
+    .from(workspaces)
+    .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
+    .limit(1);
+  if (!workspace?.isDefault) return [];
+
+  const status = await getBackupStatus();
+  if (!status.configured) return [];
+  const stale = !status.lastSuccessfulAt
+    || now.getTime() - status.lastSuccessfulAt.getTime() > BACKUP_STALE_MS;
+  if (!stale) return [];
+
+  const occurrence = status.lastSuccessfulAt?.toISOString() ?? "never";
+  const eventKey = `backup-stale:${occurrence}`;
+  const readByEvent = await readState(userId, workspaceId, [eventKey]);
+  const days = status.lastSuccessfulAt
+    ? Math.floor((now.getTime() - status.lastSuccessfulAt.getTime()) / 86_400_000)
+    : null;
+  return [{
+    id: eventKey,
+    kind: "stale_backup",
+    date: (status.lastSuccessfulAt ?? now).toISOString().slice(0, 10),
+    title: status.lastSuccessfulAt ? "Database backup is stale" : "No backup has been reported",
+    description: days === null
+      ? "Run and validate a database backup"
+      : `Last successful backup was ${days} days ago`,
+    amount: null,
+    type: null,
+    daysUntilDue: null,
+    href: "/dashboard/settings#data-resilience",
+    readAt: readByEvent.get(eventKey) ?? null,
+  }] satisfies Notification[];
+}
+
 /** All current attention items; resolved source records disappear automatically. */
 export async function listCurrent(userId: string, workspaceId: string, today = getCurrentUtcDate()) {
-  const [due, reviewItems, budgetLimits] = await Promise.all([
+  const [due, reviewItems, budgetLimits, backupAlerts] = await Promise.all([
     listDue(userId, workspaceId, today),
     listReviewItems(userId, workspaceId),
     listBudgetLimits(userId, workspaceId, today),
+    listBackupAlerts(userId, workspaceId),
   ]);
-  return [...due, ...reviewItems, ...budgetLimits];
+  return [...due, ...reviewItems, ...budgetLimits, ...backupAlerts];
 }
 
 export async function markRead(

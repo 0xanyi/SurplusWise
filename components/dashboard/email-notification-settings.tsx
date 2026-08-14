@@ -81,7 +81,7 @@ export function EmailNotificationSettings() {
           </h2>
         </div>
         <CardDescription>
-          Receive one digest containing unread due money, import reviews, and budget limits.
+          Receive one digest containing unread due money, import reviews, budget limits, and stale backups.
         </CardDescription>
       </CardHeader>
       <CardContent>

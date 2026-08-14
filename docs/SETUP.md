@@ -128,6 +128,8 @@ job creates and validates an archive, it should send `POST` to
 `$NEXT_PUBLIC_SITE_URL/api/backup-status/report` with
 `Authorization: Bearer $BACKUP_REPORT_TOKEN`. The Settings page then shows the
 last reported success. Never call the endpoint before archive validation succeeds.
+When monitoring is configured, Sika alerts through the default workspace after
+48 hours without a reported success.
 
 **Build args** (set in Build section):
 

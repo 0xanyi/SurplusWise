@@ -140,6 +140,8 @@ After your external backup job has successfully created and validated its archiv
 send `POST` to `$NEXT_PUBLIC_SITE_URL/api/backup-status/report` with
 `Authorization: Bearer $BACKUP_REPORT_TOKEN`. Do not report before validation:
 Sika records the report as evidence of success but does not create the backup.
+When monitoring is configured, Sika alerts through the default workspace after
+48 hours without a reported success.
 
 ## Troubleshooting
 

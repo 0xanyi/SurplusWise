@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { transactions, users, workspaces } from "@/db/schema";
+import { backupStatus, transactions, users, workspaces } from "@/db/schema";
+import { reportBackupSuccess } from "@/lib/backup-status";
 import * as notificationsService from "./notifications";
 import * as budgetsService from "./budgets";
 import * as recurringMoneyService from "./recurring-outgoings";
@@ -321,6 +322,105 @@ describe(
         );
       } finally {
         await db.delete(users).where(eq(users.id, userId));
+      }
+    });
+
+    it("alerts only the default workspace when configured backup status is stale", async () => {
+      const originalToken = process.env.BACKUP_REPORT_TOKEN;
+      const userId = crypto.randomUUID();
+      const workspaceId = crypto.randomUUID();
+      const otherWorkspaceId = crypto.randomUUID();
+      await db.insert(users).values({
+        id: userId,
+        name: "Backup alert user",
+        email: `backup-alert-${userId.slice(0, 8)}@example.com`,
+      });
+      await db.insert(workspaces).values([
+        {
+          id: workspaceId,
+          userId,
+          name: "Personal",
+          type: "personal",
+          currency: "GBP",
+          isDefault: true,
+        },
+        {
+          id: otherWorkspaceId,
+          userId,
+          name: "Business",
+          type: "business",
+          currency: "GBP",
+          isDefault: false,
+        },
+      ]);
+
+      try {
+        delete process.env.BACKUP_REPORT_TOKEN;
+        assert.equal(
+          (await notificationsService.listBackupAlerts(
+            userId,
+            workspaceId,
+            new Date("2028-02-04T13:00:00Z"),
+          )).length,
+          0,
+          "unconfigured monitoring must remain silent",
+        );
+
+        process.env.BACKUP_REPORT_TOKEN = "backup-alert-secret";
+        let alerts = await notificationsService.listBackupAlerts(
+          userId,
+          workspaceId,
+          new Date("2028-02-04T13:00:00Z"),
+        );
+        assert.deepEqual(alerts, [{
+          id: "backup-stale:never",
+          kind: "stale_backup",
+          date: "2028-02-04",
+          title: "No backup has been reported",
+          description: "Run and validate a database backup",
+          amount: null,
+          type: null,
+          daysUntilDue: null,
+          href: "/dashboard/settings#data-resilience",
+          readAt: null,
+        }]);
+        assert.equal(
+          (await notificationsService.listBackupAlerts(
+            userId,
+            otherWorkspaceId,
+            new Date("2028-02-04T13:00:00Z"),
+          )).length,
+          0,
+          "database-level alerts appear once rather than in every workspace",
+        );
+
+        await notificationsService.markRead(userId, workspaceId, alerts[0].id, true);
+        const oldSuccess = new Date("2028-02-01T12:00:00Z");
+        await reportBackupSuccess(oldSuccess);
+        alerts = await notificationsService.listBackupAlerts(
+          userId,
+          workspaceId,
+          new Date("2028-02-04T13:00:00Z"),
+        );
+        assert.equal(alerts[0].id, `backup-stale:${oldSuccess.toISOString()}`);
+        assert.equal(alerts[0].description, "Last successful backup was 3 days ago");
+        assert.equal(alerts[0].readAt, null, "each failed backup cycle is a fresh alert");
+
+        await reportBackupSuccess(new Date("2028-02-04T12:00:00Z"));
+        assert.equal(
+          (await notificationsService.listBackupAlerts(
+            userId,
+            workspaceId,
+            new Date("2028-02-04T13:00:00Z"),
+          )).length,
+          0,
+          "a fresh validated backup resolves the live alert",
+        );
+      } finally {
+        await db.delete(backupStatus);
+        await db.delete(users).where(eq(users.id, userId));
+        if (originalToken === undefined) delete process.env.BACKUP_REPORT_TOKEN;
+        else process.env.BACKUP_REPORT_TOKEN = originalToken;
       }
     });
   },

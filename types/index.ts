@@ -140,12 +140,12 @@ export interface ApiFinancialCalendarEvent {
 
 export interface ApiNotification {
   id: string
-  kind: 'due_money' | 'review_item' | 'budget_limit'
+  kind: 'due_money' | 'review_item' | 'budget_limit' | 'stale_backup'
   date: string
   title: string
   description: string
-  amount: number
-  type: TransactionType | 'debt'
+  amount: number | null
+  type: TransactionType | 'debt' | null
   days_until_due: number | null
   href: string
   read_at: string | null
