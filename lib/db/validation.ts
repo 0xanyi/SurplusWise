@@ -846,6 +846,13 @@ export const goalUpdateSchema = z
     { message: "At least one field must be provided for update" },
   );
 
+export const goalActivityCreateSchema = z.object({
+  type: z.enum(["contribution", "spending"]),
+  amount: amountSchema,
+  occurredOn: dateStringSchema,
+  notes: z.string().max(1000).nullish(),
+});
+
 // ─── AI Provider Settings ───────────────────────────────────────────────────
 
 export const aiProviderSchema = z.enum([

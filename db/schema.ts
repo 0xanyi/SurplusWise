@@ -367,6 +367,11 @@ export const goalCategoryEnum = pgEnum("goal_category", [
   "other",
 ]);
 
+export const goalActivityTypeEnum = pgEnum("goal_activity_type", [
+  "contribution",
+  "spending",
+]);
+
 // ─── AI Provider Settings ───────────────────────────────────────────────────
 
 export const aiProviderSettings = pgTable(
@@ -413,6 +418,31 @@ export const goals = pgTable(
   (t) => [
     index("idx_goals_user_workspace").on(t.userId, t.workspaceId),
     index("idx_goals_workspace_active").on(t.workspaceId, t.isActive),
+  ],
+);
+
+export const goalActivities = pgTable(
+  "goal_activities",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    goalId: text("goal_id")
+      .notNull()
+      .references(() => goals.id, { onDelete: "cascade" }),
+    type: goalActivityTypeEnum("type").notNull(),
+    amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+    occurredOn: date("occurred_on", { mode: "string" }).notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_goal_activities_goal_date").on(t.goalId, t.occurredOn),
+    index("idx_goal_activities_workspace").on(t.workspaceId),
   ],
 );
 

@@ -211,6 +211,9 @@ export interface ApiGoal {
   category: GoalCategory
   target_amount: number
   current_amount: number
+  available_amount: number
+  funded_amount: number
+  spent_amount: number
   remaining_amount: number
   progress: number
   target_date: string | null
@@ -221,6 +224,16 @@ export interface ApiGoal {
   is_active: boolean
   created_at: string | null
   updated_at: string | null
+}
+
+export interface ApiGoalActivity {
+  id: string
+  goal_id: string
+  type: "contribution" | "spending"
+  amount: number
+  occurred_on: string
+  notes: string | null
+  created_at: string
 }
 
 export interface DashboardStats {

@@ -75,7 +75,7 @@ of a recipient.
 ## Phase 5 — Planning and resilience
 
 - Budget copy-forward, unused-balance rollover, and dated sinking-fund plans — implemented
-- Fund-by-date targets and planned/funded/spent states
+- Fund-by-date targets and planned/funded/spent states — implemented
 - Optional envelope budgeting
 - Full JSON/ZIP export of all workspace data and receipt files
 - Validated backup and restore commands

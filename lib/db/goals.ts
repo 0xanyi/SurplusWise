@@ -119,18 +119,3 @@ export async function remove(userId: string, id: string) {
 
   await db.delete(goals).where(and(eq(goals.id, id), eq(goals.userId, userId)));
 }
-
-export async function getSummary(userId: string, workspaceId: string) {
-  const rows = await list(userId, workspaceId);
-  const active = rows.filter((goal) => goal.isActive);
-
-  const totalTarget = active.reduce((sum, goal) => sum + Number(goal.targetAmount), 0);
-  const totalCurrent = active.reduce((sum, goal) => sum + Number(goal.currentAmount), 0);
-
-  return {
-    count: active.length,
-    totalTarget,
-    totalCurrent,
-    completionRate: totalTarget > 0 ? (totalCurrent / totalTarget) * 100 : 0,
-  };
-}
