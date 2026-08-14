@@ -153,9 +153,14 @@ export const workspaceUpdateSchema = z
     name: z.string().min(1).max(100).optional(),
     type: workspaceTypeSchema.optional(),
     currency: currencySchema.optional(),
+    envelopeBudgetingEnabled: z.boolean().optional(),
   })
   .refine(
-    (data) => data.name !== undefined || data.type !== undefined || data.currency !== undefined,
+    (data) =>
+      data.name !== undefined ||
+      data.type !== undefined ||
+      data.currency !== undefined ||
+      data.envelopeBudgetingEnabled !== undefined,
     { message: "At least one field must be provided for update" },
   );
 

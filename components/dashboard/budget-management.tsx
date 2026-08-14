@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Edit2, Trash2, TrendingDown, TrendingUp, AlertTriangle, CopyPlus } from "lucide-react";
+import { Plus, Edit2, Trash2, TrendingDown, TrendingUp, AlertTriangle, CopyPlus, WalletCards } from "lucide-react";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
+import { useWorkspace } from "@/contexts/workspace-context";
 import type { ApiBudget, TransactionType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
@@ -11,10 +12,12 @@ import {
   getNextBudgetRange,
   getRolledBudgetAmount,
 } from "@/lib/budget-periods";
+import { getMonthlyEnvelopePlan } from "@/lib/envelope-budgeting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
@@ -54,6 +57,7 @@ const formatBudgetDate = (date: string) =>
 
 export function BudgetManagement() {
   const { toast } = useToast();
+  const { activeWorkspace, updateWorkspace } = useWorkspace();
   const {
     data: budgetData,
     loading: budgetsLoading,
@@ -67,6 +71,7 @@ export function BudgetManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingEnvelopeMode, setSavingEnvelopeMode] = useState(false);
   const [copyingBudgetId, setCopyingBudgetId] = useState<string | null>(null);
   const [copyingBudget, setCopyingBudget] = useState<ApiBudget | null>(null);
   const [carryRemaining, setCarryRemaining] = useState(false);
@@ -84,9 +89,36 @@ export function BudgetManagement() {
     [categories, formData.type]
   );
 
+  const monthlyEnvelopePlan = useMemo(
+    () => getMonthlyEnvelopePlan(budgets ?? [], getCurrentBudgetRange("monthly")),
+    [budgets],
+  );
+
   const resetForm = () => {
     setFormData({ category: "", amount: "", period: "monthly", type: "expense" });
     setEditingBudget(null);
+  };
+
+  const handleEnvelopeModeChange = async (enabled: boolean) => {
+    if (!activeWorkspace) return;
+    setSavingEnvelopeMode(true);
+    try {
+      await updateWorkspace(activeWorkspace.id, { envelope_budgeting_enabled: enabled });
+      toast({
+        title: enabled ? "Envelope budgeting enabled" : "Envelope budgeting disabled",
+        description: enabled
+          ? "Monthly budgets now show how expected income is assigned"
+          : "Your category budgets are unchanged",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to update envelope budgeting",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingEnvelopeMode(false);
+    }
   };
 
   const handleAddBudget = async (e: React.FormEvent) => {
@@ -213,6 +245,82 @@ export function BudgetManagement() {
 
   return (
     <div className="space-y-6">
+      <Card>
+        <CardContent className="space-y-4 pt-6">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex gap-3">
+              <div className="rounded-xl bg-muted p-2.5">
+                <WalletCards className="size-4" />
+              </div>
+              <div>
+                <Label htmlFor="envelope-budgeting" className="text-sm font-semibold">
+                  Monthly envelope budgeting
+                </Label>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Assign expected monthly income across expense and giving category budgets.
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="envelope-budgeting"
+              checked={activeWorkspace?.envelope_budgeting_enabled ?? false}
+              disabled={!activeWorkspace || savingEnvelopeMode}
+              onCheckedChange={handleEnvelopeModeChange}
+            />
+          </div>
+
+          {activeWorkspace?.envelope_budgeting_enabled && (
+            <div className="space-y-3 border-t border-border/60 pt-4">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-xl bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">Expected income</p>
+                  <p className="mt-1 font-semibold tabular-nums">
+                    {formatCurrency(monthlyEnvelopePlan.expectedIncome)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">Expense envelopes</p>
+                  <p className="mt-1 font-semibold tabular-nums">
+                    {formatCurrency(monthlyEnvelopePlan.expenses)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">Giving envelopes</p>
+                  <p className="mt-1 font-semibold tabular-nums text-giving">
+                    {formatCurrency(monthlyEnvelopePlan.giving)}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-muted/30 p-3">
+                  <p className="text-xs text-muted-foreground">
+                    {monthlyEnvelopePlan.unassigned < 0 ? "Over-assigned" : "Unassigned"}
+                  </p>
+                  <p
+                    className={`mt-1 font-semibold tabular-nums ${
+                      monthlyEnvelopePlan.unassigned < 0 ? "text-expense" : ""
+                    }`}
+                  >
+                    {formatCurrency(Math.abs(monthlyEnvelopePlan.unassigned))}
+                  </p>
+                </div>
+              </div>
+              {monthlyEnvelopePlan.expectedIncome === 0 ? (
+                <p className="text-xs text-obligation">
+                  Add a monthly income budget to define how much is available to assign.
+                </p>
+              ) : monthlyEnvelopePlan.unassigned === 0 ? (
+                <p className="text-xs font-medium">Every unit of expected income is assigned.</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {monthlyEnvelopePlan.unassigned > 0
+                    ? `${formatCurrency(monthlyEnvelopePlan.unassigned)} is still available to assign.`
+                    : `Reduce monthly envelopes by ${formatCurrency(Math.abs(monthlyEnvelopePlan.unassigned))} to match expected income.`}
+                </p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogTrigger asChild>
           <Button className="w-full sm:w-auto">

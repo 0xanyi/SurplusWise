@@ -9,6 +9,7 @@ function toWorkspace(row: NonNullable<Awaited<ReturnType<typeof wsService.getByI
     name: row.name,
     type: row.type,
     currency: row.currency,
+    envelope_budgeting_enabled: row.envelopeBudgetingEnabled,
     is_default: row.isDefault,
     created_at: row.createdAt ? new Date(row.createdAt).toISOString() : null,
     updated_at: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
@@ -49,6 +50,8 @@ export async function PUT(
       name: body.name,
       type: body.type,
       currency: body.currency,
+      envelopeBudgetingEnabled:
+        body.envelopeBudgetingEnabled ?? body.envelope_budgeting_enabled,
     });
 
     return NextResponse.json({ workspace: toWorkspace(row) });

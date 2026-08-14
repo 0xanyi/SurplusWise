@@ -17,6 +17,7 @@ export interface UpdateInput {
   name?: string;
   type?: WorkspaceType;
   currency?: string;
+  envelopeBudgetingEnabled?: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -128,6 +129,9 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       ...(validInput.name !== undefined && { name: validInput.name }),
       ...(validInput.type !== undefined && { type: validInput.type }),
       ...(validInput.currency !== undefined && { currency: validInput.currency }),
+      ...(validInput.envelopeBudgetingEnabled !== undefined && {
+        envelopeBudgetingEnabled: validInput.envelopeBudgetingEnabled,
+      }),
       updatedAt: new Date(),
     })
     .where(and(eq(workspaces.id, id), eq(workspaces.userId, userId)))

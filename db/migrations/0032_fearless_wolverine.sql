@@ -1,0 +1,1 @@
+ALTER TABLE "workspaces" ADD COLUMN "envelope_budgeting_enabled" boolean DEFAULT false NOT NULL;

@@ -200,6 +200,7 @@ export const workspaces = pgTable(
     name: text("name").notNull(),
     type: workspaceTypeEnum("type").notNull(),
     currency: text("currency").notNull().default("GBP"),
+    envelopeBudgetingEnabled: boolean("envelope_budgeting_enabled").notNull().default(false),
     isDefault: boolean("is_default").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

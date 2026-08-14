@@ -16,6 +16,7 @@ export interface Workspace {
   name: string;
   type: "personal" | "business";
   currency: string;
+  envelope_budgeting_enabled: boolean;
   is_default: boolean;
   created_at: string | null;
   updated_at: string | null;
@@ -28,7 +29,12 @@ interface WorkspaceContextValue {
   loading: boolean;
   refreshWorkspaces: () => void;
   createWorkspace: (name: string, type: "personal" | "business", currency?: string) => Promise<void>;
-  updateWorkspace: (id: string, input: Partial<Pick<Workspace, "name" | "type" | "currency">>) => Promise<void>;
+  updateWorkspace: (
+    id: string,
+    input: Partial<
+      Pick<Workspace, "name" | "type" | "currency" | "envelope_budgeting_enabled">
+    >,
+  ) => Promise<void>;
 }
 
 // ─── Context ─────────────────────────────────────────────────────────────────
@@ -127,7 +133,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   );
 
   const updateWorkspace = useCallback(
-    async (id: string, input: Partial<Pick<Workspace, "name" | "type" | "currency">>) => {
+    async (
+      id: string,
+      input: Partial<
+        Pick<Workspace, "name" | "type" | "currency" | "envelope_budgeting_enabled">
+      >,
+    ) => {
       const res = await fetch(`/api/workspaces/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
