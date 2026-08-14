@@ -39,14 +39,14 @@ export function NotificationsInbox() {
   }
   if (data.notifications.length === 0) {
     return (
-      <Card><EmptyState icon={Bell} title="Nothing needs your attention" description="Due money and imported transactions needing review will appear here." /></Card>
+      <Card><EmptyState icon={Bell} title="Nothing needs your attention" description="Due money, import reviews, and budget limits will appear here." /></Card>
     );
   }
 
   return (
     <Card className="overflow-hidden">
       <div className="border-b border-border/60 px-5 py-4 text-sm text-muted-foreground sm:px-6">
-        {data.unread} unread · Due money and review items
+        {data.unread} unread · Money that needs attention
       </div>
       <ul>
         {data.notifications.map((notification) => (

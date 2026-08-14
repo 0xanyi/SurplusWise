@@ -1,6 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { notificationStates } from "@/db/schema";
+import * as budgetsService from "./budgets";
 import * as calendarService from "./financial-calendar";
 import * as transactionsService from "./transactions";
 import { idSchema, userIdSchema, workspaceIdSchema } from "./validation";
@@ -29,7 +30,7 @@ function description(type: calendarService.CalendarEventType, days: number) {
 
 type Notification = {
   id: string;
-  kind: "due_money" | "review_item";
+  kind: "due_money" | "review_item" | "budget_limit";
   date: string;
   title: string;
   description: string;
@@ -114,13 +115,53 @@ export async function listReviewItems(userId: string, workspaceId: string) {
   });
 }
 
+export async function listBudgetLimits(
+  userId: string,
+  workspaceId: string,
+  today = getCurrentUtcDate(),
+) {
+  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
+  const budgets = (await budgetsService.getWithSpending(userId, workspaceId))
+    .filter((budget) => (
+      budget.startDate <= today
+      && budget.endDate >= today
+      && budget.percentUsed >= 80
+    ));
+  const eventKeys = budgets.map((budget) => {
+    const threshold = budget.percentUsed >= 100 ? "exceeded" : "warning";
+    return `budget-limit:${budget.id}:${threshold}`;
+  });
+  const readByEvent = await readState(userId, workspaceId, eventKeys);
+
+  return budgets.map((budget, index): Notification => {
+    const exceeded = budget.percentUsed >= 100;
+    const eventKey = eventKeys[index];
+    return {
+      id: eventKey,
+      kind: "budget_limit",
+      date: budget.endDate,
+      title: exceeded
+        ? `${budget.category} budget has been exceeded`
+        : `${budget.category} budget is near its limit`,
+      description: `${Math.round(budget.percentUsed)}% of budget used`,
+      amount: Number(budget.amount),
+      type: budget.type,
+      daysUntilDue: null,
+      href: "/dashboard/settings#budgets",
+      readAt: readByEvent.get(eventKey) ?? null,
+    };
+  });
+}
+
 /** All current attention items; resolved source records disappear automatically. */
 export async function listCurrent(userId: string, workspaceId: string, today = getCurrentUtcDate()) {
-  const [due, reviewItems] = await Promise.all([
+  const [due, reviewItems, budgetLimits] = await Promise.all([
     listDue(userId, workspaceId, today),
     listReviewItems(userId, workspaceId),
+    listBudgetLimits(userId, workspaceId, today),
   ]);
-  return [...due, ...reviewItems];
+  return [...due, ...reviewItems, ...budgetLimits];
 }
 
 export async function markRead(

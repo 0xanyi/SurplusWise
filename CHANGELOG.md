@@ -27,8 +27,10 @@ All notable changes to Sika will be documented in this file.
   reminders, with a token-protected dispatcher and per-occurrence deduplication
 - Imported transactions needing classification now appear as live notifications
   and disappear automatically when marked reviewed
+- Active budgets now notify at 80% usage and again when exceeded, across the
+  in-app inbox, Web Push, and SMTP
 - Added integrity checks for incompatible attribution and safe type changes.
-  Budget-limit and stale-backup alerts remain planned follow-up work
+  Stale-backup alerts remain planned follow-up work
 
 ### Giving recipients and funds
 

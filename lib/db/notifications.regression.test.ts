@@ -4,12 +4,13 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
 import { transactions, users, workspaces } from "@/db/schema";
 import * as notificationsService from "./notifications";
+import * as budgetsService from "./budgets";
 import * as recurringMoneyService from "./recurring-outgoings";
 import * as draftsService from "./recurring-money-drafts";
 import * as transactionsService from "./transactions";
 
 describe(
-  "due-money notifications regression",
+  "current notifications regression",
   { skip: process.env.DATABASE_URL ? false : "requires DATABASE_URL" },
   () => {
     it("derives live due items and keeps read state workspace-scoped", async () => {
@@ -221,6 +222,102 @@ describe(
           (await notificationsService.listReviewItems(userId, workspaceId)).length,
           0,
           "reviewed transactions disappear without separate notification cleanup",
+        );
+      } finally {
+        await db.delete(users).where(eq(users.id, userId));
+      }
+    });
+
+    it("derives current budget threshold notifications without mixing workspace spending", async () => {
+      const userId = crypto.randomUUID();
+      const workspaceId = crypto.randomUUID();
+      const otherWorkspaceId = crypto.randomUUID();
+      await db.insert(users).values({
+        id: userId,
+        name: "Budget notification user",
+        email: `budget-notifications-${userId.slice(0, 8)}@example.com`,
+      });
+      await db.insert(workspaces).values([
+        {
+          id: workspaceId,
+          userId,
+          name: "Personal",
+          type: "personal",
+          currency: "GBP",
+          isDefault: true,
+        },
+        {
+          id: otherWorkspaceId,
+          userId,
+          name: "Business",
+          type: "business",
+          currency: "GBP",
+          isDefault: false,
+        },
+      ]);
+
+      try {
+        const budget = await budgetsService.create(userId, workspaceId, {
+          category: "Food",
+          amount: 100,
+          period: "monthly",
+          startDate: "2028-02-01",
+          endDate: "2028-02-29",
+          type: "expense",
+        });
+        await transactionsService.create(userId, workspaceId, {
+          amount: 85,
+          date: "2028-02-05",
+          type: "expense",
+          category: "Food",
+        });
+        await transactionsService.create(userId, otherWorkspaceId, {
+          amount: 1000,
+          date: "2028-02-05",
+          type: "expense",
+          category: "Food",
+        });
+
+        let limits = await notificationsService.listBudgetLimits(
+          userId,
+          workspaceId,
+          "2028-02-10",
+        );
+        assert.deepEqual(limits, [{
+          id: `budget-limit:${budget.id}:warning`,
+          kind: "budget_limit",
+          date: "2028-02-29",
+          title: "Food budget is near its limit",
+          description: "85% of budget used",
+          amount: 100,
+          type: "expense",
+          daysUntilDue: null,
+          href: "/dashboard/settings#budgets",
+          readAt: null,
+        }]);
+
+        await notificationsService.markRead(userId, workspaceId, limits[0].id, true);
+        await transactionsService.create(userId, workspaceId, {
+          amount: 20,
+          date: "2028-02-06",
+          type: "expense",
+          category: "Food",
+        });
+        limits = await notificationsService.listBudgetLimits(userId, workspaceId, "2028-02-10");
+        assert.equal(limits[0].id, `budget-limit:${budget.id}:exceeded`);
+        assert.equal(limits[0].description, "105% of budget used");
+        assert.equal(limits[0].readAt, null, "exceeding is a new alert after a read warning");
+        assert.equal(
+          (await notificationsService.listBudgetLimits(userId, workspaceId, "2028-03-01")).length,
+          0,
+          "expired budget periods are not current alerts",
+        );
+
+        await budgetsService.update(userId, budget.id, { isActive: false });
+        assert.equal(
+          (await notificationsService.listBudgetLimits(userId, workspaceId, "2028-02-10")).length,
+          0,
+          "inactive budgets disappear without separate notification cleanup",
         );
       } finally {
         await db.delete(users).where(eq(users.id, userId));
