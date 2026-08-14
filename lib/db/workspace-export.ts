@@ -31,11 +31,12 @@ import {
   transactionImportProfiles,
   transactionRules,
   transactions,
+  workspaceMemberships,
   workspaces,
 } from "@/db/schema";
 
 export const WORKSPACE_EXPORT_FORMAT = "sika-workspace-export";
-export const WORKSPACE_EXPORT_VERSION = 1;
+export const WORKSPACE_EXPORT_VERSION = 2;
 
 /**
  * User-owned, portable records included in a JSON workspace export.
@@ -44,6 +45,7 @@ export const WORKSPACE_EXPORT_VERSION = 1;
  * delivery logs, and global backup status are intentionally not export data.
  */
 export const WORKSPACE_EXPORT_DATASETS = [
+  "workspaceMemberships",
   "onboardingStatus",
   "notificationStates",
   "pushNotificationPreferences",
@@ -119,6 +121,7 @@ async function readWorkspaceExport(
   if (!workspace) throw new Error("Workspace not found or unauthorized");
 
   const [
+    membershipRows,
     onboarding,
     states,
     pushPreferences,
@@ -150,6 +153,10 @@ async function readWorkspaceExport(
     investmentRows,
     investmentEventRows,
   ] = [
+    await tx
+      .select()
+      .from(workspaceMemberships)
+      .where(eq(workspaceMemberships.workspaceId, workspaceId)),
     await tx.select().from(onboardingStatus).where(eq(onboardingStatus.workspaceId, workspaceId)),
     await tx.select().from(notificationStates).where(eq(notificationStates.workspaceId, workspaceId)),
     await tx.select().from(pushNotificationPreferences).where(eq(pushNotificationPreferences.workspaceId, workspaceId)),
@@ -229,6 +236,7 @@ async function readWorkspaceExport(
     generatedAt: generatedAt.toISOString(),
     workspace,
     data: {
+      workspaceMemberships: membershipRows,
       onboardingStatus: onboarding,
       notificationStates: states,
       pushNotificationPreferences: pushPreferences,

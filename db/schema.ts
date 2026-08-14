@@ -10,6 +10,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -20,6 +21,12 @@ import {
 export const workspaceTypeEnum = pgEnum("workspace_type", [
   "personal",
   "business",
+]);
+
+export const workspaceRoleEnum = pgEnum("workspace_role", [
+  "owner",
+  "editor",
+  "viewer",
 ]);
 
 export const transactionTypeEnum = pgEnum("transaction_type", [
@@ -133,7 +140,6 @@ export const users = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  () => [uniqueIndex("users_singleton").on(sql`(true)`)],
 );
 
 export const sessions = pgTable(
@@ -208,6 +214,27 @@ export const workspaces = pgTable(
   (t) => [
     index("idx_workspaces_user").on(t.userId),
     uniqueIndex("idx_workspaces_user_name").on(t.userId, t.name),
+  ],
+);
+
+export const workspaceMemberships = pgTable(
+  "workspace_memberships",
+  {
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: workspaceRoleEnum("role").notNull().default("viewer"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({
+      name: "workspace_memberships_workspace_user_pk",
+      columns: [t.workspaceId, t.userId],
+    }),
+    index("idx_workspace_memberships_user_workspace").on(t.userId, t.workspaceId),
   ],
 );
 
