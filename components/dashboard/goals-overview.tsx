@@ -13,6 +13,7 @@ interface GoalsResponse {
   goals: ApiGoal[];
   total_target: number;
   total_current: number;
+  total_funded: number;
   active_count: number;
   completion_rate: number;
 }
@@ -62,7 +63,7 @@ export function GoalsOverview() {
     <section>
       <SectionHeading
         title="Goals"
-        aside={`${formatCurrency(data.total_current)} saved of ${formatCurrency(
+        aside={`${formatCurrency(data.total_funded)} funded of ${formatCurrency(
           data.total_target
         )}`}
       />

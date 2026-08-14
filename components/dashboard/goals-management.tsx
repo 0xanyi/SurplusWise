@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Edit2, PiggyBank, Plus, Trash2 } from "lucide-react";
+import { CircleDollarSign, Edit2, PiggyBank, Plus, Trash2 } from "lucide-react";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
-import type { ApiGoal, GoalCategory } from "@/types";
+import type { ApiGoal, ApiGoalActivity, GoalCategory } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -36,8 +37,13 @@ interface GoalsResponse {
   goals: ApiGoal[];
   total_target: number;
   total_current: number;
+  total_funded: number;
   active_count: number;
   completion_rate: number;
+}
+
+interface GoalActivitiesResponse {
+  activities: ApiGoalActivity[];
 }
 
 const formatGoalDate = (date: string) =>
@@ -54,7 +60,15 @@ export function GoalsManagement() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingActivity, setSavingActivity] = useState(false);
   const [editingGoal, setEditingGoal] = useState<ApiGoal | null>(null);
+  const [activityGoalId, setActivityGoalId] = useState<string | null>(null);
+  const [activityForm, setActivityForm] = useState({
+    type: "contribution" as "contribution" | "spending",
+    amount: "",
+    occurredOn: new Date().toISOString().slice(0, 10),
+    notes: "",
+  });
   const [formData, setFormData] = useState({
     name: "",
     category: "savings" as GoalCategory,
@@ -64,7 +78,16 @@ export function GoalsManagement() {
     notes: "",
   });
 
+  const {
+    data: activityData,
+    loading: activitiesLoading,
+    refresh: refreshActivities,
+  } = useApiQuery<GoalActivitiesResponse>(
+    activityGoalId ? `/api/goals/${activityGoalId}/activities` : null,
+  );
+
   const goals = data?.goals ?? [];
+  const activityGoal = goals.find((goal) => goal.id === activityGoalId) ?? null;
 
   const resetForm = () => {
     setFormData({
@@ -137,6 +160,50 @@ export function GoalsManagement() {
     }
   };
 
+  const handleActivity = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!activityGoal) return;
+
+    setSavingActivity(true);
+    try {
+      await apiFetch(`/api/goals/${activityGoal.id}/activities`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: activityForm.type,
+          amount: Number.parseFloat(activityForm.amount),
+          occurredOn: activityForm.occurredOn,
+          notes: activityForm.notes || null,
+        }),
+      });
+      toast({
+        title: "Activity recorded",
+        description: activityForm.type === "contribution" ? "Fund balance increased" : "Fund spending recorded",
+      });
+      setActivityForm((current) => ({ ...current, amount: "", notes: "" }));
+      refresh();
+      refreshActivities();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to record activity",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingActivity(false);
+    }
+  };
+
+  const openActivity = (goal: ApiGoal) => {
+    setActivityGoalId(goal.id);
+    setActivityForm({
+      type: "contribution",
+      amount: "",
+      occurredOn: new Date().toISOString().slice(0, 10),
+      notes: "",
+    });
+  };
+
   const openEdit = (goal: ApiGoal) => {
     setEditingGoal(goal);
     setFormData({
@@ -175,8 +242,9 @@ export function GoalsManagement() {
           <Input id="goal-target" type="number" min="0.01" step="0.01" value={formData.targetAmount} onChange={(e) => setFormData((prev) => ({ ...prev, targetAmount: e.target.value }))} required />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="goal-current">Current amount</Label>
+          <Label htmlFor="goal-current">Available amount</Label>
           <Input id="goal-current" type="number" min="0" step="0.01" value={formData.currentAmount} onChange={(e) => setFormData((prev) => ({ ...prev, currentAmount: e.target.value }))} />
+          <p className="text-xs text-muted-foreground">Starting balance. Future changes can be recorded as fund activity.</p>
         </div>
       </div>
       <div className="space-y-2">
@@ -231,6 +299,126 @@ export function GoalsManagement() {
         </DialogContent>
       </Dialog>
 
+      <Dialog
+        open={activityGoalId !== null}
+        onOpenChange={(open) => {
+          if (!open && !savingActivity) setActivityGoalId(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record fund activity</DialogTitle>
+            <DialogDescription>
+              {activityGoal?.name} · {formatCurrency(activityGoal?.available_amount ?? 0)} available
+            </DialogDescription>
+          </DialogHeader>
+
+          {activityGoal && (
+            <form onSubmit={handleActivity} className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Activity</Label>
+                  <Select
+                    value={activityForm.type}
+                    onValueChange={(type: "contribution" | "spending") =>
+                      setActivityForm((current) => ({ ...current, type }))
+                    }
+                  >
+                    <SelectTrigger aria-label="Fund activity type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="contribution">Add funds</SelectItem>
+                      <SelectItem value="spending">Record spending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="goal-activity-amount">Amount</Label>
+                  <Input
+                    id="goal-activity-amount"
+                    type="number"
+                    min="0.01"
+                    max={activityForm.type === "spending" ? activityGoal.available_amount : undefined}
+                    step="0.01"
+                    value={activityForm.amount}
+                    onChange={(event) =>
+                      setActivityForm((current) => ({ ...current, amount: event.target.value }))
+                    }
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="goal-activity-date">Date</Label>
+                <Input
+                  id="goal-activity-date"
+                  type="date"
+                  value={activityForm.occurredOn}
+                  onChange={(event) =>
+                    setActivityForm((current) => ({ ...current, occurredOn: event.target.value }))
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="goal-activity-notes">Notes</Label>
+                <Input
+                  id="goal-activity-notes"
+                  maxLength={1000}
+                  value={activityForm.notes}
+                  onChange={(event) =>
+                    setActivityForm((current) => ({ ...current, notes: event.target.value }))
+                  }
+                  placeholder="Optional"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={savingActivity}>
+                {savingActivity
+                  ? "Recording..."
+                  : activityForm.type === "contribution"
+                    ? "Add Funds"
+                    : "Record Spending"}
+              </Button>
+            </form>
+          )}
+
+          <div className="border-t border-border/60 pt-4">
+            <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Activity history
+            </p>
+            {activitiesLoading ? (
+              <p className="text-sm text-muted-foreground">Loading activity...</p>
+            ) : !activityData || activityData.activities.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No fund activity recorded yet.</p>
+            ) : (
+              <div className="max-h-48 space-y-2 overflow-y-auto">
+                {activityData.activities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="flex items-start justify-between gap-3 rounded-xl bg-muted/30 px-3 py-2 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {activity.type === "contribution" ? "Funds added" : "Spent from fund"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatGoalDate(activity.occurred_on)}
+                        {activity.notes ? ` · ${activity.notes}` : ""}
+                      </p>
+                    </div>
+                    <span className="font-semibold tabular-nums">
+                      {activity.type === "contribution" ? "+" : "−"}
+                      {formatCurrency(activity.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {goals.length === 0 ? (
           <Card>
@@ -250,6 +438,9 @@ export function GoalsManagement() {
                     <p className="text-xs capitalize text-muted-foreground">{goal.category.replace(/_/g, " ")}</p>
                   </div>
                   <div className="flex gap-1">
+                    <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Record activity for ${goal.name}`} onClick={() => openActivity(goal)}>
+                      <CircleDollarSign className="h-3.5 w-3.5" />
+                    </Button>
                     <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Edit goal ${goal.name}`} onClick={() => openEdit(goal)}>
                       <Edit2 className="h-3.5 w-3.5" />
                     </Button>
@@ -260,13 +451,15 @@ export function GoalsManagement() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Saved</span>
-                  <span className="font-semibold tabular-nums">{formatCurrency(goal.current_amount)}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Target</span>
-                  <span className="font-semibold tabular-nums">{formatCurrency(goal.target_amount)}</span>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                  <span className="text-muted-foreground">Planned</span>
+                  <span className="text-right font-semibold tabular-nums">{formatCurrency(goal.target_amount)}</span>
+                  <span className="text-muted-foreground">Funded</span>
+                  <span className="text-right font-semibold tabular-nums">{formatCurrency(goal.funded_amount)}</span>
+                  <span className="text-muted-foreground">Spent</span>
+                  <span className="text-right font-semibold tabular-nums">{formatCurrency(goal.spent_amount)}</span>
+                  <span className="text-muted-foreground">Available</span>
+                  <span className="text-right font-semibold tabular-nums">{formatCurrency(goal.available_amount)}</span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(goal.progress, 100)}%` }} />

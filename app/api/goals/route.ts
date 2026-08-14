@@ -2,16 +2,22 @@ import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as goalsService from "@/lib/db/goals";
+import * as goalActivitiesService from "@/lib/db/goal-activities";
 import { getGoalFundingPlan } from "@/lib/goal-planning";
 
-function toGoal(row: Awaited<ReturnType<typeof goalsService.list>>[number], today: string) {
+function toGoal(
+  row: Awaited<ReturnType<typeof goalsService.list>>[number],
+  spentAmount: number,
+  today: string,
+) {
   const targetAmount = Number(row.targetAmount);
   const currentAmount = Number(row.currentAmount);
-  const remainingAmount = Math.max(targetAmount - currentAmount, 0);
-  const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
+  const fundedAmount = currentAmount + spentAmount;
+  const remainingAmount = Math.max(targetAmount - fundedAmount, 0);
+  const progress = targetAmount > 0 ? (fundedAmount / targetAmount) * 100 : 0;
   const fundingPlan = getGoalFundingPlan(
     targetAmount,
-    currentAmount,
+    fundedAmount,
     row.targetDate,
     today,
   );
@@ -22,6 +28,9 @@ function toGoal(row: Awaited<ReturnType<typeof goalsService.list>>[number], toda
     category: row.category,
     target_amount: targetAmount,
     current_amount: currentAmount,
+    available_amount: currentAmount,
+    funded_amount: fundedAmount,
+    spent_amount: spentAmount,
     remaining_amount: remainingAmount,
     progress,
     target_date: row.targetDate,
@@ -38,16 +47,24 @@ function toGoal(row: Awaited<ReturnType<typeof goalsService.list>>[number], toda
 export async function GET() {
   try {
     const { userId, workspaceId } = await requireAuthWithWorkspace();
-    const rows = await goalsService.list(userId, workspaceId);
-    const summary = await goalsService.getSummary(userId, workspaceId);
+    const [rows, spentByGoal] = await Promise.all([
+      goalsService.list(userId, workspaceId),
+      goalActivitiesService.getSpentByGoal(userId, workspaceId),
+    ]);
     const today = new Date().toISOString().slice(0, 10);
+    const apiGoals = rows.map((row) => toGoal(row, spentByGoal.get(row.id) ?? 0, today));
+    const activeGoals = apiGoals.filter((goal) => goal.is_active);
+    const totalTarget = activeGoals.reduce((sum, goal) => sum + goal.target_amount, 0);
+    const totalCurrent = activeGoals.reduce((sum, goal) => sum + goal.available_amount, 0);
+    const totalFunded = activeGoals.reduce((sum, goal) => sum + goal.funded_amount, 0);
 
     return NextResponse.json({
-      goals: rows.map((row) => toGoal(row, today)),
-      total_target: summary.totalTarget,
-      total_current: summary.totalCurrent,
-      active_count: summary.count,
-      completion_rate: summary.completionRate,
+      goals: apiGoals,
+      total_target: totalTarget,
+      total_current: totalCurrent,
+      total_funded: totalFunded,
+      active_count: activeGoals.length,
+      completion_rate: totalTarget > 0 ? (totalFunded / totalTarget) * 100 : 0,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
