@@ -46,7 +46,7 @@ function toGoal(
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const [rows, spentByGoal] = await Promise.all([
       goalsService.list(userId, workspaceId),
       goalActivitiesService.getSpentByGoal(userId, workspaceId),

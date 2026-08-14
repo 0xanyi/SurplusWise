@@ -21,7 +21,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id: outgoingId } = await params;
 
     const logs = await paymentLogService.listForOutgoing(userId, outgoingId, workspaceId);

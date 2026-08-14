@@ -36,7 +36,7 @@ function toBudget(budget: Record<string, unknown>) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
 
     const period = request.nextUrl.searchParams.get("period") as
       | "monthly"

@@ -3,13 +3,18 @@ import * as wsService from "@/lib/db/workspaces";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
-function toWorkspace(row: Awaited<ReturnType<typeof wsService.list>>[number]) {
+type WorkspaceRow =
+  | Awaited<ReturnType<typeof wsService.list>>[number]
+  | Awaited<ReturnType<typeof wsService.getOrCreateDefault>>;
+
+function toWorkspace(row: WorkspaceRow) {
   return {
     id: row.id,
     name: row.name,
     type: row.type,
     currency: row.currency,
     envelope_budgeting_enabled: row.envelopeBudgetingEnabled,
+    role: "role" in row ? row.role : "owner",
     is_default: row.isDefault,
     created_at: row.createdAt ? new Date(row.createdAt).toISOString() : null,
     updated_at: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,

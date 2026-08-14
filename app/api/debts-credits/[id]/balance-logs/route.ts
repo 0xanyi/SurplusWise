@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as debtsService from "@/lib/db/debts-credits";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
@@ -19,7 +19,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
     const logs = await debtsService.listBalanceLogs(userId, id);
@@ -48,7 +48,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 

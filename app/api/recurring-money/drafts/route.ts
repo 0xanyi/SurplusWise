@@ -40,7 +40,7 @@ function toDraft(row: Awaited<ReturnType<typeof draftsService.list>>[number]) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const periodMonth = request.nextUrl.searchParams.get("periodMonth") ?? currentPeriodMonth();
     const rows = await draftsService.list(userId, workspaceId, periodMonth);
     return NextResponse.json({

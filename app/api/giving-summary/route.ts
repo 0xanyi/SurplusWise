@@ -5,7 +5,7 @@ import { getAnnualSummary } from "@/lib/db/giving-summary";
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const rawYear = request.nextUrl.searchParams.get("year") ?? String(new Date().getFullYear());
     if (!/^\d{4}$/.test(rawYear) || Number(rawYear) < 1900) {
       return NextResponse.json(

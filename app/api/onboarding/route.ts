@@ -5,7 +5,7 @@ import { ZodError } from "zod";
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
     const status = await onboardingService.getStatus(userId, workspaceId);
     return NextResponse.json({ completed: status?.hasCompleted ?? false });
   } catch (error) {
@@ -18,7 +18,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
     const body = await request.json();
 
     await onboardingService.complete(userId, workspaceId, {

@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as debtsService from "@/lib/db/debts-credits";
 import { errorResponse } from "@/lib/api-errors";
 import { NextRequest, NextResponse } from "next/server";
@@ -9,7 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
     const row = await debtsService.getById(userId, id);
@@ -46,7 +46,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
@@ -120,7 +120,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace();
     const { id } = await params;
 
     await debtsService.remove(userId, id);

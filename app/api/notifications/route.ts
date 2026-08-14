@@ -12,7 +12,7 @@ const updateSchema = z.object({
 
 export async function POST() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
     const notifications = await notificationsService.listCurrent(userId, workspaceId);
     return NextResponse.json({
       notifications: notifications.map((notification) => ({
@@ -36,7 +36,7 @@ export async function POST() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
     const body = updateSchema.parse(await request.json());
     await notificationsService.markRead(userId, workspaceId, body.id, body.read);
     return NextResponse.json({ success: true });

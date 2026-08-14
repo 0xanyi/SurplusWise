@@ -29,7 +29,7 @@ function toInvestment(row: Record<string, unknown>) {
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const investments = await investmentsService.list(userId, workspaceId);
     const summary = await investmentsService.getSummary(userId, workspaceId);
 

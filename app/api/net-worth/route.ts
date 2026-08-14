@@ -4,7 +4,7 @@ import { getNetWorthSummary } from "@/lib/db/net-worth";
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const summary = await getNetWorthSummary(userId, workspaceId);
     return NextResponse.json(summary);
   } catch (error) {

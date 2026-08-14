@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as statementsService from "@/lib/db/debt-statements";
 import { errorResponse } from "@/lib/api-errors";
 import { NextRequest, NextResponse } from "next/server";
@@ -59,7 +59,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
     const [statements, draft] = await Promise.all([
@@ -86,7 +86,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 

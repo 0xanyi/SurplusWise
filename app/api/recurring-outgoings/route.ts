@@ -36,7 +36,7 @@ function getCurrentPeriodMonth() {
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const outgoings = await outgoingsService.list(userId, workspaceId, undefined, "expense");
     const summary = await outgoingsService.getMonthlyTotal(userId, workspaceId);
 

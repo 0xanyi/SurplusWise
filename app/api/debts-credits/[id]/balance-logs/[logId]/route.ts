@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/auth-server";
+import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as debtsService from "@/lib/db/debts-credits";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -7,7 +7,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; logId: string }> },
 ) {
   try {
-    const userId = await requireAuth();
+    const { userId } = await requireAuthWithWorkspace();
     const { id, logId } = await params;
 
     await debtsService.removeBalanceLog(userId, id, logId);

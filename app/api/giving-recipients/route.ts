@@ -19,7 +19,7 @@ function toRecipient(row: Awaited<ReturnType<typeof givingService.list>>[number]
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const activeOnly = request.nextUrl.searchParams.get("active") === "true";
     const rows = await givingService.list(userId, workspaceId, activeOnly);
     return NextResponse.json({ recipients: rows.map(toRecipient) });

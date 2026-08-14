@@ -9,7 +9,7 @@ type RouteParams = { params: Promise<{ id: string; documentId: string }> };
 
 export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id, documentId } = await params;
     const document = await documentsService.get(userId, workspaceId, id, documentId);
     if (/^https?:\/\//i.test(document.storageKey)) {
