@@ -24,6 +24,8 @@ export interface DateRange {
   endDate: string;
 }
 
+export type ComparisonMode = "previous-period" | "previous-year";
+
 function parseUtcDate(date: string) {
   return new Date(`${date}T00:00:00.000Z`);
 }
@@ -91,6 +93,30 @@ export function getPreviousDateRange(range: DateRange): DateRange {
     startDate: addUtcDays(previousEnd, -(durationDays - 1)),
     endDate: previousEnd,
   };
+}
+
+function subtractUtcYear(date: string) {
+  const current = parseUtcDate(date);
+  const year = current.getUTCFullYear() - 1;
+  const month = current.getUTCMonth();
+  const lastDayOfMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const day = Math.min(current.getUTCDate(), lastDayOfMonth);
+
+  return formatUtcDate(new Date(Date.UTC(year, month, day)));
+}
+
+export function getComparisonDateRange(
+  range: DateRange,
+  mode: ComparisonMode,
+): DateRange {
+  if (mode === "previous-year") {
+    return {
+      startDate: subtractUtcYear(range.startDate),
+      endDate: subtractUtcYear(range.endDate),
+    };
+  }
+
+  return getPreviousDateRange(range);
 }
 
 // ─── Budget usage math ──────────────────────────────────────────────────────

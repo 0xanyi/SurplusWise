@@ -19,6 +19,7 @@ import { TRANSACTION_CHANGED_EVENT } from "@/lib/client-events";
 import { buildMonthlySeries } from "@/lib/report-series";
 
 type Period = "weekly" | "monthly" | "quarterly" | "yearly" | "custom";
+type ComparisonMode = "previous-period" | "previous-year";
 
 interface DateRange {
   startDate: string;
@@ -64,6 +65,7 @@ interface AnalyticsData {
   monthlyTrends: { month: string; expenses: number; givings: number; income: number }[];
   period: DateRange;
   previousPeriod: DateRange;
+  comparisonMode: ComparisonMode;
   comparisons: AnalyticsComparisons;
   costOfBorrowing?: {
     interest: number;
@@ -239,6 +241,8 @@ function CategoryList({
 export function AnalyticsCharts() {
   const { toast } = useToast();
   const [period, setPeriod] = useState<Period>("yearly");
+  const [comparisonMode, setComparisonMode] =
+    useState<ComparisonMode>("previous-period");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [loading, setLoading] = useState(true);
@@ -247,7 +251,7 @@ export function AnalyticsCharts() {
   const fetchAnalytics = useCallback(async () => {
     setLoading(true);
     try {
-      let url = `/api/analytics?period=${period}`;
+      let url = `/api/analytics?period=${period}&comparison=${comparisonMode}`;
       if (period === "custom" && startDate && endDate) {
         url += `&startDate=${startDate}&endDate=${endDate}`;
       }
@@ -266,7 +270,7 @@ export function AnalyticsCharts() {
     } finally {
       setLoading(false);
     }
-  }, [period, startDate, endDate, toast]);
+  }, [comparisonMode, period, startDate, endDate, toast]);
 
   useEffect(() => {
     if (period === "custom" && (!startDate || !endDate)) {
@@ -440,25 +444,55 @@ export function AnalyticsCharts() {
             <div className="flex items-center gap-2">
               <input
                 type="date"
+                aria-label="Report start date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
+                max={endDate || undefined}
                 className="h-9 rounded-md border bg-background px-2 text-sm"
               />
               <span className="text-sm text-muted-foreground">to</span>
               <input
                 type="date"
+                aria-label="Report end date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
+                min={startDate || undefined}
                 className="h-9 rounded-md border bg-background px-2 text-sm"
               />
             </div>
           )}
         </div>
 
-        <Button variant="outline" size="sm" onClick={exportCsv}>
-          <Download className="size-4" />
-          Export CSV
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            role="group"
+            aria-label="Comparison baseline"
+            className="flex rounded-md border p-0.5"
+          >
+            {([
+              ["previous-period", "Previous period"],
+              ["previous-year", "Previous year"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={comparisonMode === value}
+                onClick={() => setComparisonMode(value)}
+                className={`rounded px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  comparisonMode === value
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={exportCsv}>
+            <Download className="size-4" />
+            Export CSV
+          </Button>
+        </div>
       </div>
 
       {periodSummary && (

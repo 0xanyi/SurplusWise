@@ -611,6 +611,18 @@ describe("analyticsQuerySchema", () => {
       analyticsQuerySchema.parse({ period: "month" }),
     );
   });
+  it("accepts both supported comparison baselines", () => {
+    for (const comparison of ["previous-period", "previous-year"]) {
+      assert.doesNotThrow(() =>
+        analyticsQuerySchema.parse({ period: "year", comparison }),
+      );
+    }
+  });
+  it("rejects an unsupported comparison baseline", () => {
+    assert.throws(() =>
+      analyticsQuerySchema.parse({ period: "year", comparison: "all-time" }),
+    );
+  });
   it("accepts custom with both dates", () => {
     assert.doesNotThrow(() =>
       analyticsQuerySchema.parse({
