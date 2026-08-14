@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Plus, Edit2, Trash2, TrendingDown, TrendingUp, AlertTriangle } from "lucide-react";
+import { Plus, Edit2, Trash2, TrendingDown, TrendingUp, AlertTriangle, CopyPlus } from "lucide-react";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
 import type { ApiBudget, TransactionType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
+import { getCurrentBudgetRange, getNextBudgetRange } from "@/lib/budget-periods";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,13 @@ const getBudgetStatus = (percentage: number) => {
   return "ok" as const;
 };
 
+const formatBudgetDate = (date: string) =>
+  new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
 export function BudgetManagement() {
   const { toast } = useToast();
   const {
@@ -53,6 +61,7 @@ export function BudgetManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [copyingBudgetId, setCopyingBudgetId] = useState<string | null>(null);
   const [editingBudget, setEditingBudget] = useState<ApiBudget | null>(null);
 
   const [formData, setFormData] = useState({
@@ -66,31 +75,6 @@ export function BudgetManagement() {
     () => (categories ?? []).filter((c) => c.type === formData.type),
     [categories, formData.type]
   );
-
-  const calculateDateRange = (period: BudgetPeriod) => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    let end: Date;
-
-    switch (period) {
-      case "monthly":
-        end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        break;
-      case "quarterly": {
-        const quarter = Math.floor(now.getMonth() / 3);
-        end = new Date(now.getFullYear(), (quarter + 1) * 3, 0);
-        break;
-      }
-      case "yearly":
-        end = new Date(now.getFullYear(), 11, 31);
-        break;
-    }
-
-    return {
-      startDate: start.toISOString().split("T")[0],
-      endDate: end.toISOString().split("T")[0],
-    };
-  };
 
   const resetForm = () => {
     setFormData({ category: "", amount: "", period: "monthly", type: "expense" });
@@ -108,7 +92,7 @@ export function BudgetManagement() {
 
     setSaving(true);
     try {
-      const { startDate, endDate } = calculateDateRange(formData.period);
+      const { startDate, endDate } = getCurrentBudgetRange(formData.period);
       await apiFetch("/api/budgets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,6 +157,29 @@ export function BudgetManagement() {
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to delete budget";
       toast({ title: "Error", description: message, variant: "destructive" });
+    }
+  };
+
+  const handleCopyForward = async (budget: ApiBudget) => {
+    const next = getNextBudgetRange(budget.end_date, budget.period);
+    if (
+      !confirm(
+        `Copy “${budget.category}” to ${formatBudgetDate(next.startDate)} – ${formatBudgetDate(next.endDate)}? The current period will be archived.`,
+      )
+    ) {
+      return;
+    }
+
+    setCopyingBudgetId(budget.id);
+    try {
+      await apiFetch(`/api/budgets/${budget.id}/copy-forward`, { method: "POST" });
+      toast({ title: "Success", description: "Budget copied to the next period" });
+      refreshBudgets();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to copy budget";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    } finally {
+      setCopyingBudgetId(null);
     }
   };
 
@@ -360,10 +367,23 @@ export function BudgetManagement() {
                         <p className="text-xs text-muted-foreground capitalize">
                           {budget.period} {budget.type}
                         </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatBudgetDate(budget.start_date)} – {formatBudgetDate(budget.end_date)}
+                        </p>
                       </div>
                     </div>
 
                     <div className="flex gap-1">
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        aria-label={`Copy ${budget.category} budget to the next period`}
+                        disabled={copyingBudgetId !== null}
+                        onClick={() => handleCopyForward(budget)}
+                      >
+                        <CopyPlus className="h-3.5 w-3.5" />
+                      </Button>
                       <Button size="icon" variant="ghost" className="h-8 w-8" aria-label={`Edit ${budget.category} budget`} onClick={() => openEditDialog(budget)}>
                         <Edit2 className="h-3.5 w-3.5" />
                       </Button>
