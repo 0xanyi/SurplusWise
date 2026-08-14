@@ -39,14 +39,14 @@ export function NotificationsInbox() {
   }
   if (data.notifications.length === 0) {
     return (
-      <Card><EmptyState icon={Bell} title="Nothing needs your attention" description="Due income and payments will appear here during the seven days before their date." /></Card>
+      <Card><EmptyState icon={Bell} title="Nothing needs your attention" description="Due money and imported transactions needing review will appear here." /></Card>
     );
   }
 
   return (
     <Card className="overflow-hidden">
       <div className="border-b border-border/60 px-5 py-4 text-sm text-muted-foreground sm:px-6">
-        {data.unread} unread · Due money appears seven days ahead
+        {data.unread} unread · Due money and review items
       </div>
       <ul>
         {data.notifications.map((notification) => (
@@ -64,7 +64,12 @@ export function NotificationsInbox() {
                 <p className="font-medium">{notification.title}</p>
                 <p className="font-semibold tabular-nums">{formatCurrency(notification.amount, currency)}</p>
               </div>
-              <p className={cn("mt-1 text-sm", notification.days_until_due <= 0 ? "text-expense" : "text-muted-foreground")}>
+              <p className={cn(
+                "mt-1 text-sm",
+                notification.kind === "due_money" && notification.days_until_due !== null && notification.days_until_due <= 0
+                  ? "text-expense"
+                  : "text-muted-foreground",
+              )}>
                 {notification.description}
               </p>
             </Link>

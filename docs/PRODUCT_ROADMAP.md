@@ -69,8 +69,8 @@ of a recipient.
 - Draft generation and matching against imported transactions — implemented
 - Variable expected amounts and partial settlement — implemented
 - Unified financial calendar — recurring money and debt due dates implemented
-- Self-hosted Web Push and optional SMTP delivery — implemented for due money
-- Notifications for due money, review items, budget limits, and stale backups — in-app due-money foundation implemented
+- Self-hosted Web Push and optional SMTP delivery — implemented for due money and review items
+- Notifications for due money, review items, budget limits, and stale backups — due money and review items implemented
 
 ## Phase 5 — Planning and resilience
 

@@ -206,14 +206,14 @@ type PushSender = (
 
 export interface DispatchSummary {
   subscriptions: number;
-  due: number;
+  notifications: number;
   sent: number;
   skipped: number;
   failed: number;
   disabled: number;
 }
 
-export async function dispatchDuePush(options: { today?: string; send?: PushSender } = {}) {
+export async function dispatchPushNotifications(options: { today?: string; send?: PushSender } = {}) {
   const config = getDeliveryConfiguration();
   const send = options.send ?? webpush.sendNotification.bind(webpush);
   const subscriptions = await db
@@ -238,40 +238,69 @@ export async function dispatchDuePush(options: { today?: string; send?: PushSend
 
   const summary: DispatchSummary = {
     subscriptions: subscriptions.length,
-    due: 0,
+    notifications: 0,
     sent: 0,
     skipped: 0,
     failed: 0,
     disabled: 0,
   };
-  const dueByWorkspace = new Map<string, Awaited<ReturnType<typeof notificationsService.listDue>>>();
+  const notificationsByWorkspace = new Map<
+    string,
+    Awaited<ReturnType<typeof notificationsService.listCurrent>>
+  >();
 
   for (const subscription of subscriptions) {
     const workspaceKey = `${subscription.userId}:${subscription.workspaceId}`;
-    let due = dueByWorkspace.get(workspaceKey);
-    if (!due) {
-      due = (await notificationsService.listDue(
+    let notifications = notificationsByWorkspace.get(workspaceKey);
+    if (!notifications) {
+      notifications = (await notificationsService.listCurrent(
         subscription.userId,
         subscription.workspaceId,
         options.today,
       )).filter((notification) => !notification.readAt);
-      dueByWorkspace.set(workspaceKey, due);
-      summary.due += due.length;
+      notificationsByWorkspace.set(workspaceKey, notifications);
+      summary.notifications += notifications.length;
     }
 
-    for (const notification of due) {
-      const deliveryId = await claimDelivery({
-        subscriptionId: subscription.id,
-        userId: subscription.userId,
-        workspaceId: subscription.workspaceId,
-        destinationKey: `push:${subscription.id}`,
-        eventKey: notification.id,
-        channel: "web_push",
-      });
-      if (!deliveryId) {
-        summary.skipped += 1;
-        continue;
+    const reviewItems = notifications.filter((notification) => notification.kind === "review_item");
+    const batches = [
+      ...notifications
+        .filter((notification) => notification.kind !== "review_item")
+        .map((notification) => [notification]),
+      ...(reviewItems.length > 0 ? [reviewItems] : []),
+    ];
+
+    for (const batch of batches) {
+      const claimed = [];
+      for (const notification of batch) {
+        const deliveryId = await claimDelivery({
+          subscriptionId: subscription.id,
+          userId: subscription.userId,
+          workspaceId: subscription.workspaceId,
+          destinationKey: `push:${subscription.id}`,
+          eventKey: notification.id,
+          channel: "web_push",
+        });
+        if (deliveryId) claimed.push({ deliveryId, notification });
+        else summary.skipped += 1;
       }
+      if (claimed.length === 0) continue;
+
+      const deliveryIds = claimed.map(({ deliveryId }) => deliveryId);
+      const notification = claimed[0].notification;
+      const payload = claimed.length > 1 && notification.kind === "review_item"
+        ? {
+            title: `${claimed.length} imported transactions need review`,
+            body: "Open Sika to classify them.",
+            href: notification.href,
+            tag: "transaction-review",
+          }
+        : {
+            title: notification.title,
+            body: notification.description,
+            href: notification.href,
+            tag: notification.id,
+          };
 
       try {
         await send(
@@ -279,12 +308,7 @@ export async function dispatchDuePush(options: { today?: string; send?: PushSend
             endpoint: subscription.endpoint,
             keys: { p256dh: subscription.p256dh, auth: subscription.auth },
           },
-          JSON.stringify({
-            title: notification.title,
-            body: notification.description,
-            href: notification.href,
-            tag: notification.id,
-          }),
+          JSON.stringify(payload),
           { TTL: 86_400, vapidDetails: config },
         );
       } catch (error) {
@@ -297,19 +321,19 @@ export async function dispatchDuePush(options: { today?: string; send?: PushSend
             .where(eq(pushSubscriptions.id, subscription.id));
           summary.disabled += 1;
         } else {
-          summary.failed += 1;
+          summary.failed += claimed.length;
         }
         // Failed attempts may be retried; successful delivery is the deduplication boundary.
-        await releaseDeliveries([deliveryId]);
+        await releaseDeliveries(deliveryIds);
         break;
       }
       const sentAt = new Date();
-      await completeDeliveries([deliveryId], sentAt);
+      await completeDeliveries(deliveryIds, sentAt);
       await db
         .update(pushSubscriptions)
         .set({ lastSuccessAt: sentAt, updatedAt: sentAt })
         .where(eq(pushSubscriptions.id, subscription.id));
-      summary.sent += 1;
+      summary.sent += claimed.length;
     }
   }
 

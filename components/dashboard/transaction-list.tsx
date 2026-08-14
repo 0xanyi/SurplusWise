@@ -94,6 +94,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   const [accountFilter, setAccountFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
+  const [locationFilterReady, setLocationFilterReady] = useState(false);
   const [tagFilter, setTagFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkCategory, setBulkCategory] = useState("");
@@ -144,9 +145,10 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   );
 
   useEffect(() => {
+    if (!locationFilterReady) return;
     setPage(0);
     loadPage(0, true);
-  }, [typeFilter, accountFilter, statusFilter, reviewFilter, tagFilter, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [typeFilter, accountFilter, statusFilter, reviewFilter, tagFilter, debouncedSearch, locationFilterReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (refreshKey > 0) {
@@ -155,10 +157,15 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   }, [refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (window.location.hash !== "#transaction-search") return;
-    requestAnimationFrame(() => {
-      document.getElementById("transaction-search")?.focus();
-    });
+    if (new URLSearchParams(window.location.search).get("needsReview") === "true") {
+      setReviewFilter("needs_review");
+    }
+    setLocationFilterReady(true);
+    if (window.location.hash === "#transaction-search") {
+      requestAnimationFrame(() => {
+        document.getElementById("transaction-search")?.focus();
+      });
+    }
   }, []);
 
   /**

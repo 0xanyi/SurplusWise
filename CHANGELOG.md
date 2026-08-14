@@ -25,8 +25,10 @@ All notable changes to Sika will be documented in this file.
   seven days, with live outstanding amounts, unread badges, and durable read state
 - Added optional workspace-scoped Web Push and SMTP delivery for unread due-money
   reminders, with a token-protected dispatcher and per-occurrence deduplication
+- Imported transactions needing classification now appear as live notifications
+  and disappear automatically when marked reviewed
 - Added integrity checks for incompatible attribution and safe type changes.
-  Additional alert types remain planned follow-up work
+  Budget-limit and stale-backup alerts remain planned follow-up work
 
 ### Giving recipients and funds
 

@@ -1,17 +1,18 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { db } from "@/db/client";
-import { pushSubscriptions, users, workspaces } from "@/db/schema";
+import { pushSubscriptions, transactions, users, workspaces } from "@/db/schema";
 import * as notificationsService from "@/lib/db/notifications";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
 import * as recurringMoneyService from "@/lib/db/recurring-outgoings";
+import * as transactionsService from "@/lib/db/transactions";
 import { getCurrentUtcDate } from "@/lib/outgoings-date";
 import { POST as dispatchRoute } from "@/app/api/notifications/dispatch/route";
 import {
   PushConfigurationError,
-  dispatchDuePush,
+  dispatchPushNotifications,
   getSubscriptionStatus,
   subscribe,
   unsubscribe,
@@ -61,7 +62,7 @@ describe("Web Push configuration", () => {
     process.env.WEB_PUSH_VAPID_PUBLIC_KEY = "public";
     delete process.env.WEB_PUSH_VAPID_PRIVATE_KEY;
     delete process.env.WEB_PUSH_VAPID_SUBJECT;
-    await assert.rejects(() => dispatchDuePush(), PushConfigurationError);
+    await assert.rejects(() => dispatchPushNotifications(), PushConfigurationError);
   });
 });
 
@@ -183,27 +184,27 @@ describe(
         const send = async (subscription: { endpoint: string }, payload: string) => {
           payloads.push({ endpoint: subscription.endpoint, payload: JSON.parse(payload) });
         };
-        const firstRun = await dispatchDuePush({ today, send });
+        const firstRun = await dispatchPushNotifications({ today, send });
         assert.equal(firstRun.sent, 2, "each enabled device receives the occurrence once");
-        assert.equal(firstRun.due, 1, "settled items are not due");
+        assert.equal(firstRun.notifications, 1, "settled items are not due");
         assert.equal(payloads.every(({ payload }) => payload.title === "Monthly salary"), true);
         assert.equal(JSON.stringify(firstRun).includes("private"), false, "summary must not contain secrets");
 
-        const repeat = await dispatchDuePush({ today, send });
+        const repeat = await dispatchPushNotifications({ today, send });
         assert.equal(repeat.sent, 0);
         assert.equal(repeat.skipped, 2, "repeated dispatch is deduplicated per device");
 
         const salaryNotification = (await notificationsService.listDue(userId, workspaceId, today))
           .find((notification) => notification.title === salary.name)!;
         await notificationsService.markRead(userId, workspaceId, salaryNotification.id, true);
-        const readRun = await dispatchDuePush({ today, send });
-        assert.equal(readRun.due, 0, "read in-app occurrences are not pushed");
+        const readRun = await dispatchPushNotifications({ today, send });
+        assert.equal(readRun.notifications, 0, "read in-app occurrences are not pushed");
 
-        const nextMonthRun = await dispatchDuePush({ today: nextMonth, send });
+        const nextMonthRun = await dispatchPushNotifications({ today: nextMonth, send });
         assert.equal(nextMonthRun.sent, 4, "new monthly occurrences have new stable event keys");
 
         await unsubscribe(userId, workspaceId, first.endpoint);
-        const disabled = await dispatchDuePush({ today: followingMonth, send });
+        const disabled = await dispatchPushNotifications({ today: followingMonth, send });
         assert.equal(disabled.subscriptions, 0, "workspace opt-out disables all of its devices");
         assert.equal(
           (await getSubscriptionStatus(userId, workspaceId, first.endpoint)).enabled,
@@ -214,7 +215,7 @@ describe(
         await subscribe(userId, workspaceId, second);
         const permanentFailure = Object.assign(new Error("Gone"), { statusCode: 410 });
         let failedEndpoint: string | null = null;
-        const staleRun = await dispatchDuePush({
+        const staleRun = await dispatchPushNotifications({
           today: followingMonth,
           send: async (subscription, payload) => {
             if (!failedEndpoint) {
@@ -236,7 +237,7 @@ describe(
           );
         assert.equal(stale.enabled, false, "410 disables the stale browser subscription");
 
-        const notFoundRun = await dispatchDuePush({
+        const notFoundRun = await dispatchPushNotifications({
           today: laterMonth,
           send: async () => {
             throw Object.assign(new Error("Not found"), { statusCode: 404 });
@@ -245,7 +246,7 @@ describe(
         assert.equal(notFoundRun.disabled, 1, "404 also disables a stale subscription");
 
         await subscribe(userId, workspaceId, first);
-        const transient = await dispatchDuePush({
+        const transient = await dispatchPushNotifications({
           today: retryMonth,
           send: async () => {
             throw Object.assign(new Error("Push service unavailable"), { statusCode: 503 });
@@ -257,8 +258,36 @@ describe(
           true,
           "transient failures retain the subscription",
         );
-        const retried = await dispatchDuePush({ today: retryMonth, send });
+        const retried = await dispatchPushNotifications({ today: retryMonth, send });
         assert.equal(retried.sent, 2, "transient failures release claims for a later retry");
+
+        const reviewable = await transactionsService.create(userId, workspaceId, {
+          amount: 18,
+          date: retryMonth,
+          type: "expense",
+          category: "Uncategorized",
+          payee: "Review me",
+        });
+        const secondReviewable = await transactionsService.create(userId, workspaceId, {
+          amount: 12,
+          date: retryMonth,
+          type: "expense",
+          category: "Uncategorized",
+          payee: "Review me too",
+        });
+        await db
+          .update(transactions)
+          .set({ needsReview: true })
+          .where(inArray(transactions.id, [reviewable.id, secondReviewable.id]));
+        const payloadCount = payloads.length;
+        const reviewRun = await dispatchPushNotifications({ today: retryMonth, send });
+        assert.equal(reviewRun.sent, 2, "each review item receives a durable delivery claim");
+        assert.equal(payloads.length, payloadCount + 1, "review items are grouped into one push");
+        assert.equal(payloads.at(-1)?.payload.title, "2 imported transactions need review");
+        assert.equal(
+          payloads.at(-1)?.payload.href,
+          "/dashboard/transactions?needsReview=true",
+        );
       } finally {
         await db.delete(users).where(eq(users.id, userId));
       }

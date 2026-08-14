@@ -52,7 +52,7 @@ export function EmailNotificationSettings() {
       toast({
         title: enabled ? "Email reminders enabled" : "Email reminders disabled",
         description: enabled
-          ? "Unread due-money reminders will be sent to your account email."
+          ? "Unread reminders will be sent to your account email."
           : "Email delivery is off for this workspace.",
       });
     } catch (error) {
@@ -81,7 +81,7 @@ export function EmailNotificationSettings() {
           </h2>
         </div>
         <CardDescription>
-          Receive one email digest containing unread income and payments that are due soon.
+          Receive one digest containing unread due money and imported transactions needing review.
         </CardDescription>
       </CardHeader>
       <CardContent>
