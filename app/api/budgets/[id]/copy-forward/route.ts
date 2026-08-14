@@ -4,13 +4,21 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { userId, workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
-    const budget = await budgetsService.copyForward(userId, workspaceId, id);
+    const body: unknown = await request.json().catch(() => ({}));
+    const carryRemaining =
+      typeof body === "object" &&
+      body !== null &&
+      "carryRemaining" in body &&
+      body.carryRemaining === true;
+    const budget = await budgetsService.copyForward(userId, workspaceId, id, {
+      carryRemaining,
+    });
 
     return NextResponse.json({ id: budget.id });
   } catch (error) {
@@ -34,6 +42,9 @@ export async function POST(
       (error.message.includes("already been copied") || error.message.includes("already exists"))
     ) {
       return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    if (error instanceof Error && error.message.includes("Rollover is only available")) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
     console.error("Failed to copy budget forward:", error);
     return NextResponse.json({ error: "Failed to copy budget forward" }, { status: 500 });
