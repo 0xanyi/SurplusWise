@@ -2,12 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as goalsService from "@/lib/db/goals";
+import { getGoalFundingPlan } from "@/lib/goal-planning";
 
-function toGoal(row: Awaited<ReturnType<typeof goalsService.list>>[number]) {
+function toGoal(row: Awaited<ReturnType<typeof goalsService.list>>[number], today: string) {
   const targetAmount = Number(row.targetAmount);
   const currentAmount = Number(row.currentAmount);
   const remainingAmount = Math.max(targetAmount - currentAmount, 0);
   const progress = targetAmount > 0 ? (currentAmount / targetAmount) * 100 : 0;
+  const fundingPlan = getGoalFundingPlan(
+    targetAmount,
+    currentAmount,
+    row.targetDate,
+    today,
+  );
 
   return {
     id: row.id,
@@ -18,6 +25,9 @@ function toGoal(row: Awaited<ReturnType<typeof goalsService.list>>[number]) {
     remaining_amount: remainingAmount,
     progress,
     target_date: row.targetDate,
+    funding_status: fundingPlan.fundingStatus,
+    months_remaining: fundingPlan.monthsRemaining,
+    monthly_contribution: fundingPlan.monthlyContribution,
     notes: row.notes,
     is_active: row.isActive,
     created_at: row.createdAt ? new Date(row.createdAt).toISOString() : null,
@@ -30,9 +40,10 @@ export async function GET() {
     const { userId, workspaceId } = await requireAuthWithWorkspace();
     const rows = await goalsService.list(userId, workspaceId);
     const summary = await goalsService.getSummary(userId, workspaceId);
+    const today = new Date().toISOString().slice(0, 10);
 
     return NextResponse.json({
-      goals: rows.map(toGoal),
+      goals: rows.map((row) => toGoal(row, today)),
       total_target: summary.totalTarget,
       total_current: summary.totalCurrent,
       active_count: summary.count,
