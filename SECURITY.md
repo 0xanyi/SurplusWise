@@ -39,7 +39,9 @@ Sika is self-hosted, so the security of your deployment is largely in your hands
   cookies are issued with the correct domain and secure flags.
 - **Keep the container updated.** Dependency advisories are checked in CI, but
   that only helps if you pull new images.
-- **Back up your database.** Sika has no built-in backup mechanism.
+- **Back up your database.** Sika does not create backups. If backup monitoring
+  is enabled, keep `BACKUP_REPORT_TOKEN` secret and report only after archive
+  validation succeeds.
 
 ## Third-party services
 

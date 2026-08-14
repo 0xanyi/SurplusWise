@@ -112,6 +112,7 @@ Use the exact command/order runbook here:
 | `WEB_PUSH_VAPID_PRIVATE_KEY` | No | VAPID private key (keep secret) |
 | `WEB_PUSH_VAPID_SUBJECT` | No | Operator contact URI, e.g. `mailto:admin@example.com` |
 | `NOTIFICATION_DISPATCH_TOKEN` | No | Bearer token protecting the cron dispatcher |
+| `BACKUP_REPORT_TOKEN` | No | Bearer token for a validated backup job to report success |
 | `SMTP_URL` | No | SMTP connection URL; URL-encode credentials |
 | `SMTP_FROM` | No | Sender mailbox, e.g. `Sika <sika@example.com>` |
 | `OPENAI_API_KEY` | No | For AI-powered receipt scanning |
@@ -133,6 +134,12 @@ then create an hourly system cron job that sends `POST` to
 `$NEXT_PUBLIC_SITE_URL/api/notifications/dispatch` with
 `Authorization: Bearer $NOTIFICATION_DISPATCH_TOKEN`. Keep the token in the
 header rather than a query string so proxies do not record it in URLs.
+
+To enable backup status monitoring, generate `BACKUP_REPORT_TOKEN` independently.
+After your external backup job has successfully created and validated its archive,
+send `POST` to `$NEXT_PUBLIC_SITE_URL/api/backup-status/report` with
+`Authorization: Bearer $BACKUP_REPORT_TOKEN`. Do not report before validation:
+Sika records the report as evidence of success but does not create the backup.
 
 ## Troubleshooting
 

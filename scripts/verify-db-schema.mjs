@@ -23,6 +23,7 @@ const REQUIRED_TABLES = [
   "push_notification_preferences",
   "push_subscriptions",
   "notification_deliveries",
+  "backup_status",
 ];
 
 // Columns that guarantee latest migrations have been applied.
@@ -48,6 +49,7 @@ const REQUIRED_COLUMNS = [
   { table: "push_subscriptions", column: "endpoint" },
   { table: "notification_deliveries", column: "event_key" },
   { table: "notification_deliveries", column: "destination_key" },
+  { table: "backup_status", column: "last_successful_at" },
 ];
 
 const REQUIRED_INDEXES = ["users_singleton"];

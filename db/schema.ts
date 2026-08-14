@@ -348,6 +348,13 @@ export const notificationDeliveries = pgTable(
   ],
 );
 
+/** Last successful backup reported by an operator-controlled validation job. */
+export const backupStatus = pgTable("backup_status", {
+  id: text("id").primaryKey(),
+  lastSuccessfulAt: timestamp("last_successful_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const goalCategoryEnum = pgEnum("goal_category", [
   "emergency_fund",
   "savings",

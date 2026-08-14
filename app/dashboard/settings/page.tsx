@@ -7,9 +7,11 @@ import { SettingsNav, type SettingsSection } from "@/components/dashboard/settin
 import { TransactionRulesManagement } from "@/components/dashboard/transaction-rules-management";
 import { PushNotificationSettings } from "@/components/dashboard/push-notification-settings";
 import { EmailNotificationSettings } from "@/components/dashboard/email-notification-settings";
+import { BackupStatusSettings } from "@/components/dashboard/backup-status-settings";
 
 const sections: SettingsSection[] = [
   { id: "notifications", label: "Notifications" },
+  { id: "data-resilience", label: "Data resilience" },
   { id: "ai-provider", label: "AI provider" },
   { id: "budgets", label: "Budgets" },
   { id: "categories", label: "Categories" },
@@ -29,6 +31,10 @@ export default function SettingsPage() {
           <section id="notifications" className="scroll-mt-6 space-y-[18px]">
             <PushNotificationSettings />
             <EmailNotificationSettings />
+          </section>
+
+          <section id="data-resilience" className="scroll-mt-6">
+            <BackupStatusSettings />
           </section>
 
           <section id="ai-provider" className="scroll-mt-6">

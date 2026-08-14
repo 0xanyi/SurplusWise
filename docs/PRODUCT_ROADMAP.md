@@ -79,7 +79,7 @@ of a recipient.
 - Optional envelope budgeting
 - Full JSON/ZIP export of all workspace data and receipt files
 - Validated backup and restore commands
-- Backup status in Settings
+- Backup status in Settings — external validated-success reporting implemented
 - Custom reports and year-over-year comparisons
 
 ## Phase 6 — Shared finances

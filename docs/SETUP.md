@@ -106,6 +106,7 @@ In the application service → Environment:
 | `WEB_PUSH_VAPID_PRIVATE_KEY` | No | VAPID private key (keep secret) |
 | `WEB_PUSH_VAPID_SUBJECT` | No | Operator contact URI, e.g. `mailto:admin@example.com` |
 | `NOTIFICATION_DISPATCH_TOKEN` | No | Bearer token protecting `/api/notifications/dispatch` |
+| `BACKUP_REPORT_TOKEN` | No | Bearer token for a validated backup job to report success |
 | `SMTP_URL` | No | SMTP connection URL; URL-encode credentials |
 | `SMTP_FROM` | No | Sender mailbox, e.g. `Sika <sika@example.com>` |
 | `OPENAI_API_KEY` | No | For AI receipt scanning |
@@ -121,6 +122,12 @@ In the application service → Environment:
 | `SKIP_DB_SCHEMA_CHECK` | No | Keep `false` in production (enable startup schema gate) |
 | `DB_SCHEMA_CHECK_RETRIES` | No | DB readiness retries for schema check (default 20) |
 | `DB_SCHEMA_CHECK_RETRY_DELAY_MS` | No | Delay between retries in ms (default 2000) |
+
+Backup monitoring is opt-in and does not replace a backup job. After an external
+job creates and validates an archive, it should send `POST` to
+`$NEXT_PUBLIC_SITE_URL/api/backup-status/report` with
+`Authorization: Bearer $BACKUP_REPORT_TOKEN`. The Settings page then shows the
+last reported success. Never call the endpoint before archive validation succeeds.
 
 **Build args** (set in Build section):
 
