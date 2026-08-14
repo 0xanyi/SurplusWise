@@ -40,6 +40,13 @@ interface GoalsResponse {
   completion_rate: number;
 }
 
+const formatGoalDate = (date: string) =>
+  new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+
 export function GoalsManagement() {
   const { toast } = useToast();
   const { data, loading, refresh } = useApiQuery<GoalsResponse>("/api/goals");
@@ -175,6 +182,7 @@ export function GoalsManagement() {
       <div className="space-y-2">
         <Label htmlFor="goal-date">Target date</Label>
         <Input id="goal-date" type="date" value={formData.targetDate} onChange={(e) => setFormData((prev) => ({ ...prev, targetDate: e.target.value }))} />
+        <p className="text-xs text-muted-foreground">Optional. Add a date to calculate a monthly sinking-fund plan.</p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="goal-notes">Notes</Label>
@@ -266,6 +274,31 @@ export function GoalsManagement() {
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{formatCurrency(goal.remaining_amount)} remaining</span>
                   <span>{goal.progress.toFixed(0)}%</span>
+                </div>
+                <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-xs">
+                  {goal.funding_status === "complete" ? (
+                    <p className="font-medium">Fully funded</p>
+                  ) : goal.funding_status === "overdue" ? (
+                    <>
+                      <p className="font-medium text-expense">Target overdue</p>
+                      <p className="mt-1 text-muted-foreground">
+                        {formatCurrency(goal.remaining_amount)} is still needed
+                        {goal.target_date ? ` · target was ${formatGoalDate(goal.target_date)}` : ""}.
+                      </p>
+                    </>
+                  ) : goal.funding_status === "scheduled" && goal.monthly_contribution !== null && goal.target_date ? (
+                    <>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-muted-foreground">Monthly plan</span>
+                        <span className="font-semibold tabular-nums">{formatCurrency(goal.monthly_contribution)}</span>
+                      </div>
+                      <p className="mt-1 text-muted-foreground">
+                        {goal.months_remaining} {goal.months_remaining === 1 ? "month" : "months"} until {formatGoalDate(goal.target_date)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">Add a target date for a monthly funding plan.</p>
+                  )}
                 </div>
               </CardContent>
             </Card>

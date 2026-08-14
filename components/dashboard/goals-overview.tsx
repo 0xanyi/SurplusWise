@@ -90,7 +90,9 @@ export function GoalsOverview() {
               </div>
             </div>
             <span className="flex-none text-[13px] font-semibold text-muted-foreground tabular-nums">
-              {goal.progress.toFixed(0)}%
+              {goal.monthly_contribution !== null && goal.funding_status === "scheduled"
+                ? `${formatCurrency(goal.monthly_contribution)}/mo`
+                : `${goal.progress.toFixed(0)}%`}
             </span>
           </Link>
         ))}

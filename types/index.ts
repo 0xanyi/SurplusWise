@@ -214,6 +214,9 @@ export interface ApiGoal {
   remaining_amount: number
   progress: number
   target_date: string | null
+  funding_status: "undated" | "scheduled" | "overdue" | "complete"
+  months_remaining: number | null
+  monthly_contribution: number | null
   notes: string | null
   is_active: boolean
   created_at: string | null
