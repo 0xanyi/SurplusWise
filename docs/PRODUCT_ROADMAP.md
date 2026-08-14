@@ -77,7 +77,7 @@ of a recipient.
 - Budget copy-forward, unused-balance rollover, and dated sinking-fund plans — implemented
 - Fund-by-date targets and planned/funded/spent states — implemented
 - Optional workspace-level envelope budgeting — implemented for monthly plans
-- Full JSON/ZIP export of all workspace data and receipt files
+- Full JSON/ZIP export of all workspace data and receipt files — JSON workspace data implemented; ZIP receipt files pending
 - Validated backup and restore commands
 - Backup status in Settings — external validated-success reporting implemented
 - Custom reports and year-over-year comparisons

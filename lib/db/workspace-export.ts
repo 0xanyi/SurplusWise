@@ -1,0 +1,265 @@
+import { and, eq } from "drizzle-orm";
+import { db } from "@/db/client";
+import {
+  accountTransfers,
+  budgets,
+  categories,
+  clients,
+  debtBalanceLogs,
+  debtPayments,
+  debtStatements,
+  debtsCredits,
+  emailNotificationPreferences,
+  financialAccounts,
+  givingCommitments,
+  givingDesignations,
+  givingRecipients,
+  goalActivities,
+  goals,
+  investmentEvents,
+  investments,
+  loanRepayments,
+  loansGiven,
+  notificationStates,
+  onboardingStatus,
+  outgoingPaymentLogs,
+  pushNotificationPreferences,
+  recurringMoneyDraftSettlements,
+  recurringMoneyDrafts,
+  recurringOutgoings,
+  transactionDocuments,
+  transactionImportProfiles,
+  transactionRules,
+  transactions,
+  workspaces,
+} from "@/db/schema";
+
+export const WORKSPACE_EXPORT_FORMAT = "sika-workspace-export";
+export const WORKSPACE_EXPORT_VERSION = 1;
+
+/**
+ * User-owned, portable records included in a JSON workspace export.
+ *
+ * Authentication records, AI credentials, push subscription capabilities,
+ * delivery logs, and global backup status are intentionally not export data.
+ */
+export const WORKSPACE_EXPORT_DATASETS = [
+  "onboardingStatus",
+  "notificationStates",
+  "pushNotificationPreferences",
+  "emailNotificationPreferences",
+  "goals",
+  "goalActivities",
+  "clients",
+  "givingRecipients",
+  "givingDesignations",
+  "givingCommitments",
+  "financialAccounts",
+  "transactionImportProfiles",
+  "transactionRules",
+  "accountTransfers",
+  "transactions",
+  "transactionDocuments",
+  "categories",
+  "budgets",
+  "recurringOutgoings",
+  "recurringMoneyDrafts",
+  "recurringMoneyDraftSettlements",
+  "outgoingPaymentLogs",
+  "debtsCredits",
+  "debtBalanceLogs",
+  "debtPayments",
+  "debtStatements",
+  "loansGiven",
+  "loanRepayments",
+  "investments",
+  "investmentEvents",
+] as const;
+
+type ExportDatasets = {
+  [Key in (typeof WORKSPACE_EXPORT_DATASETS)[number]]: unknown[];
+};
+
+export interface WorkspaceExport {
+  format: typeof WORKSPACE_EXPORT_FORMAT;
+  version: typeof WORKSPACE_EXPORT_VERSION;
+  generatedAt: string;
+  workspace: typeof workspaces.$inferSelect;
+  data: ExportDatasets;
+}
+
+function childRows<Row>(rows: Array<{ child: Row }>): Row[] {
+  return rows.map(({ child }) => child);
+}
+
+type ExportTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+async function readWorkspaceExport(
+  tx: ExportTransaction,
+  userId: string,
+  workspaceId: string,
+  generatedAt: Date,
+): Promise<WorkspaceExport> {
+  const [workspace] = await tx
+    .select()
+    .from(workspaces)
+    .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
+    .limit(1);
+
+  if (!workspace) throw new Error("Workspace not found or unauthorized");
+
+  const [
+    onboarding,
+    states,
+    pushPreferences,
+    emailPreferences,
+    goalRows,
+    goalActivityRows,
+    clientRows,
+    recipientRows,
+    designationRows,
+    commitmentRows,
+    accountRows,
+    importProfileRows,
+    ruleRows,
+    transferRows,
+    transactionRows,
+    documentRows,
+    categoryRows,
+    budgetRows,
+    recurringRows,
+    draftRows,
+    settlementRows,
+    outgoingPaymentRows,
+    debtRows,
+    debtBalanceRows,
+    debtPaymentRows,
+    debtStatementRows,
+    loanRows,
+    repaymentRows,
+    investmentRows,
+    investmentEventRows,
+  ] = [
+    await tx.select().from(onboardingStatus).where(eq(onboardingStatus.workspaceId, workspaceId)),
+    await tx.select().from(notificationStates).where(eq(notificationStates.workspaceId, workspaceId)),
+    await tx.select().from(pushNotificationPreferences).where(eq(pushNotificationPreferences.workspaceId, workspaceId)),
+    await tx.select().from(emailNotificationPreferences).where(eq(emailNotificationPreferences.workspaceId, workspaceId)),
+    await tx.select().from(goals).where(eq(goals.workspaceId, workspaceId)),
+    await tx.select().from(goalActivities).where(eq(goalActivities.workspaceId, workspaceId)),
+    await tx.select().from(clients).where(eq(clients.workspaceId, workspaceId)),
+    await tx.select().from(givingRecipients).where(eq(givingRecipients.workspaceId, workspaceId)),
+    await tx.select().from(givingDesignations).where(eq(givingDesignations.workspaceId, workspaceId)),
+    await tx.select().from(givingCommitments).where(eq(givingCommitments.workspaceId, workspaceId)),
+    await tx.select().from(financialAccounts).where(eq(financialAccounts.workspaceId, workspaceId)),
+    await tx.select().from(transactionImportProfiles).where(eq(transactionImportProfiles.workspaceId, workspaceId)),
+    await tx.select().from(transactionRules).where(eq(transactionRules.workspaceId, workspaceId)),
+    await tx.select().from(accountTransfers).where(eq(accountTransfers.workspaceId, workspaceId)),
+    await tx.select({
+      id: transactions.id,
+      userId: transactions.userId,
+      workspaceId: transactions.workspaceId,
+      accountId: transactions.accountId,
+      amount: transactions.amount,
+      date: transactions.date,
+      type: transactions.type,
+      status: transactions.status,
+      needsReview: transactions.needsReview,
+      category: transactions.category,
+      payee: transactions.payee,
+      clientId: transactions.clientId,
+      givingRecipientId: transactions.givingRecipientId,
+      givingDesignationId: transactions.givingDesignationId,
+      notes: transactions.notes,
+      tags: transactions.tags,
+      importFingerprint: transactions.importFingerprint,
+      createdAt: transactions.createdAt,
+      updatedAt: transactions.updatedAt,
+    }).from(transactions).where(eq(transactions.workspaceId, workspaceId)),
+    await tx.select({
+      id: transactionDocuments.id,
+      userId: transactionDocuments.userId,
+      workspaceId: transactionDocuments.workspaceId,
+      transactionId: transactionDocuments.transactionId,
+      fileName: transactionDocuments.fileName,
+      mimeType: transactionDocuments.mimeType,
+      sizeBytes: transactionDocuments.sizeBytes,
+      createdAt: transactionDocuments.createdAt,
+    }).from(transactionDocuments).where(eq(transactionDocuments.workspaceId, workspaceId)),
+    await tx.select().from(categories).where(eq(categories.workspaceId, workspaceId)),
+    await tx.select().from(budgets).where(eq(budgets.workspaceId, workspaceId)),
+    await tx.select().from(recurringOutgoings).where(eq(recurringOutgoings.workspaceId, workspaceId)),
+    await tx.select().from(recurringMoneyDrafts).where(eq(recurringMoneyDrafts.workspaceId, workspaceId)),
+    await tx.select().from(recurringMoneyDraftSettlements).where(eq(recurringMoneyDraftSettlements.workspaceId, workspaceId)),
+    await tx.select({ child: outgoingPaymentLogs }).from(outgoingPaymentLogs)
+      .innerJoin(recurringOutgoings, eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id))
+      .where(eq(recurringOutgoings.workspaceId, workspaceId)),
+    await tx.select().from(debtsCredits).where(eq(debtsCredits.workspaceId, workspaceId)),
+    await tx.select({ child: debtBalanceLogs }).from(debtBalanceLogs)
+      .innerJoin(debtsCredits, eq(debtBalanceLogs.debtId, debtsCredits.id))
+      .where(eq(debtsCredits.workspaceId, workspaceId)),
+    await tx.select({ child: debtPayments }).from(debtPayments)
+      .innerJoin(debtsCredits, eq(debtPayments.debtId, debtsCredits.id))
+      .where(eq(debtsCredits.workspaceId, workspaceId)),
+    await tx.select({ child: debtStatements }).from(debtStatements)
+      .innerJoin(debtsCredits, eq(debtStatements.debtId, debtsCredits.id))
+      .where(eq(debtsCredits.workspaceId, workspaceId)),
+    await tx.select().from(loansGiven).where(eq(loansGiven.workspaceId, workspaceId)),
+    await tx.select({ child: loanRepayments }).from(loanRepayments)
+      .innerJoin(loansGiven, eq(loanRepayments.loanId, loansGiven.id))
+      .where(eq(loansGiven.workspaceId, workspaceId)),
+    await tx.select().from(investments).where(eq(investments.workspaceId, workspaceId)),
+    await tx.select({ child: investmentEvents }).from(investmentEvents)
+      .innerJoin(investments, eq(investmentEvents.investmentId, investments.id))
+      .where(eq(investments.workspaceId, workspaceId)),
+  ];
+
+  return {
+    format: WORKSPACE_EXPORT_FORMAT,
+    version: WORKSPACE_EXPORT_VERSION,
+    generatedAt: generatedAt.toISOString(),
+    workspace,
+    data: {
+      onboardingStatus: onboarding,
+      notificationStates: states,
+      pushNotificationPreferences: pushPreferences,
+      emailNotificationPreferences: emailPreferences,
+      goals: goalRows,
+      goalActivities: goalActivityRows,
+      clients: clientRows,
+      givingRecipients: recipientRows,
+      givingDesignations: designationRows,
+      givingCommitments: commitmentRows,
+      financialAccounts: accountRows,
+      transactionImportProfiles: importProfileRows,
+      transactionRules: ruleRows,
+      accountTransfers: transferRows,
+      transactions: transactionRows,
+      transactionDocuments: documentRows,
+      categories: categoryRows,
+      budgets: budgetRows,
+      recurringOutgoings: recurringRows,
+      recurringMoneyDrafts: draftRows,
+      recurringMoneyDraftSettlements: settlementRows,
+      outgoingPaymentLogs: childRows(outgoingPaymentRows),
+      debtsCredits: debtRows,
+      debtBalanceLogs: childRows(debtBalanceRows),
+      debtPayments: childRows(debtPaymentRows),
+      debtStatements: childRows(debtStatementRows),
+      loansGiven: loanRows,
+      loanRepayments: childRows(repaymentRows),
+      investments: investmentRows,
+      investmentEvents: childRows(investmentEventRows),
+    },
+  };
+}
+
+export async function createWorkspaceExport(
+  userId: string,
+  workspaceId: string,
+  generatedAt = new Date(),
+): Promise<WorkspaceExport> {
+  return db.transaction(
+    (tx) => readWorkspaceExport(tx, userId, workspaceId, generatedAt),
+    { isolationLevel: "repeatable read", accessMode: "read only" },
+  );
+}
