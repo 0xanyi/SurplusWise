@@ -79,8 +79,8 @@ The bundled `docker-compose.yml` is tuned for local use. For a public deployment
 - Set `POSTGRES_PASSWORD`, `BETTER_AUTH_SECRET`, and `SIKA_SETUP_TOKEN` to independently generated values
 - Put Sika behind a reverse proxy with TLS and set `NEXT_PUBLIC_SITE_URL` to the
   HTTPS origin
-- Set up database backups; Sika does not create them itself. It can record
-  validated successes when `BACKUP_REPORT_TOKEN` is configured
+- Schedule `npm run backup:create` and store its validated archive off-host.
+  See [Backup and restore](docs/BACKUP_AND_RESTORE.md)
 
 See [SECURITY.md](SECURITY.md) for the full checklist, and
 [DOKPLOY.md](DOKPLOY.md) if you deploy with Dokploy.

@@ -131,6 +131,10 @@ last reported success. Never call the endpoint before archive validation succeed
 When monitoring is configured, Sika alerts through the default workspace after
 48 hours without a reported success.
 
+Use Sika's validated PostgreSQL commands to create, inspect, and restore database
+archives. The full procedure and separate object-storage requirement are documented
+in [Backup and restore](./BACKUP_AND_RESTORE.md).
+
 **Build args** (set in Build section):
 
 | Arg | Description |

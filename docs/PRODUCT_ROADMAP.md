@@ -78,7 +78,7 @@ of a recipient.
 - Fund-by-date targets and planned/funded/spent states — implemented
 - Optional workspace-level envelope budgeting — implemented for monthly plans
 - Full JSON/ZIP export of all workspace data and receipt files — implemented
-- Validated backup and restore commands
+- Validated backup and restore commands — implemented
 - Backup status in Settings — external validated-success reporting implemented
 - Custom reports and year-over-year comparisons
 
