@@ -14,20 +14,22 @@ interface BackupStatus {
 
 export function BackupStatusSettings() {
   const { toast } = useToast();
-  const [exporting, setExporting] = useState(false);
+  const [exporting, setExporting] = useState<"json" | "zip" | null>(null);
   const { data: status, loading, error } = useApiQuery<BackupStatus>("/api/backup-status");
   const lastSuccess = status?.last_successful_at
     ? new Date(status.last_successful_at).toLocaleString()
     : null;
 
-  const downloadExport = async () => {
-    setExporting(true);
+  const downloadExport = async (format: "json" | "zip") => {
+    setExporting(format);
     try {
-      const blob = await apiFetchBlob("/api/workspace-export");
+      const blob = await apiFetchBlob(
+        format === "zip" ? "/api/workspace-export/archive" : "/api/workspace-export",
+      );
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `sika-workspace-${new Date().toISOString().slice(0, 10)}.json`;
+      anchor.download = `sika-workspace-${new Date().toISOString().slice(0, 10)}.${format}`;
       anchor.click();
       window.setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (error) {
@@ -37,7 +39,7 @@ export function BackupStatusSettings() {
         variant: "destructive",
       });
     } finally {
-      setExporting(false);
+      setExporting(null);
     }
   };
 
@@ -59,13 +61,19 @@ export function BackupStatusSettings() {
           <div>
             <p className="text-sm font-medium">Export this workspace</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Download financial records, plans, and settings as JSON. Attached files are not included yet.
+              Download JSON records alone, or a ZIP archive that also includes attached files and checksums.
             </p>
           </div>
-          <Button type="button" variant="outline" size="sm" onClick={() => void downloadExport()} disabled={exporting}>
-            {exporting ? <Loader2 className="animate-spin" /> : <Download />}
-            Export JSON
-          </Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => void downloadExport("json")} disabled={exporting !== null}>
+              {exporting === "json" ? <Loader2 className="animate-spin" /> : <Download />}
+              JSON
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => void downloadExport("zip")} disabled={exporting !== null}>
+              {exporting === "zip" ? <Loader2 className="animate-spin" /> : <Download />}
+              ZIP + files
+            </Button>
+          </div>
         </div>
         <div className="border-t border-border/60 py-3.5">
           {loading ? (
