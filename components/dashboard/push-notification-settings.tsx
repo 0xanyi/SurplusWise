@@ -161,7 +161,7 @@ export function PushNotificationSettings() {
           </h2>
         </div>
         <CardDescription>
-          Receive notifications for unread due money and imported transactions needing review.
+          Receive notifications for unread due money, import reviews, and budget limits.
         </CardDescription>
       </CardHeader>
       <CardContent>

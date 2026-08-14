@@ -176,6 +176,7 @@ export async function getWithSpending(
         .where(
           and(
             eq(transactions.userId, userId),
+            eq(transactions.workspaceId, workspaceId),
             eq(transactions.category, budget.category),
             eq(transactions.type, budget.type),
             gte(transactions.date, budget.startDate),
