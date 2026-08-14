@@ -31,8 +31,9 @@ All notable changes to Sika will be documented in this file.
   in-app inbox, Web Push, and SMTP
 - Added opt-in backup monitoring with a token-protected success-report endpoint
   and durable last-success status in Settings
+- Configured backup monitoring now alerts after 48 hours without a validated
+  success, through the in-app inbox, Web Push, and SMTP
 - Added integrity checks for incompatible attribution and safe type changes.
-  Stale-backup alerts remain planned follow-up work
 
 ### Giving recipients and funds
 

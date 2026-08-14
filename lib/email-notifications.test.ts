@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { transactions, users, workspaces } from "@/db/schema";
+import { backupStatus, transactions, users, workspaces } from "@/db/schema";
+import { reportBackupSuccess } from "@/lib/backup-status";
 import * as notificationsService from "@/lib/db/notifications";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
 import * as recurringMoneyService from "@/lib/db/recurring-outgoings";
@@ -19,6 +20,7 @@ const originalEnvironment = {
   smtpUrl: process.env.SMTP_URL,
   smtpFrom: process.env.SMTP_FROM,
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+  backupToken: process.env.BACKUP_REPORT_TOKEN,
 };
 
 afterEach(() => {
@@ -26,6 +28,7 @@ afterEach(() => {
     SMTP_URL: originalEnvironment.smtpUrl,
     SMTP_FROM: originalEnvironment.smtpFrom,
     NEXT_PUBLIC_SITE_URL: originalEnvironment.siteUrl,
+    BACKUP_REPORT_TOKEN: originalEnvironment.backupToken,
   })) {
     if (value === undefined) delete process.env[name];
     else process.env[name] = value;
@@ -196,7 +199,15 @@ describe(
         assert.equal(reviewRun.sent, 2, "review items use the same SMTP digest pipeline");
         assert.match(messages.at(-1)!.text, /Review imported transaction/);
         assert.match(messages.at(-1)!.text, /needsReview=true/);
+
+        process.env.BACKUP_REPORT_TOKEN = "email-backup-secret";
+        await reportBackupSuccess(new Date("2020-01-01T00:00:00Z"));
+        const backupRun = await dispatchEmailNotifications({ today: retryMonth, send });
+        assert.equal(backupRun.sent, 1, "stale backups use the same SMTP pipeline");
+        assert.match(messages.at(-1)!.text, /Database backup is stale/);
+        assert.equal(messages.at(-1)!.text.includes("£0.00"), false);
       } finally {
+        await db.delete(backupStatus);
         await db.delete(users).where(eq(users.id, userId));
       }
     });

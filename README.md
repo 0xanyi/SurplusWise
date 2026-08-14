@@ -153,7 +153,7 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - ✅ Toast notifications
 - ✅ Installable PWA with a privacy-safe offline fallback
 - ✅ Mobile-friendly design
-- ✅ In-app, Web Push, and SMTP reminders for due money, import review, and budget limits
+- ✅ In-app, Web Push, and SMTP reminders for due money, import review, budget limits, and stale backups
 
 ### Upcoming Features
 - 📱 Advanced filtering options

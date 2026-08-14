@@ -120,12 +120,18 @@ function messageFor(
     ? `${notifications[0].title} — ${notifications[0].description}`
     : `${notifications.length} reminders for ${workspace.name}`;
   const subject = rawSubject.replace(/[\r\n]+/g, " ");
-  const lines = notifications.map((notification) =>
-    `${notification.title}: ${formatCurrency(notification.amount, workspace.currency)} — ${notification.description}\n${new URL(notification.href, config.siteUrl).href}`,
-  );
+  const lines = notifications.map((notification) => {
+    const amount = notification.amount === null
+      ? ""
+      : `: ${formatCurrency(notification.amount, workspace.currency)}`;
+    return `${notification.title}${amount} — ${notification.description}\n${new URL(notification.href, config.siteUrl).href}`;
+  });
   const rows = notifications.map((notification) => {
     const href = new URL(notification.href, config.siteUrl).href;
-    return `<li style="margin:0 0 16px"><strong>${escapeHtml(notification.title)}</strong> — ${escapeHtml(formatCurrency(notification.amount, workspace.currency))}<br>${escapeHtml(notification.description)}<br><a href="${escapeHtml(href)}">Open in Sika</a></li>`;
+    const amount = notification.amount === null
+      ? ""
+      : ` — ${escapeHtml(formatCurrency(notification.amount, workspace.currency))}`;
+    return `<li style="margin:0 0 16px"><strong>${escapeHtml(notification.title)}</strong>${amount}<br>${escapeHtml(notification.description)}<br><a href="${escapeHtml(href)}">Open in Sika</a></li>`;
   }).join("");
 
   return {

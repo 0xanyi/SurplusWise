@@ -3,7 +3,8 @@ import { afterEach, describe, it } from "node:test";
 import { and, eq, inArray } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { db } from "@/db/client";
-import { pushSubscriptions, transactions, users, workspaces } from "@/db/schema";
+import { backupStatus, pushSubscriptions, transactions, users, workspaces } from "@/db/schema";
+import { reportBackupSuccess } from "@/lib/backup-status";
 import * as notificationsService from "@/lib/db/notifications";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
 import * as recurringMoneyService from "@/lib/db/recurring-outgoings";
@@ -24,6 +25,7 @@ const originalEnvironment = {
   privateKey: process.env.WEB_PUSH_VAPID_PRIVATE_KEY,
   subject: process.env.WEB_PUSH_VAPID_SUBJECT,
   token: process.env.NOTIFICATION_DISPATCH_TOKEN,
+  backupToken: process.env.BACKUP_REPORT_TOKEN,
 };
 
 afterEach(() => {
@@ -32,6 +34,7 @@ afterEach(() => {
     WEB_PUSH_VAPID_PRIVATE_KEY: originalEnvironment.privateKey,
     WEB_PUSH_VAPID_SUBJECT: originalEnvironment.subject,
     NOTIFICATION_DISPATCH_TOKEN: originalEnvironment.token,
+    BACKUP_REPORT_TOKEN: originalEnvironment.backupToken,
   })) {
     if (value === undefined) delete process.env[name];
     else process.env[name] = value;
@@ -288,7 +291,15 @@ describe(
           payloads.at(-1)?.payload.href,
           "/dashboard/transactions?needsReview=true",
         );
+
+        process.env.BACKUP_REPORT_TOKEN = "push-backup-secret";
+        await reportBackupSuccess(new Date("2020-01-01T00:00:00Z"));
+        const backupRun = await dispatchPushNotifications({ today: retryMonth, send });
+        assert.equal(backupRun.sent, 1, "stale backups use the same push pipeline");
+        assert.equal(payloads.at(-1)?.payload.title, "Database backup is stale");
+        assert.equal(payloads.at(-1)?.payload.href, "/dashboard/settings#data-resilience");
       } finally {
+        await db.delete(backupStatus);
         await db.delete(users).where(eq(users.id, userId));
       }
     });

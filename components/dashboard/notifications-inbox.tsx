@@ -39,7 +39,7 @@ export function NotificationsInbox() {
   }
   if (data.notifications.length === 0) {
     return (
-      <Card><EmptyState icon={Bell} title="Nothing needs your attention" description="Due money, import reviews, and budget limits will appear here." /></Card>
+      <Card><EmptyState icon={Bell} title="Nothing needs your attention" description="Due money, import reviews, budget limits, and stale backups will appear here." /></Card>
     );
   }
 
@@ -62,7 +62,9 @@ export function NotificationsInbox() {
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <p className="font-medium">{notification.title}</p>
-                <p className="font-semibold tabular-nums">{formatCurrency(notification.amount, currency)}</p>
+                {notification.amount !== null && (
+                  <p className="font-semibold tabular-nums">{formatCurrency(notification.amount, currency)}</p>
+                )}
               </div>
               <p className={cn(
                 "mt-1 text-sm",
