@@ -335,6 +335,7 @@ export const transactionUpdateSchema = z.object({
   accountId: idSchema.nullish(),
   status: transactionStatusSchema.optional(),
   needsReview: z.boolean().optional(),
+  assignedToUserId: idSchema.nullish(),
   category: z.string().min(1).optional(),
   payee: z.string().trim().max(200).nullish(),
   clientId: idSchema.nullish(),
@@ -349,12 +350,14 @@ export const transactionBulkUpdateSchema = z
   .object({
     ids: z.array(idSchema).min(1).max(100),
     needsReview: z.boolean().optional(),
+    assignedToUserId: idSchema.nullish(),
     category: z.string().trim().min(1).max(100).optional(),
     payee: z.string().trim().max(200).nullable().optional(),
   })
   .refine(
     (data) =>
       data.needsReview !== undefined ||
+      data.assignedToUserId !== undefined ||
       data.category !== undefined ||
       data.payee !== undefined,
     { message: "At least one bulk change is required" },
@@ -366,6 +369,7 @@ export const transactionListFiltersSchema = z
     accountId: idSchema.optional(),
     status: transactionStatusSchema.optional(),
     needsReview: z.boolean().optional(),
+    assignedToUserId: idSchema.nullish(),
     category: z.string().optional(),
     clientId: idSchema.optional(),
     tag: z.string().trim().min(1).max(30).optional(),

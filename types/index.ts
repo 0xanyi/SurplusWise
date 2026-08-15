@@ -112,6 +112,9 @@ export interface ApiTransaction {
   account_id: string | null
   status: TransactionStatus
   needs_review: boolean
+  assigned_to_user_id: string | null
+  reviewed_at: string | null
+  reviewed_by_user_id: string | null
   category: string
   payee: string | null
   client_id: string | null

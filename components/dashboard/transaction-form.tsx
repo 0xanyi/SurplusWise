@@ -33,6 +33,16 @@ import type {
 } from "@/types";
 
 const NO_ACCOUNT = "__unassigned__";
+const NO_REVIEWER = "__unassigned_reviewer__";
+
+type Reviewer = { userId: string; name: string };
+type ReviewEvent = {
+  id: string;
+  action: "assigned" | "unassigned" | "reviewed" | "reopened";
+  actor_name: string;
+  assigned_to_name: string | null;
+  created_at: string;
+};
 
 interface ApiCategory {
   id: string;
@@ -77,6 +87,12 @@ export function TransactionForm({
   );
   const categories = catData?.categories;
   const accounts = accountData?.accounts ?? [];
+  const { data: reviewerData } = useApiQuery<{ reviewers: Reviewer[] }>(
+    "/api/workspace-reviewers",
+  );
+  const { data: historyData } = useApiQuery<{ events: ReviewEvent[] }>(
+    transaction?.id ? `/api/transactions/${transaction.id}/review-history` : null,
+  );
 
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<"manual" | "scan">(defaultMode);
@@ -87,6 +103,7 @@ export function TransactionForm({
     type: defaultType,
     accountId: NO_ACCOUNT,
     status: "cleared" as TransactionStatus,
+    assignedToUserId: NO_REVIEWER,
     category: "",
     payee: "",
     clientId: NO_CLIENT,
@@ -106,6 +123,7 @@ export function TransactionForm({
         type: transaction.type,
         accountId: transaction.account_id ?? NO_ACCOUNT,
         status: transaction.status,
+        assignedToUserId: transaction.assigned_to_user_id ?? NO_REVIEWER,
         category: transaction.category,
         payee: transaction.payee ?? "",
         clientId: transaction.client_id ?? NO_CLIENT,
@@ -125,6 +143,7 @@ export function TransactionForm({
       type: defaultType,
       accountId: NO_ACCOUNT,
       status: "cleared",
+      assignedToUserId: NO_REVIEWER,
       category: "",
       payee: "",
       clientId: NO_CLIENT,
@@ -180,6 +199,10 @@ export function TransactionForm({
         accountId: formData.accountId === NO_ACCOUNT ? null : formData.accountId,
         status: formData.status,
         ...(transaction && { needsReview: false }),
+        ...(transaction && {
+          assignedToUserId:
+            formData.assignedToUserId === NO_REVIEWER ? null : formData.assignedToUserId,
+        }),
         category: formData.category,
         payee: formData.payee || null,
         // Explicit null rather than undefined so clearing the field on an edit
@@ -312,6 +335,28 @@ export function TransactionForm({
                 />
               </div>
             </div>
+
+            {transaction && (
+              <div className="space-y-2">
+                <Label>Review owner</Label>
+                <Select
+                  value={formData.assignedToUserId}
+                  onValueChange={(value) =>
+                    setFormData((previous) => ({ ...previous, assignedToUserId: value }))
+                  }
+                >
+                  <SelectTrigger aria-label="Transaction review owner"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_REVIEWER}>Unassigned</SelectItem>
+                    {(reviewerData?.reviewers ?? []).map((reviewer) => (
+                      <SelectItem key={reviewer.userId} value={reviewer.userId}>
+                        {reviewer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -462,6 +507,27 @@ export function TransactionForm({
                   Save this gift, then edit it to add receipts, acknowledgement letters, or payment evidence.
                 </p>
               )
+            )}
+
+            {transaction && (historyData?.events.length ?? 0) > 0 && (
+              <div className="space-y-2 rounded-xl border border-border/70 bg-secondary/20 p-4">
+                <p className="text-sm font-medium">Review history</p>
+                <div className="space-y-2">
+                  {historyData!.events.map((event) => (
+                    <p key={event.id} className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{event.actor_name}</span>{" "}
+                      {event.action === "assigned"
+                        ? `assigned this to ${event.assigned_to_name}`
+                        : event.action === "unassigned"
+                          ? "removed the reviewer"
+                          : event.action === "reviewed"
+                            ? "marked this reviewed"
+                            : "reopened review"}{" "}
+                      · {new Date(event.created_at).toLocaleString()}
+                    </p>
+                  ))}
+                </div>
+              </div>
             )}
 
             <DialogFooter>

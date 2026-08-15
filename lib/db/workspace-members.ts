@@ -68,6 +68,24 @@ export async function list(userId: string, workspaceId: string) {
   return { members, invitations };
 }
 
+export async function listReviewers(workspaceId: string) {
+  workspaceIdSchema.parse(workspaceId);
+  return db
+    .select({
+      userId: workspaceMemberships.userId,
+      name: users.name,
+      role: workspaceMemberships.role,
+    })
+    .from(workspaceMemberships)
+    .innerJoin(users, eq(users.id, workspaceMemberships.userId))
+    .where(
+      and(
+        eq(workspaceMemberships.workspaceId, workspaceId),
+        ne(workspaceMemberships.role, "viewer"),
+      ),
+    );
+}
+
 export async function createInvitation(
   userId: string,
   workspaceId: string,

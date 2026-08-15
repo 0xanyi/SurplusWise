@@ -8,6 +8,7 @@ const REQUIRED_TABLES = [
   "accounts",
   "verifications",
   "transactions",
+  "transaction_review_events",
   "categories",
   "budgets",
   "recurring_outgoings",
@@ -32,6 +33,8 @@ const REQUIRED_TABLES = [
 const REQUIRED_COLUMNS = [
   { table: "transactions", column: "receipt_storage_id" },
   { table: "transactions", column: "date" },
+  { table: "transactions", column: "assigned_to_user_id" },
+  { table: "transaction_review_events", column: "actor_name" },
   { table: "budgets", column: "start_date" },
   { table: "budgets", column: "end_date" },
   { table: "recurring_outgoings", column: "day_of_month" },

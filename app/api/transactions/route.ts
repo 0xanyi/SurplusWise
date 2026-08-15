@@ -25,6 +25,9 @@ function toTransaction(row: Awaited<ReturnType<typeof txService.list>>[number]) 
     account_id: row.accountId ?? null,
     status: row.status,
     needs_review: row.needsReview,
+    assigned_to_user_id: row.assignedToUserId ?? null,
+    reviewed_at: row.reviewedAt ? new Date(row.reviewedAt).toISOString() : null,
+    reviewed_by_user_id: row.reviewedByUserId ?? null,
     category: row.category,
     payee: row.payee ?? null,
     client_id: row.clientId ?? null,
@@ -40,7 +43,7 @@ function toTransaction(row: Awaited<ReturnType<typeof txService.list>>[number]) 
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { userId, actorUserId, workspaceId } = await requireAuthWithWorkspace("viewer");
 
     const sp = request.nextUrl.searchParams;
 
@@ -49,6 +52,7 @@ export async function GET(request: NextRequest) {
     const accountId = sp.get("accountId") ?? undefined;
     const status = sp.get("status") as txService.ListFilters["status"] | null;
     const needsReview = sp.get("needsReview");
+    const assignee = sp.get("assignee");
     const category = sp.get("category") ?? undefined;
     const clientId = sp.get("clientId") ?? undefined;
     const tag = sp.get("tag") ?? undefined;
@@ -69,6 +73,8 @@ export async function GET(request: NextRequest) {
       ...(status && { status }),
       ...(needsReview === "true" && { needsReview: true }),
       ...(needsReview === "false" && { needsReview: false }),
+      ...(assignee === "me" && { assignedToUserId: actorUserId }),
+      ...(assignee === "unassigned" && { assignedToUserId: null }),
       ...(category && { category }),
       ...(clientId && { clientId }),
       ...(tag && { tag }),

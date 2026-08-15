@@ -29,6 +29,7 @@ import {
   recurringOutgoings,
   transactionDocuments,
   transactionImportProfiles,
+  transactionReviewEvents,
   transactionRules,
   transactions,
   workspaceMemberships,
@@ -36,7 +37,7 @@ import {
 } from "@/db/schema";
 
 export const WORKSPACE_EXPORT_FORMAT = "sika-workspace-export";
-export const WORKSPACE_EXPORT_VERSION = 2;
+export const WORKSPACE_EXPORT_VERSION = 3;
 
 /**
  * User-owned, portable records included in a JSON workspace export.
@@ -61,6 +62,7 @@ export const WORKSPACE_EXPORT_DATASETS = [
   "transactionRules",
   "accountTransfers",
   "transactions",
+  "transactionReviewEvents",
   "transactionDocuments",
   "categories",
   "budgets",
@@ -137,6 +139,7 @@ async function readWorkspaceExport(
     ruleRows,
     transferRows,
     transactionRows,
+    reviewEventRows,
     documentRows,
     categoryRows,
     budgetRows,
@@ -181,6 +184,9 @@ async function readWorkspaceExport(
       type: transactions.type,
       status: transactions.status,
       needsReview: transactions.needsReview,
+      assignedToUserId: transactions.assignedToUserId,
+      reviewedAt: transactions.reviewedAt,
+      reviewedByUserId: transactions.reviewedByUserId,
       category: transactions.category,
       payee: transactions.payee,
       clientId: transactions.clientId,
@@ -192,6 +198,10 @@ async function readWorkspaceExport(
       createdAt: transactions.createdAt,
       updatedAt: transactions.updatedAt,
     }).from(transactions).where(eq(transactions.workspaceId, workspaceId)),
+    await tx
+      .select()
+      .from(transactionReviewEvents)
+      .where(eq(transactionReviewEvents.workspaceId, workspaceId)),
     await tx.select({
       id: transactionDocuments.id,
       userId: transactionDocuments.userId,
@@ -252,6 +262,7 @@ async function readWorkspaceExport(
       transactionRules: ruleRows,
       accountTransfers: transferRows,
       transactions: transactionRows,
+      transactionReviewEvents: reviewEventRows,
       transactionDocuments: documentRows,
       categories: categoryRows,
       budgets: budgetRows,
