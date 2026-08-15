@@ -58,7 +58,12 @@ async function readState(userId: string, workspaceId: string, eventKeys: string[
   return new Map(states.map((state) => [state.eventKey, state.readAt]));
 }
 
-export async function listDue(userId: string, workspaceId: string, today = getCurrentUtcDate()) {
+export async function listDue(
+  userId: string,
+  workspaceId: string,
+  today = getCurrentUtcDate(),
+  recipientUserId = userId,
+) {
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   const periodMonth = getPeriodMonthFromDate(today);
@@ -76,7 +81,11 @@ export async function listDue(userId: string, workspaceId: string, today = getCu
     .sort((left, right) => left.event.date.localeCompare(right.event.date));
   if (events.length === 0) return [];
 
-  const readByEvent = await readState(userId, workspaceId, events.map(({ eventKey }) => eventKey));
+  const readByEvent = await readState(
+    recipientUserId,
+    workspaceId,
+    events.map(({ eventKey }) => eventKey),
+  );
 
   return events.map(({ event, eventKey, days }): Notification => ({
     id: eventKey,
@@ -92,12 +101,16 @@ export async function listDue(userId: string, workspaceId: string, today = getCu
   }));
 }
 
-export async function listReviewItems(userId: string, workspaceId: string) {
+export async function listReviewItems(
+  userId: string,
+  workspaceId: string,
+  recipientUserId = userId,
+) {
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   const transactions = await transactionsService.list(userId, workspaceId, { needsReview: true });
   const eventKeys = transactions.map((transaction) => `transaction-review:${transaction.id}`);
-  const readByEvent = await readState(userId, workspaceId, eventKeys);
+  const readByEvent = await readState(recipientUserId, workspaceId, eventKeys);
 
   return transactions.map((transaction, index): Notification => {
     const eventKey = eventKeys[index];
@@ -121,6 +134,7 @@ export async function listBudgetLimits(
   userId: string,
   workspaceId: string,
   today = getCurrentUtcDate(),
+  recipientUserId = userId,
 ) {
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
@@ -134,7 +148,7 @@ export async function listBudgetLimits(
     const threshold = budget.percentUsed >= 100 ? "exceeded" : "warning";
     return `budget-limit:${budget.id}:${threshold}`;
   });
-  const readByEvent = await readState(userId, workspaceId, eventKeys);
+  const readByEvent = await readState(recipientUserId, workspaceId, eventKeys);
 
   return budgets.map((budget, index): Notification => {
     const exceeded = budget.percentUsed >= 100;
@@ -156,9 +170,15 @@ export async function listBudgetLimits(
   });
 }
 
-export async function listBackupAlerts(userId: string, workspaceId: string, now = new Date()) {
+export async function listBackupAlerts(
+  userId: string,
+  workspaceId: string,
+  now = new Date(),
+  recipientUserId = userId,
+) {
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
+  if (recipientUserId !== userId) return [];
   const [workspace] = await db
     .select({ isDefault: workspaces.isDefault })
     .from(workspaces)
@@ -174,7 +194,7 @@ export async function listBackupAlerts(userId: string, workspaceId: string, now 
 
   const occurrence = status.lastSuccessfulAt?.toISOString() ?? "never";
   const eventKey = `backup-stale:${occurrence}`;
-  const readByEvent = await readState(userId, workspaceId, [eventKey]);
+  const readByEvent = await readState(recipientUserId, workspaceId, [eventKey]);
   const days = status.lastSuccessfulAt
     ? Math.floor((now.getTime() - status.lastSuccessfulAt.getTime()) / 86_400_000)
     : null;
@@ -195,12 +215,17 @@ export async function listBackupAlerts(userId: string, workspaceId: string, now 
 }
 
 /** All current attention items; resolved source records disappear automatically. */
-export async function listCurrent(userId: string, workspaceId: string, today = getCurrentUtcDate()) {
+export async function listCurrent(
+  userId: string,
+  workspaceId: string,
+  today = getCurrentUtcDate(),
+  recipientUserId = userId,
+) {
   const [due, reviewItems, budgetLimits, backupAlerts] = await Promise.all([
-    listDue(userId, workspaceId, today),
-    listReviewItems(userId, workspaceId),
-    listBudgetLimits(userId, workspaceId, today),
-    listBackupAlerts(userId, workspaceId),
+    listDue(userId, workspaceId, today, recipientUserId),
+    listReviewItems(userId, workspaceId, recipientUserId),
+    listBudgetLimits(userId, workspaceId, today, recipientUserId),
+    listBackupAlerts(userId, workspaceId, undefined, recipientUserId),
   ]);
   return [...due, ...reviewItems, ...budgetLimits, ...backupAlerts];
 }
@@ -239,7 +264,11 @@ export async function markRead(
       updatedAt: now,
     })
     .onConflictDoUpdate({
-      target: [notificationStates.workspaceId, notificationStates.eventKey],
+      target: [
+        notificationStates.userId,
+        notificationStates.workspaceId,
+        notificationStates.eventKey,
+      ],
       set: { readAt: now, updatedAt: now },
     });
 }

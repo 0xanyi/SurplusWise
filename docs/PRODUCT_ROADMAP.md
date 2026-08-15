@@ -90,7 +90,7 @@ of a recipient.
 - Owner, editor, and viewer roles — shared-ledger authorization implemented
 - Separate identities with a shared ledger — invitation and member management implemented
 - Assigned transaction review and audit history — implemented
-- Per-member notification preferences
+- Per-member notification preferences — implemented
 
 Isolated multi-user hosting and household sharing remain separate product
 concepts. Neither will be simulated by merely removing the one-account database

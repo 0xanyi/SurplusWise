@@ -1,0 +1,2 @@
+DROP INDEX "idx_push_subscriptions_user_workspace_endpoint";--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_push_subscriptions_workspace_endpoint" ON "push_subscriptions" USING btree ("workspace_id","endpoint");

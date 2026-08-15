@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/db/client";
-import { backupStatus, transactions, users, workspaces } from "@/db/schema";
+import {
+  backupStatus,
+  transactions,
+  users,
+  workspaceMemberships,
+  workspaces,
+} from "@/db/schema";
 import { reportBackupSuccess } from "@/lib/backup-status";
 import * as notificationsService from "@/lib/db/notifications";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
@@ -98,6 +104,10 @@ describe(
           currency: "USD",
           isDefault: false,
         },
+      ]);
+      await db.insert(workspaceMemberships).values([
+        { workspaceId, userId, role: "owner" },
+        { workspaceId: otherWorkspaceId, userId, role: "owner" },
       ]);
 
       try {

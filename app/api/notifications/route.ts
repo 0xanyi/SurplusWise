@@ -12,8 +12,13 @@ const updateSchema = z.object({
 
 export async function POST() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
-    const notifications = await notificationsService.listCurrent(userId, workspaceId);
+    const { userId, actorUserId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const notifications = await notificationsService.listCurrent(
+      userId,
+      workspaceId,
+      undefined,
+      actorUserId,
+    );
     return NextResponse.json({
       notifications: notifications.map((notification) => ({
         id: notification.id,
@@ -36,9 +41,9 @@ export async function POST() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
+    const { actorUserId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const body = updateSchema.parse(await request.json());
-    await notificationsService.markRead(userId, workspaceId, body.id, body.read);
+    await notificationsService.markRead(actorUserId, workspaceId, body.id, body.read);
     return NextResponse.json({ success: true });
   } catch (error) {
     return errorResponse(error, "Failed to update notification");
