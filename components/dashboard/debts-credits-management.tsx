@@ -17,7 +17,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
-import type { ApiDebtCredit, DebtType } from "@/types";
+import type { ApiDebtCredit, ApiFinancialAccount, DebtType } from "@/types";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +64,7 @@ function emptyForm(): DebtFormData {
   return {
     name: "",
     debtType: "credit_card",
+    financialAccountId: "",
     lender: "",
     currentBalance: "",
     creditLimit: "",
@@ -94,8 +95,17 @@ export function DebtsCreditsManagement() {
     error,
     refresh,
   } = useApiQuery<DebtsResponse>("/api/debts-credits");
+  const { data: accountsData } = useApiQuery<{ accounts: ApiFinancialAccount[] }>(
+    "/api/financial-accounts?includeInactive=true",
+  );
 
   const debts = data?.debts;
+  const liabilityAccounts = (accountsData?.accounts ?? []).filter(
+    (account) => account.account_class === "liability",
+  );
+  const accountNames = new Map(
+    liabilityAccounts.map((account) => [account.id, account.name]),
+  );
 
   // Balance-weighted, so a large cheap loan does not get averaged away by a
   // small expensive card. Null when nothing carries a rate.
@@ -170,6 +180,7 @@ export function DebtsCreditsManagement() {
     return {
       name: formData.name,
       debtType: formData.debtType,
+      financialAccountId: formData.financialAccountId || null,
       lender: formData.lender || null,
       currentBalance,
       creditLimit: formData.creditLimit ? Number.parseFloat(formData.creditLimit) : null,
@@ -262,6 +273,7 @@ export function DebtsCreditsManagement() {
     setFormData({
       name: item.name,
       debtType: item.debt_type,
+      financialAccountId: item.financial_account_id ?? "",
       lender: item.lender ?? "",
       currentBalance: item.current_balance.toString(),
       creditLimit: item.credit_limit?.toString() ?? "",
@@ -298,9 +310,16 @@ export function DebtsCreditsManagement() {
     );
   }
 
+  const selectableLiabilityAccounts = liabilityAccounts.filter(
+    (account) => (
+      account.id === formData.financialAccountId
+      || !debts.some((debt) => debt.financial_account_id === account.id)
+    ),
+  );
   const formFields = (
     <DebtFormFields
       formData={formData}
+      liabilityAccounts={selectableLiabilityAccounts}
       onChange={(updates) => setFormData((prev) => ({ ...prev, ...updates }))}
     />
   );
@@ -440,9 +459,13 @@ export function DebtsCreditsManagement() {
                         >
                           {item.name}
                         </Link>
-                        {item.lender && (
+                        {(item.lender || item.financial_account_id) && (
                           <p className="truncate text-[11.5px] text-muted-foreground">
-                            {item.lender}
+                            {[item.lender, item.financial_account_id
+                              ? `Linked to ${accountNames.get(item.financial_account_id) ?? "liability account"}`
+                              : null]
+                              .filter(Boolean)
+                              .join(" · ")}
                           </p>
                         )}
                       </div>

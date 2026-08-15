@@ -18,7 +18,7 @@ export async function getNetWorthSummary(userId: string, workspaceId: string) {
     .filter((account) => account.accountClass === "liability")
     .reduce((sum, account) => sum + account.currentBalance, 0);
   const assets = investments.totalCurrentValue + loans.totalOutstanding + accountAssets;
-  const liabilities = debts.totalBalance + accountLiabilities;
+  const liabilities = debts.netWorthBalance + accountLiabilities;
   const netWorth = assets - liabilities;
 
   return {
@@ -29,7 +29,7 @@ export async function getNetWorthSummary(userId: string, workspaceId: string) {
     loansReceivable: loans.totalOutstanding,
     accountAssets,
     accountLiabilities,
-    debtsOwed: debts.totalBalance,
+    debtsOwed: debts.netWorthBalance,
     accountCount: accounts.length,
     investmentCount: investments.count,
     loanCount: loans.count,

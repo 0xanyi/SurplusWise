@@ -593,6 +593,7 @@ export const debtTypeSchema = z.enum([
 export const debtCreditCreateSchema = z.object({
   name: z.string().min(1, "name is required").max(200),
   debtType: debtTypeSchema,
+  financialAccountId: idSchema.nullish(),
   lender: z.string().max(200).nullish(),
   currentBalance: z.number().min(0, "balance must be non-negative"),
   creditLimit: z.number().min(0).nullish(),
@@ -610,6 +611,7 @@ export const debtCreditUpdateSchema = z
   .object({
     name: z.string().min(1).max(200).optional(),
     debtType: debtTypeSchema.optional(),
+    financialAccountId: idSchema.nullish(),
     lender: z.string().max(200).nullish(),
     currentBalance: z.number().min(0).optional(),
     creditLimit: z.number().min(0).nullish(),

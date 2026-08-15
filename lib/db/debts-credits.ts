@@ -1,6 +1,12 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { debtsCredits, debtBalanceLogs, debtStatements } from "@/db/schema";
+import {
+  debtsCredits,
+  debtBalanceLogs,
+  debtStatements,
+  financialAccounts,
+} from "@/db/schema";
+import * as financialAccountsService from "./financial-accounts";
 import {
   userIdSchema,
   idSchema,
@@ -17,6 +23,7 @@ type DebtType = "credit_card" | "loan" | "mortgage" | "overdraft" | "other";
 export interface CreateInput {
   name: string;
   debtType: DebtType;
+  financialAccountId?: string | null;
   lender?: string | null;
   currentBalance: number;
   creditLimit?: number | null;
@@ -33,6 +40,7 @@ export interface CreateInput {
 export interface UpdateInput {
   name?: string;
   debtType?: DebtType;
+  financialAccountId?: string | null;
   lender?: string | null;
   currentBalance?: number;
   creditLimit?: number | null;
@@ -57,6 +65,27 @@ export interface BalanceLogInput {
 
 function genId() {
   return crypto.randomUUID();
+}
+
+async function assertLinkableAccount(
+  userId: string,
+  workspaceId: string,
+  accountId: string,
+  debtId?: string,
+) {
+  const account = await financialAccountsService.assertInWorkspace(userId, workspaceId, accountId);
+  if (account.accountClass !== "liability") {
+    throw new Error("Only liability accounts can be linked to a debt");
+  }
+
+  const conditions = [eq(debtsCredits.financialAccountId, accountId)];
+  if (debtId) conditions.push(ne(debtsCredits.id, debtId));
+  const [existingLink] = await db
+    .select({ id: debtsCredits.id })
+    .from(debtsCredits)
+    .where(and(...conditions))
+    .limit(1);
+  if (existingLink) throw new Error("Financial account is already linked to another debt");
 }
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -117,14 +146,21 @@ export async function list(userId: string, workspaceId: string, isActive?: boole
 }
 
 /** Fetch a single debt. Throws if not found / not the user's. */
-export async function getById(userId: string, id: string) {
+export async function getById(userId: string, workspaceId: string, id: string) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
 
   const [row] = await db
     .select()
     .from(debtsCredits)
-    .where(and(eq(debtsCredits.id, id), eq(debtsCredits.userId, userId)))
+    .where(
+      and(
+        eq(debtsCredits.id, id),
+        eq(debtsCredits.userId, userId),
+        eq(debtsCredits.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
 
   if (!row) throw new Error("Debt/credit not found or unauthorized");
@@ -155,11 +191,18 @@ export async function getSummary(userId: string, workspaceId: string) {
   const [result] = await db
     .select({
       totalBalance: sql<string>`coalesce(sum(${debtsCredits.currentBalance}), 0)`,
+      netWorthBalance: sql<string>`coalesce(sum(
+        case when ${financialAccounts.id} is not null
+          and ${financialAccounts.isActive} = true
+          and ${financialAccounts.accountClass} = 'liability'
+        then 0 else ${debtsCredits.currentBalance} end
+      ), 0)`,
       totalMinPayment: sql<string>`coalesce(sum(coalesce(${latestStatement.minimumPayment}, ${debtsCredits.minimumPayment})), 0)`,
       count: sql<number>`count(*)`,
     })
     .from(debtsCredits)
     .leftJoin(latestStatement, eq(latestStatement.debtId, debtsCredits.id))
+    .leftJoin(financialAccounts, eq(financialAccounts.id, debtsCredits.financialAccountId))
     .where(
       and(
         eq(debtsCredits.userId, userId),
@@ -170,6 +213,7 @@ export async function getSummary(userId: string, workspaceId: string) {
 
   return {
     totalBalance: Number(result.totalBalance),
+    netWorthBalance: Number(result.netWorthBalance),
     totalMinPayment: Number(result.totalMinPayment),
     count: result.count,
   };
@@ -179,7 +223,10 @@ export async function getSummary(userId: string, workspaceId: string) {
 export async function create(userId: string, workspaceId: string, input: CreateInput) {
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
-  debtCreditCreateSchema.parse(input);
+  const validInput = debtCreditCreateSchema.parse(input);
+  if (validInput.financialAccountId) {
+    await assertLinkableAccount(userId, workspaceId, validInput.financialAccountId);
+  }
   const id = genId();
   const now = new Date();
 
@@ -190,6 +237,7 @@ export async function create(userId: string, workspaceId: string, input: CreateI
         id,
         userId,
         workspaceId,
+        financialAccountId: validInput.financialAccountId ?? null,
         name: input.name,
         debtType: input.debtType,
         lender: input.lender ?? null,
@@ -228,24 +276,37 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 }
 
 /** Partial update. Throws if not found / unauthorized. */
-export async function update(userId: string, id: string, input: UpdateInput) {
+export async function update(userId: string, workspaceId: string, id: string, input: UpdateInput) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
-  debtCreditUpdateSchema.parse(input);
+  const validInput = debtCreditUpdateSchema.parse(input);
 
   const [existing] = await db
     .select()
     .from(debtsCredits)
-    .where(and(eq(debtsCredits.id, id), eq(debtsCredits.userId, userId)))
+    .where(
+      and(
+        eq(debtsCredits.id, id),
+        eq(debtsCredits.userId, userId),
+        eq(debtsCredits.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
 
   if (!existing) throw new Error("Debt/credit not found or unauthorized");
+  if (validInput.financialAccountId) {
+    await assertLinkableAccount(userId, workspaceId, validInput.financialAccountId, id);
+  }
 
   const [row] = await db
     .update(debtsCredits)
     .set({
       ...(input.name !== undefined && { name: input.name }),
       ...(input.debtType !== undefined && { debtType: input.debtType }),
+      ...(input.financialAccountId !== undefined && {
+        financialAccountId: input.financialAccountId,
+      }),
       ...(input.lender !== undefined && { lender: input.lender }),
       ...(input.currentBalance !== undefined && { currentBalance: String(input.currentBalance) }),
       ...(input.creditLimit !== undefined && { creditLimit: input.creditLimit != null ? String(input.creditLimit) : null }),
@@ -266,21 +327,34 @@ export async function update(userId: string, id: string, input: UpdateInput) {
 }
 
 /** Delete a debt/credit record (cascades to balance logs). */
-export async function remove(userId: string, id: string) {
+export async function remove(userId: string, workspaceId: string, id: string) {
   userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
 
   const [existing] = await db
     .select({ id: debtsCredits.id })
     .from(debtsCredits)
-    .where(and(eq(debtsCredits.id, id), eq(debtsCredits.userId, userId)))
+    .where(
+      and(
+        eq(debtsCredits.id, id),
+        eq(debtsCredits.userId, userId),
+        eq(debtsCredits.workspaceId, workspaceId),
+      ),
+    )
     .limit(1);
 
   if (!existing) throw new Error("Debt/credit not found or unauthorized");
 
   await db
     .delete(debtsCredits)
-    .where(and(eq(debtsCredits.id, id), eq(debtsCredits.userId, userId)));
+    .where(
+      and(
+        eq(debtsCredits.id, id),
+        eq(debtsCredits.userId, userId),
+        eq(debtsCredits.workspaceId, workspaceId),
+      ),
+    );
 }
 
 // ─── Balance Log Service ─────────────────────────────────────────────────────
