@@ -5,14 +5,15 @@ import * as txService from "@/lib/db/transactions";
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { userId, actorUserId, workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
     const ids = await txService.bulkUpdateMetadata(userId, workspaceId, {
       ids: body.ids,
       ...(body.needsReview !== undefined && { needsReview: body.needsReview }),
+      ...("assignedToUserId" in body && { assignedToUserId: body.assignedToUserId }),
       ...(body.category !== undefined && { category: body.category }),
       ...(body.payee !== undefined && { payee: body.payee }),
-    });
+    }, actorUserId);
     return NextResponse.json({ updated: ids.length, ids });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

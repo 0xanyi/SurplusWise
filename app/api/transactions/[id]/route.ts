@@ -15,6 +15,9 @@ function toTransaction(row: NonNullable<Awaited<ReturnType<typeof txService.getB
     account_id: row.accountId ?? null,
     status: row.status,
     needs_review: row.needsReview,
+    assigned_to_user_id: row.assignedToUserId ?? null,
+    reviewed_at: row.reviewedAt ? new Date(row.reviewedAt).toISOString() : null,
+    reviewed_by_user_id: row.reviewedByUserId ?? null,
     category: row.category,
     payee: row.payee ?? null,
     client_id: row.clientId ?? null,
@@ -62,7 +65,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { userId, actorUserId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
@@ -80,6 +83,8 @@ export async function PATCH(
       ...("account_id" in body && { accountId: body.account_id }),
       ...(body.status !== undefined && { status: body.status }),
       ...(body.needsReview !== undefined && { needsReview: body.needsReview }),
+      ...("assignedToUserId" in body && { assignedToUserId: body.assignedToUserId }),
+      ...("assigned_to_user_id" in body && { assignedToUserId: body.assigned_to_user_id }),
       ...(body.category !== undefined && { category: body.category }),
       ...("payee" in body && { payee: body.payee }),
       // `in` rather than `??` so an explicit null clears the attribution.
@@ -96,7 +101,7 @@ export async function PATCH(
       ...(body.notes !== undefined && { notes: body.notes }),
       ...(body.tags !== undefined && { tags: body.tags }),
       ...(receiptStorageId !== undefined && { receiptStorageId }),
-    });
+    }, actorUserId);
 
     return NextResponse.json({
       success: true,

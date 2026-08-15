@@ -781,6 +781,13 @@ export const transactions = pgTable(
     type: transactionTypeEnum("type").notNull(),
     status: transactionStatusEnum("status").notNull().default("cleared"),
     needsReview: boolean("needs_review").notNull().default(false),
+    assignedToUserId: text("assigned_to_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedByUserId: text("reviewed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     category: text("category").notNull(),
     payee: text("payee"),
     // Attributes a one-off movement to a client: a project fee invoiced once, a
@@ -806,6 +813,11 @@ export const transactions = pgTable(
     index("idx_transactions_user_type_date").on(t.userId, t.type, t.date.desc()),
     index("idx_transactions_account_date").on(t.accountId, t.date.desc()),
     index("idx_transactions_workspace_review").on(t.workspaceId, t.needsReview, t.date.desc()),
+    index("idx_transactions_workspace_assignee_review").on(
+      t.workspaceId,
+      t.assignedToUserId,
+      t.needsReview,
+    ),
     index("idx_transactions_workspace_client").on(t.workspaceId, t.clientId),
     index("idx_transactions_workspace_giving_recipient").on(
       t.workspaceId,
@@ -820,6 +832,28 @@ export const transactions = pgTable(
       t.importFingerprint,
     ),
   ],
+);
+
+export const transactionReviewEvents = pgTable(
+  "transaction_review_events",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    transactionId: text("transaction_id")
+      .notNull()
+      .references(() => transactions.id, { onDelete: "cascade" }),
+    action: text("action").$type<"assigned" | "unassigned" | "reviewed" | "reopened">().notNull(),
+    actorUserId: text("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    actorName: text("actor_name").notNull(),
+    assignedToUserId: text("assigned_to_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    assignedToName: text("assigned_to_name"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("idx_transaction_review_events_transaction").on(t.transactionId, t.createdAt)],
 );
 
 export const transactionDocuments = pgTable(

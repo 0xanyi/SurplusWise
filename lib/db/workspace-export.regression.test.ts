@@ -130,7 +130,7 @@ describe(
 
         const exported = await createWorkspaceExport(userId, workspaceId, generatedAt);
         assert.equal(exported.format, WORKSPACE_EXPORT_FORMAT);
-        assert.equal(exported.version, 2);
+        assert.equal(exported.version, 3);
         assert.equal(exported.generatedAt, generatedAt.toISOString());
         assert.equal(exported.workspace.id, workspaceId);
         assert.deepEqual(Object.keys(exported.data), [...WORKSPACE_EXPORT_DATASETS]);

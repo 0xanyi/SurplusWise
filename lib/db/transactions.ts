@@ -1,11 +1,14 @@
 import { createHash } from "node:crypto";
-import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   recurringMoneyDraftSettlements,
   recurringMoneyDrafts,
   transactionDocuments,
+  transactionReviewEvents,
   transactions,
+  users,
+  workspaceMemberships,
 } from "@/db/schema";
 import * as clientsService from "./clients";
 import * as financialAccountsService from "./financial-accounts";
@@ -65,6 +68,7 @@ export interface ListFilters {
   accountId?: string;
   status?: TransactionStatus;
   needsReview?: boolean;
+  assignedToUserId?: string | null;
   category?: string;
   clientId?: string;
   tag?: string;
@@ -101,6 +105,7 @@ export interface UpdateInput {
   accountId?: string | null;
   status?: TransactionStatus;
   needsReview?: boolean;
+  assignedToUserId?: string | null;
   category?: string;
   payee?: string | null;
   clientId?: string | null;
@@ -135,6 +140,23 @@ interface ImportCandidate extends ImportInput {
 
 function genId() {
   return crypto.randomUUID();
+}
+
+async function reviewParticipant(workspaceId: string, userId: string) {
+  const [participant] = await db
+    .select({ id: users.id, name: users.name })
+    .from(workspaceMemberships)
+    .innerJoin(users, eq(users.id, workspaceMemberships.userId))
+    .where(
+      and(
+        eq(workspaceMemberships.workspaceId, workspaceId),
+        eq(workspaceMemberships.userId, userId),
+        ne(workspaceMemberships.role, "viewer"),
+      ),
+    )
+    .limit(1);
+  if (!participant) throw new Error("Reviewer must be an owner or editor in this workspace");
+  return participant;
 }
 
 function normalizedImportIdentity(row: ImportInput) {
@@ -224,6 +246,13 @@ function buildWhere(userId: string, workspaceId: string, filters: ListFilters) {
   if (filters.status) conditions.push(eq(transactions.status, filters.status));
   if (filters.needsReview !== undefined) {
     conditions.push(eq(transactions.needsReview, filters.needsReview));
+  }
+  if (filters.assignedToUserId !== undefined) {
+    conditions.push(
+      filters.assignedToUserId === null
+        ? isNull(transactions.assignedToUserId)
+        : eq(transactions.assignedToUserId, filters.assignedToUserId),
+    );
   }
   if (filters.category) conditions.push(eq(transactions.category, filters.category));
   if (filters.clientId) conditions.push(eq(transactions.clientId, filters.clientId));
@@ -604,17 +633,30 @@ export async function bulkUpdateMetadata(
   input: {
     ids: string[];
     needsReview?: boolean;
+    assignedToUserId?: string | null;
     category?: string;
     payee?: string | null;
   },
+  actorUserId?: string,
 ) {
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   const validInput = transactionBulkUpdateSchema.parse(input);
   const ids = [...new Set(validInput.ids)];
+  const actorParticipant = actorUserId
+    ? await reviewParticipant(workspaceId, actorUserId)
+    : null;
+  const assignee = validInput.assignedToUserId
+    ? await reviewParticipant(workspaceId, validInput.assignedToUserId)
+    : null;
+  const reviewChangedAt = new Date();
   return db.transaction(async (tx) => {
     const owned = await tx
-      .select({ id: transactions.id })
+      .select({
+        id: transactions.id,
+        needsReview: transactions.needsReview,
+        assignedToUserId: transactions.assignedToUserId,
+      })
       .from(transactions)
       .where(
         and(
@@ -631,6 +673,15 @@ export async function bulkUpdateMetadata(
       .set({
         ...(validInput.needsReview !== undefined && {
           needsReview: validInput.needsReview,
+          reviewedAt: validInput.needsReview
+            ? null
+            : sql`case when ${transactions.needsReview} then ${reviewChangedAt} else ${transactions.reviewedAt} end`,
+          reviewedByUserId: validInput.needsReview
+            ? null
+            : sql`case when ${transactions.needsReview} then ${actorUserId ?? null} else ${transactions.reviewedByUserId} end`,
+        }),
+        ...(validInput.assignedToUserId !== undefined && {
+          assignedToUserId: validInput.assignedToUserId,
         }),
         ...(validInput.category !== undefined && { category: validInput.category }),
         ...(validInput.payee !== undefined && { payee: validInput.payee || null }),
@@ -638,17 +689,55 @@ export async function bulkUpdateMetadata(
       })
       .where(inArray(transactions.id, ids))
       .returning({ id: transactions.id });
+    if (actorParticipant) {
+      const events = owned.flatMap((row) => {
+        const entries: Array<typeof transactionReviewEvents.$inferInsert> = [];
+        if (
+          validInput.assignedToUserId !== undefined &&
+          validInput.assignedToUserId !== row.assignedToUserId
+        ) {
+          entries.push({
+            id: genId(),
+            workspaceId,
+            transactionId: row.id,
+            action: assignee ? "assigned" : "unassigned",
+            actorUserId: actorParticipant.id,
+            actorName: actorParticipant.name,
+            assignedToUserId: assignee?.id ?? null,
+            assignedToName: assignee?.name ?? null,
+          });
+        }
+        if (validInput.needsReview !== undefined && validInput.needsReview !== row.needsReview) {
+          entries.push({
+            id: genId(),
+            workspaceId,
+            transactionId: row.id,
+            action: validInput.needsReview ? "reopened" : "reviewed",
+            actorUserId: actorParticipant.id,
+            actorName: actorParticipant.name,
+          });
+        }
+        return entries;
+      });
+      if (events.length > 0) await tx.insert(transactionReviewEvents).values(events);
+    }
     return rows.map((row) => row.id);
   });
 }
 
 /** Partial update. Throws if not found / unauthorized. */
-export async function update(userId: string, id: string, input: UpdateInput) {
+export async function update(userId: string, id: string, input: UpdateInput, actorUserId?: string) {
   userIdSchema.parse(userId);
   idSchema.parse(id);
   transactionUpdateSchema.parse(input);
   const existing = await getById(userId, id);
   if (!existing) throw new Error("Transaction not found or unauthorized");
+  const actor = actorUserId && existing.workspaceId
+    ? await reviewParticipant(existing.workspaceId, actorUserId)
+    : null;
+  const assignee = input.assignedToUserId && existing.workspaceId
+    ? await reviewParticipant(existing.workspaceId, input.assignedToUserId)
+    : null;
 
   if (
     existing.status === "reconciled" &&
@@ -777,6 +866,13 @@ export async function update(userId: string, id: string, input: UpdateInput) {
         ...(input.accountId !== undefined && { accountId: input.accountId ?? null }),
         ...(input.status !== undefined && { status: input.status }),
         ...(input.needsReview !== undefined && { needsReview: input.needsReview }),
+        ...(input.needsReview !== undefined && input.needsReview !== existing.needsReview && {
+          reviewedAt: input.needsReview ? null : new Date(),
+          reviewedByUserId: input.needsReview ? null : (actorUserId ?? null),
+        }),
+        ...(input.assignedToUserId !== undefined && {
+          assignedToUserId: input.assignedToUserId,
+        }),
         ...(input.category !== undefined && { category: input.category }),
         ...(input.payee !== undefined && { payee: input.payee?.trim() || null }),
         ...(input.clientId !== undefined && { clientId: input.clientId ?? null }),
@@ -793,8 +889,52 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       })
       .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
       .returning();
+    if (actor && existing.workspaceId) {
+      const events: Array<typeof transactionReviewEvents.$inferInsert> = [];
+      if (
+        input.assignedToUserId !== undefined &&
+        input.assignedToUserId !== existing.assignedToUserId
+      ) {
+        events.push({
+          id: genId(),
+          workspaceId: existing.workspaceId,
+          transactionId: id,
+          action: assignee ? "assigned" : "unassigned",
+          actorUserId: actor.id,
+          actorName: actor.name,
+          assignedToUserId: assignee?.id ?? null,
+          assignedToName: assignee?.name ?? null,
+        });
+      }
+      if (input.needsReview !== undefined && input.needsReview !== existing.needsReview) {
+        events.push({
+          id: genId(),
+          workspaceId: existing.workspaceId,
+          transactionId: id,
+          action: input.needsReview ? "reopened" : "reviewed",
+          actorUserId: actor.id,
+          actorName: actor.name,
+        });
+      }
+      if (events.length > 0) await tx.insert(transactionReviewEvents).values(events);
+    }
     return row;
   });
+}
+
+export async function listReviewHistory(userId: string, workspaceId: string, transactionId: string) {
+  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
+  idSchema.parse(transactionId);
+  const transaction = await getById(userId, transactionId);
+  if (!transaction || transaction.workspaceId !== workspaceId) {
+    throw new Error("Transaction not found or unauthorized");
+  }
+  return db
+    .select()
+    .from(transactionReviewEvents)
+    .where(eq(transactionReviewEvents.transactionId, transactionId))
+    .orderBy(desc(transactionReviewEvents.createdAt));
 }
 
 /** Delete a transaction. Throws if not found / unauthorized. */

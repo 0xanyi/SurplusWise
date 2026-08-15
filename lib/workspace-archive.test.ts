@@ -11,7 +11,7 @@ import {
 
 const workspaceExport: WorkspaceExport = {
   format: "sika-workspace-export",
-  version: 2,
+  version: 3,
   generatedAt: "2026-08-14T10:30:00.000Z",
   workspace: {
     id: "workspace-1",
@@ -26,6 +26,7 @@ const workspaceExport: WorkspaceExport = {
   },
   data: {
     workspaceMemberships: [],
+    transactionReviewEvents: [],
     onboardingStatus: [],
     notificationStates: [],
     pushNotificationPreferences: [],

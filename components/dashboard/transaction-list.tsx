@@ -27,6 +27,8 @@ const PAGE_SIZE = 20;
 type TypeFilter = "all" | TransactionType;
 type StatusFilter = "all" | TransactionStatus;
 type ReviewFilter = "all" | "needs_review" | "reviewed";
+type AssigneeFilter = "all" | "mine" | "unassigned";
+type Reviewer = { userId: string; name: string; role: "owner" | "editor" | "viewer" };
 
 const typeFilterOptions: { label: string; value: TypeFilter }[] = [
   { label: "All", value: "all" },
@@ -79,6 +81,9 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
       ),
     };
   }, [givingData?.recipients]);
+  const { data: reviewerData } = useApiQuery<{ reviewers: Reviewer[] }>("/api/workspace-reviewers");
+  const reviewers = reviewerData?.reviewers ?? [];
+  const reviewerNames = new Map(reviewers.map((reviewer) => [reviewer.userId, reviewer.name]));
 
   const [transactions, setTransactions] = useState<ApiTransaction[]>([]);
   const [page, setPage] = useState(0);
@@ -94,6 +99,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
   const [accountFilter, setAccountFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<AssigneeFilter>("all");
   const [locationFilterReady, setLocationFilterReady] = useState(false);
   const [tagFilter, setTagFilter] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -116,11 +122,12 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
       if (reviewFilter !== "all") {
         params.set("needsReview", reviewFilter === "needs_review" ? "true" : "false");
       }
+      if (assigneeFilter !== "all") params.set("assignee", assigneeFilter);
       if (tagFilter.trim()) params.set("tag", tagFilter.trim());
       if (debouncedSearch) params.set("search", debouncedSearch);
       return `/api/transactions?${params.toString()}`;
     },
-    [typeFilter, accountFilter, statusFilter, reviewFilter, tagFilter, debouncedSearch],
+    [typeFilter, accountFilter, statusFilter, reviewFilter, assigneeFilter, tagFilter, debouncedSearch],
   );
 
   const loadPage = useCallback(
@@ -148,7 +155,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
     if (!locationFilterReady) return;
     setPage(0);
     loadPage(0, true);
-  }, [typeFilter, accountFilter, statusFilter, reviewFilter, tagFilter, debouncedSearch, locationFilterReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [typeFilter, accountFilter, statusFilter, reviewFilter, assigneeFilter, tagFilter, debouncedSearch, locationFilterReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (refreshKey > 0) {
@@ -235,6 +242,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
 
   const applyBulkUpdate = async (changes: {
     needsReview?: boolean;
+    assignedToUserId?: string | null;
     category?: string;
     payee?: string | null;
   }) => {
@@ -337,6 +345,17 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
           </SelectContent>
         </Select>
 
+        <Select value={assigneeFilter} onValueChange={(value) => setAssigneeFilter(value as AssigneeFilter)}>
+          <SelectTrigger className="h-[38px] min-[860px]:w-[150px]" aria-label="Filter by reviewer">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All reviewers</SelectItem>
+            <SelectItem value="mine">Assigned to me</SelectItem>
+            <SelectItem value="unassigned">Unassigned</SelectItem>
+          </SelectContent>
+        </Select>
+
         <div className="grid grid-cols-4 gap-1.5">
           {typeFilterOptions.map((option) => (
             <Button
@@ -379,6 +398,22 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
           <Button type="button" size="sm" disabled={bulkSaving} onClick={() => void applyBulkUpdate({ needsReview: false })}>
             <CheckCheck className="size-4" /> Mark reviewed
           </Button>
+          <Select
+            onValueChange={(value) => void applyBulkUpdate({
+              assignedToUserId: value === "unassigned" ? null : value,
+              ...(value !== "unassigned" && { needsReview: true }),
+            })}
+          >
+            <SelectTrigger className="h-9 sm:w-[170px]" aria-label="Assign selected transactions">
+              <SelectValue placeholder="Assign reviewer" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="unassigned">Unassigned</SelectItem>
+              {reviewers.map((reviewer) => (
+                <SelectItem key={reviewer.userId} value={reviewer.userId}>{reviewer.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
@@ -462,6 +497,11 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
                             {transaction.payee || transaction.category}
                             {transaction.needs_review && (
                               <span className="ml-2 rounded-full bg-obligation-surface px-2 py-0.5 text-[10px] font-semibold text-obligation">Review</span>
+                            )}
+                            {transaction.assigned_to_user_id && (
+                              <span className="ml-2 rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold text-brand">
+                                {reviewerNames.get(transaction.assigned_to_user_id) ?? "Assigned"}
+                              </span>
                             )}
                           </p>
                           {(transaction.payee ||
