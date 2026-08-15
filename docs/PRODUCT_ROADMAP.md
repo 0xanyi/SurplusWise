@@ -31,7 +31,7 @@ workflow.
 
 Follow-up work in this phase:
 
-- Link debt records to liability accounts so one balance cannot be counted twice
+- Link debt records to liability accounts so one balance cannot be counted twice — implemented
 - Account register/detail view with running balances
 - Bulk assignment of historical transactions
 - Reconciliation history and an explicit unreconcile workflow

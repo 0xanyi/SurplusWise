@@ -423,6 +423,7 @@ export interface ApiDebtCredit {
   id: string
   name: string
   debt_type: DebtType
+  financial_account_id: string | null
   lender: string | null
   current_balance: number
   credit_limit: number | null

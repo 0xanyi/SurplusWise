@@ -1,0 +1,3 @@
+ALTER TABLE "debts_credits" ADD COLUMN "financial_account_id" text;--> statement-breakpoint
+ALTER TABLE "debts_credits" ADD CONSTRAINT "debts_credits_financial_account_id_financial_accounts_id_fk" FOREIGN KEY ("financial_account_id") REFERENCES "public"."financial_accounts"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_debts_credits_financial_account" ON "debts_credits" USING btree ("financial_account_id") WHERE "debts_credits"."financial_account_id" is not null;

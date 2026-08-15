@@ -1,4 +1,5 @@
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
+import { errorResponse } from "@/lib/api-errors";
 import * as debtsService from "@/lib/db/debts-credits";
 import * as statementsService from "@/lib/db/debt-statements";
 import { NextRequest, NextResponse } from "next/server";
@@ -9,6 +10,7 @@ function toDebt(row: Record<string, unknown>) {
     id: row.id,
     name: row.name,
     debt_type: row.debtType,
+    financial_account_id: row.financialAccountId,
     lender: row.lender,
     current_balance: Number(row.currentBalance),
     credit_limit: row.creditLimit != null ? Number(row.creditLimit) : null,
@@ -75,6 +77,7 @@ export async function POST(request: NextRequest) {
     const row = await debtsService.create(userId, workspaceId, {
       name: body.name,
       debtType: body.debtType ?? body.debt_type,
+      financialAccountId: body.financialAccountId ?? body.financial_account_id,
       lender: body.lender,
       currentBalance: body.currentBalance ?? body.current_balance,
       creditLimit: body.creditLimit ?? body.credit_limit,
@@ -99,10 +102,16 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    console.error("Failed to create debt/credit:", error);
-    return NextResponse.json(
-      { error: "Failed to create debt/credit" },
-      { status: 500 },
+    if (error instanceof Error && error.message === "Only liability accounts can be linked to a debt") {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    if (error instanceof Error && error.message.includes("already linked")) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    return errorResponse(
+      error,
+      "Failed to create debt/credit",
+      "Financial account is already linked to another debt",
     );
   }
 }

@@ -20,6 +20,7 @@ import type {
   ApiDebtCredit,
   ApiDebtPayment,
   ApiDebtStatement,
+  ApiFinancialAccount,
   ApiStatementDraft,
   DebtType,
 } from "@/types";
@@ -93,6 +94,9 @@ export function DebtDetail({ debtId }: { debtId: string }) {
   const paymentsQuery = useApiQuery<{ payments: ApiDebtPayment[] }>(
     `/api/debts-credits/${debtId}/payments`,
   );
+  const accountsQuery = useApiQuery<{ accounts: ApiFinancialAccount[] }>(
+    "/api/financial-accounts?includeInactive=true",
+  );
 
   const [statementOpen, setStatementOpen] = useState(false);
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -102,6 +106,9 @@ export function DebtDetail({ debtId }: { debtId: string }) {
     setExpandedStatements((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const debt = debtQuery.data?.debt;
+  const linkedAccount = accountsQuery.data?.accounts.find(
+    (account) => account.id === debt?.financial_account_id,
+  );
   const statements = statementsQuery.data?.statements ?? [];
   const payments = paymentsQuery.data?.payments ?? [];
 
@@ -171,6 +178,8 @@ export function DebtDetail({ debtId }: { debtId: string }) {
         <p className="mt-0.5 text-sm text-muted-foreground">
           {DEBT_TYPE_LABELS[debt.debt_type]}
           {debt.lender && ` · ${debt.lender}`}
+          {debt.financial_account_id &&
+            ` · linked to ${linkedAccount?.name ?? "liability account"}`}
           {debt.payment_day_of_month != null &&
             ` · pays on the ${debt.payment_day_of_month}${ordinal(debt.payment_day_of_month)}`}
         </p>

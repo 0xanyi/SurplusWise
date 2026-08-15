@@ -1,6 +1,6 @@
 "use client";
 
-import type { DebtType } from "@/types";
+import type { ApiFinancialAccount, DebtType } from "@/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,6 +22,7 @@ const DEBT_TYPE_LABELS: Record<DebtType, string> = {
 export interface DebtFormData {
   name: string;
   debtType: DebtType;
+  financialAccountId: string;
   lender: string;
   currentBalance: string;
   creditLimit: string;
@@ -37,10 +38,15 @@ export interface DebtFormData {
 
 interface DebtFormFieldsProps {
   formData: DebtFormData;
+  liabilityAccounts: ApiFinancialAccount[];
   onChange: (updates: Partial<DebtFormData>) => void;
 }
 
-export function DebtFormFields({ formData, onChange }: DebtFormFieldsProps) {
+export function DebtFormFields({
+  formData,
+  liabilityAccounts,
+  onChange,
+}: DebtFormFieldsProps) {
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
@@ -72,6 +78,35 @@ export function DebtFormFields({ formData, onChange }: DebtFormFieldsProps) {
             </SelectContent>
           </Select>
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="debt-financial-account">Liability account (optional)</Label>
+        <Select
+          value={formData.financialAccountId || "unlinked"}
+          onValueChange={(value) => onChange({
+            financialAccountId: value === "unlinked" ? "" : value,
+          })}
+        >
+          <SelectTrigger id="debt-financial-account" aria-label="Linked liability account">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="unlinked">Not linked</SelectItem>
+            {liabilityAccounts.map((account) => (
+              <SelectItem
+                key={account.id}
+                value={account.id}
+                disabled={!account.is_active && account.id !== formData.financialAccountId}
+              >
+                {account.name}{account.is_active ? "" : " (archived)"}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[11.5px] text-muted-foreground">
+          Link the account that carries this balance so net worth counts the liability once.
+        </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3">

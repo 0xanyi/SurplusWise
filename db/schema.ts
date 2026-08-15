@@ -1134,6 +1134,8 @@ export const debtsCredits = pgTable(
       .references(() => users.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id")
       .references(() => workspaces.id, { onDelete: "cascade" }),
+    financialAccountId: text("financial_account_id")
+      .references(() => financialAccounts.id, { onDelete: "set null" }),
     name: text("name").notNull(), // e.g. "Barclays Credit Card", "Car Loan"
     debtType: debtTypeEnum("debt_type").notNull(),
     lender: text("lender"), // e.g. "Barclays", "Halifax"
@@ -1156,6 +1158,9 @@ export const debtsCredits = pgTable(
   },
   (t) => [
     index("idx_debts_credits_user").on(t.userId, t.isActive),
+    uniqueIndex("idx_debts_credits_financial_account")
+      .on(t.financialAccountId)
+      .where(sql`${t.financialAccountId} is not null`),
     check(
       "chk_debts_credits_payment_day_of_month",
       sql`${t.paymentDayOfMonth} IS NULL OR ${t.paymentDayOfMonth} BETWEEN 1 AND 31`,

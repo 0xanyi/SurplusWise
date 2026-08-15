@@ -9,16 +9,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace("viewer");
+    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
-    const row = await debtsService.getById(userId, id);
+    const row = await debtsService.getById(userId, workspaceId, id);
 
     return NextResponse.json({
       debt: {
         id: row.id,
         name: row.name,
         debt_type: row.debtType,
+        financial_account_id: row.financialAccountId,
         lender: row.lender,
         current_balance: Number(row.currentBalance),
         credit_limit: row.creditLimit != null ? Number(row.creditLimit) : null,
@@ -46,14 +47,20 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
+    const financialAccountId = body.financialAccountId !== undefined
+      ? body.financialAccountId
+      : body.financial_account_id;
 
     const input: debtsService.UpdateInput = {
       ...(body.name !== undefined && { name: body.name }),
       ...((body.debtType ?? body.debt_type) !== undefined && {
         debtType: body.debtType ?? body.debt_type,
+      }),
+      ...(financialAccountId !== undefined && {
+        financialAccountId,
       }),
       ...(body.lender !== undefined && { lender: body.lender }),
       ...((body.currentBalance ?? body.current_balance) !== undefined && {
@@ -88,7 +95,7 @@ export async function PATCH(
       ...(body.is_active !== undefined && { isActive: body.is_active }),
     };
 
-    await debtsService.update(userId, id, input);
+    await debtsService.update(userId, workspaceId, id, input);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -101,16 +108,16 @@ export async function PATCH(
         { status: 400 },
       );
     }
-    if (
-      error instanceof Error &&
-      (error.message.includes("not found") || error.message.includes("unauthorized"))
-    ) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+    if (error instanceof Error && error.message === "Only liability accounts can be linked to a debt") {
+      return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    console.error("Failed to update debt/credit:", error);
-    return NextResponse.json(
-      { error: "Failed to update debt/credit" },
-      { status: 500 },
+    if (error instanceof Error && error.message.includes("already linked")) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    return errorResponse(
+      error,
+      "Failed to update debt/credit",
+      "Financial account is already linked to another debt",
     );
   }
 }
@@ -120,10 +127,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { userId, workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
 
-    await debtsService.remove(userId, id);
+    await debtsService.remove(userId, workspaceId, id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
