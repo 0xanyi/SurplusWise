@@ -1,6 +1,7 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
 export const SETUP_TOKEN_HEADER = "x-sika-setup-token";
+export const INVITATION_TOKEN_HEADER = "x-sika-invitation-token";
 
 export type RegistrationState = "available" | "closed" | "misconfigured";
 export type RegistrationDenial = "closed" | "misconfigured" | "invalid-token" | null;

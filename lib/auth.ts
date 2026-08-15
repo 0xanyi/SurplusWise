@@ -7,8 +7,10 @@ import * as schema from "@/db/schema";
 import {
   getRegistrationDenial,
   hasRegisteredUser,
+  INVITATION_TOKEN_HEADER,
   SETUP_TOKEN_HEADER,
 } from "@/lib/registration";
+import * as workspaceMembers from "@/lib/db/workspace-members";
 
 const publicOrigin = process.env.PUBLIC_URL
   ? new URL(process.env.PUBLIC_URL).origin
@@ -33,8 +35,24 @@ export const auth = betterAuth({
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path !== "/sign-up/email") return;
 
+      const accountExists = await hasRegisteredUser();
+      if (accountExists) {
+        const invitationToken = ctx.headers?.get(INVITATION_TOKEN_HEADER) ?? "";
+        const invitation = await workspaceMembers.getValidInvitation(invitationToken);
+        const email = typeof ctx.body?.email === "string"
+          ? ctx.body.email.trim().toLowerCase()
+          : "";
+        if (!invitation || invitation.email !== email) {
+          throw new APIError("FORBIDDEN", {
+            code: "INVALID_INVITATION",
+            message: "This invitation is invalid or has expired.",
+          });
+        }
+        return;
+      }
+
       const denial = getRegistrationDenial({
-        accountExists: await hasRegisteredUser(),
+        accountExists,
         configuredToken: process.env.SIKA_SETUP_TOKEN,
         suppliedToken: ctx.headers?.get(SETUP_TOKEN_HEADER),
       });
@@ -59,6 +77,13 @@ export const auth = betterAuth({
           message: "The setup token is invalid.",
         });
       }
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-up/email") return;
+      const invitationToken = ctx.headers?.get(INVITATION_TOKEN_HEADER);
+      const user = ctx.context.newSession?.user;
+      if (!invitationToken || !user) return;
+      await workspaceMembers.acceptInvitation(invitationToken, user.id, user.email);
     }),
   },
   plugins: [nextCookies()],

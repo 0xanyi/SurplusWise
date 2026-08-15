@@ -86,6 +86,11 @@ export const currencySchema = z
   .regex(/^[A-Z]{3}$/, "currency must be a 3-letter ISO code");
 
 export const workspaceIdSchema = z.string().min(1, "workspaceId is required");
+export const workspaceMemberRoleSchema = z.enum(["editor", "viewer"]);
+export const workspaceInvitationCreateSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email address").max(320),
+  role: workspaceMemberRoleSchema,
+});
 
 export const givingRecipientCreateSchema = z.object({
   name: z.string().trim().min(1, "name is required").max(120),

@@ -8,8 +8,10 @@ import { TransactionRulesManagement } from "@/components/dashboard/transaction-r
 import { PushNotificationSettings } from "@/components/dashboard/push-notification-settings";
 import { EmailNotificationSettings } from "@/components/dashboard/email-notification-settings";
 import { BackupStatusSettings } from "@/components/dashboard/backup-status-settings";
+import { WorkspaceMembersSettings } from "@/components/dashboard/workspace-members-settings";
 
 const sections: SettingsSection[] = [
+  { id: "workspace-members", label: "Workspace members" },
   { id: "notifications", label: "Notifications" },
   { id: "data-resilience", label: "Data resilience" },
   { id: "ai-provider", label: "AI provider" },
@@ -28,6 +30,10 @@ export default function SettingsPage() {
         <SettingsNav sections={sections} />
 
         <div className="flex min-w-0 flex-col gap-[18px]">
+          <section id="workspace-members" className="scroll-mt-6">
+            <WorkspaceMembersSettings />
+          </section>
+
           <section id="notifications" className="scroll-mt-6 space-y-[18px]">
             <PushNotificationSettings />
             <EmailNotificationSettings />

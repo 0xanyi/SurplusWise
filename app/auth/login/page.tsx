@@ -4,12 +4,20 @@ import { LoginForm } from "./login-form";
 
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackUrl?: string }>;
+}) {
   const registrationState = await getRegistrationState();
+  const { callbackUrl } = await searchParams;
+  const safeCallbackUrl = callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
+    ? callbackUrl
+    : "/dashboard";
 
   return (
     <>
-      <LoginForm />
+      <LoginForm callbackUrl={safeCallbackUrl} />
 
       {registrationState === "available" && (
         <p className="mt-7 text-[13.5px] text-muted-foreground">

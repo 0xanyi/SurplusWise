@@ -238,6 +238,32 @@ export const workspaceMemberships = pgTable(
   ],
 );
 
+export const workspaceInvitations = pgTable(
+  "workspace_invitations",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: workspaceRoleEnum("role").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    invitedByUserId: text("invited_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    acceptedByUserId: text("accepted_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("idx_workspace_invitations_workspace").on(t.workspaceId, t.createdAt),
+    index("idx_workspace_invitations_email").on(t.email),
+  ],
+);
+
 export const onboardingStatus = pgTable(
   "onboarding_status",
   {

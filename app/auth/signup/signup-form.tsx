@@ -9,10 +9,14 @@ import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { useToast } from "@/hooks/use-toast";
 
-export function SignupForm() {
+export function SignupForm({
+  invitation,
+}: {
+  invitation?: { token: string; email: string };
+}) {
   const [setupToken, setSetupToken] = useState("");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(invitation?.email ?? "");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,12 +40,19 @@ export function SignupForm() {
     try {
       const { error } = await authClient.signUp.email(
         { email, password, name },
-        { headers: { "x-sika-setup-token": setupToken } },
+        {
+          headers: invitation
+            ? { "x-sika-invitation-token": invitation.token }
+            : { "x-sika-setup-token": setupToken },
+        },
       );
       if (error) throw new Error(error.message);
 
-      toast({ title: "Success", description: "Sika is set up. Please sign in." });
-      router.push("/auth/login");
+      toast({
+        title: "Success",
+        description: invitation ? "You joined the workspace." : "Sika is set up. Please sign in.",
+      });
+      router.push(invitation ? "/dashboard" : "/auth/login");
       router.refresh();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to set up Sika";
@@ -54,18 +65,20 @@ export function SignupForm() {
 
   return (
     <form onSubmit={handleSignup} className="mt-8 space-y-3.5">
-      <div className="space-y-1.5">
-        <Label htmlFor="setupToken">Setup token</Label>
-        <Input
-          id="setupToken"
-          type="password"
-          value={setupToken}
-          onChange={(event) => setSetupToken(event.target.value)}
-          placeholder="Token configured by the server operator"
-          autoComplete="one-time-code"
-          required
-        />
-      </div>
+      {!invitation && (
+        <div className="space-y-1.5">
+          <Label htmlFor="setupToken">Setup token</Label>
+          <Input
+            id="setupToken"
+            type="password"
+            value={setupToken}
+            onChange={(event) => setSetupToken(event.target.value)}
+            placeholder="Token configured by the server operator"
+            autoComplete="one-time-code"
+            required
+          />
+        </div>
+      )}
 
       <div className="space-y-1.5">
         <Label htmlFor="name">Name</Label>
@@ -89,6 +102,7 @@ export function SignupForm() {
           onChange={(event) => setEmail(event.target.value)}
           placeholder="name@example.com"
           autoComplete="email"
+          readOnly={Boolean(invitation)}
           required
         />
       </div>
@@ -121,7 +135,7 @@ export function SignupForm() {
 
       <Button type="submit" size="lg" className="mt-1.5 w-full" disabled={loading}>
         {loading && <Loader2 className="animate-spin" />}
-        Set up Sika
+        {invitation ? "Join workspace" : "Set up Sika"}
       </Button>
     </form>
   );
