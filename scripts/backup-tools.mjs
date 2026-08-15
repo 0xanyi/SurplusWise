@@ -11,6 +11,7 @@ export const REQUIRED_BACKUP_TABLES = [
   "verifications",
   "workspaces",
   "workspace_memberships",
+  "workspace_invitations",
   "onboarding_status",
   "notification_states",
   "push_notification_preferences",

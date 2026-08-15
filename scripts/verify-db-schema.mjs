@@ -19,6 +19,7 @@ const REQUIRED_TABLES = [
   "investment_events",
   "workspaces",
   "workspace_memberships",
+  "workspace_invitations",
   "notification_states",
   "email_notification_preferences",
   "push_notification_preferences",
@@ -40,6 +41,7 @@ const REQUIRED_COLUMNS = [
   // migration 0009 — workspaces
   { table: "workspaces", column: "type" },
   { table: "workspace_memberships", column: "role" },
+  { table: "workspace_invitations", column: "token_hash" },
   { table: "transactions", column: "workspace_id" },
   { table: "categories", column: "workspace_id" },
   { table: "budgets", column: "workspace_id" },

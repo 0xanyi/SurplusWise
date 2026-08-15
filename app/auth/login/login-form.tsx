@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { authClient } from "@/lib/auth-client";
 import { useToast } from "@/hooks/use-toast";
 
-export function LoginForm() {
+export function LoginForm({ callbackUrl = "/dashboard" }: { callbackUrl?: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,7 @@ export function LoginForm() {
       const { error } = await authClient.signIn.email({ email, password });
       if (error) throw new Error(error.message);
 
-      router.push("/dashboard");
+      router.push(callbackUrl);
       router.refresh();
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "Failed to log in";

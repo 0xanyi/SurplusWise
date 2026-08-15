@@ -88,7 +88,7 @@ of a recipient.
 
 - Workspace memberships rather than open registration — foundation implemented
 - Owner, editor, and viewer roles — shared-ledger authorization implemented
-- Separate identities with a shared ledger
+- Separate identities with a shared ledger — invitation and member management implemented
 - Assigned transaction review and audit history
 - Per-member notification preferences
 
