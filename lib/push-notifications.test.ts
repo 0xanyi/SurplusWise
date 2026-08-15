@@ -3,7 +3,14 @@ import { afterEach, describe, it } from "node:test";
 import { and, eq, inArray } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { db } from "@/db/client";
-import { backupStatus, pushSubscriptions, transactions, users, workspaces } from "@/db/schema";
+import {
+  backupStatus,
+  pushSubscriptions,
+  transactions,
+  users,
+  workspaceMemberships,
+  workspaces,
+} from "@/db/schema";
 import { reportBackupSuccess } from "@/lib/backup-status";
 import * as notificationsService from "@/lib/db/notifications";
 import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
@@ -13,6 +20,7 @@ import { getCurrentUtcDate } from "@/lib/outgoings-date";
 import { POST as dispatchRoute } from "@/app/api/notifications/dispatch/route";
 import {
   PushConfigurationError,
+  PushSubscriptionConflictError,
   dispatchPushNotifications,
   getSubscriptionStatus,
   subscribe,
@@ -116,6 +124,10 @@ describe(
           currency: "GBP",
           isDefault: false,
         },
+      ]);
+      await db.insert(workspaceMemberships).values([
+        { workspaceId, userId, role: "owner" },
+        { workspaceId: otherWorkspaceId, userId, role: "owner" },
       ]);
 
       const first = {
@@ -301,6 +313,66 @@ describe(
       } finally {
         await db.delete(backupStatus);
         await db.delete(users).where(eq(users.id, userId));
+      }
+    });
+
+    it("does not let one member claim another member's browser endpoint", async () => {
+      process.env.WEB_PUSH_VAPID_PUBLIC_KEY = "public";
+      process.env.WEB_PUSH_VAPID_PRIVATE_KEY = "private";
+      process.env.WEB_PUSH_VAPID_SUBJECT = "mailto:test@example.com";
+
+      const ownerId = crypto.randomUUID();
+      const memberId = crypto.randomUUID();
+      const workspaceId = crypto.randomUUID();
+      const endpoint = `https://push.example.test/${crypto.randomUUID()}`;
+      await db.insert(users).values([
+        { id: ownerId, name: "Push owner", email: `push-owner-${ownerId}@example.com` },
+        { id: memberId, name: "Push member", email: `push-member-${memberId}@example.com` },
+      ]);
+      await db.insert(workspaces).values({
+        id: workspaceId,
+        userId: ownerId,
+        name: "Shared push workspace",
+        type: "personal",
+        currency: "GBP",
+        isDefault: true,
+      });
+      await db.insert(workspaceMemberships).values({
+        workspaceId,
+        userId: memberId,
+        role: "viewer",
+      });
+
+      try {
+        await subscribe(ownerId, workspaceId, {
+          endpoint,
+          keys: { p256dh: "owner-key", auth: "owner-auth" },
+        });
+        await subscribe(ownerId, workspaceId, {
+          endpoint,
+          keys: { p256dh: "refreshed-owner-key", auth: "refreshed-owner-auth" },
+        });
+
+        await assert.rejects(
+          subscribe(memberId, workspaceId, {
+            endpoint,
+            keys: { p256dh: "member-key", auth: "member-auth" },
+          }),
+          PushSubscriptionConflictError,
+        );
+
+        const [saved] = await db
+          .select({ userId: pushSubscriptions.userId, p256dh: pushSubscriptions.p256dh })
+          .from(pushSubscriptions)
+          .where(
+            and(
+              eq(pushSubscriptions.workspaceId, workspaceId),
+              eq(pushSubscriptions.endpoint, endpoint),
+            ),
+          );
+        assert.deepEqual(saved, { userId: ownerId, p256dh: "refreshed-owner-key" });
+      } finally {
+        await db.delete(users).where(inArray(users.id, [ownerId, memberId]));
       }
     });
   },

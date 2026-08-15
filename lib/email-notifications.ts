@@ -4,6 +4,7 @@ import { db } from "@/db/client";
 import {
   emailNotificationPreferences,
   users,
+  workspaceMemberships,
   workspaces,
 } from "@/db/schema";
 import * as notificationsService from "@/lib/db/notifications";
@@ -85,8 +86,8 @@ export async function setEmailNotifications(userId: string, workspaceId: string,
     .insert(emailNotificationPreferences)
     .values({ id: crypto.randomUUID(), userId, workspaceId, enabled, createdAt: now, updatedAt: now })
     .onConflictDoUpdate({
-      target: emailNotificationPreferences.workspaceId,
-      set: { userId, enabled, updatedAt: now },
+      target: [emailNotificationPreferences.userId, emailNotificationPreferences.workspaceId],
+      set: { enabled, updatedAt: now },
     });
 }
 
@@ -160,6 +161,7 @@ export async function dispatchEmailNotifications(options: { today?: string; send
     .select({
       userId: emailNotificationPreferences.userId,
       workspaceId: emailNotificationPreferences.workspaceId,
+      sourceUserId: workspaces.userId,
       email: users.email,
       workspaceName: workspaces.name,
       currency: workspaces.currency,
@@ -167,6 +169,13 @@ export async function dispatchEmailNotifications(options: { today?: string; send
     .from(emailNotificationPreferences)
     .innerJoin(users, eq(users.id, emailNotificationPreferences.userId))
     .innerJoin(workspaces, eq(workspaces.id, emailNotificationPreferences.workspaceId))
+    .innerJoin(
+      workspaceMemberships,
+      and(
+        eq(workspaceMemberships.userId, emailNotificationPreferences.userId),
+        eq(workspaceMemberships.workspaceId, emailNotificationPreferences.workspaceId),
+      ),
+    )
     .where(eq(emailNotificationPreferences.enabled, true));
 
   const summary: EmailDispatchSummary = {
@@ -180,9 +189,10 @@ export async function dispatchEmailNotifications(options: { today?: string; send
 
   for (const preference of preferences) {
     const notifications = (await notificationsService.listCurrent(
-      preference.userId,
+      preference.sourceUserId,
       preference.workspaceId,
       options.today,
+      preference.userId,
     )).filter((notification) => !notification.readAt);
     summary.notifications += notifications.length;
     const claimed: Array<{

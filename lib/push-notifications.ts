@@ -5,6 +5,8 @@ import { db } from "@/db/client";
 import {
   pushNotificationPreferences,
   pushSubscriptions,
+  workspaceMemberships,
+  workspaces,
 } from "@/db/schema";
 import * as notificationsService from "@/lib/db/notifications";
 import { userIdSchema, workspaceIdSchema } from "@/lib/db/validation";
@@ -35,6 +37,12 @@ export type BrowserPushSubscription = z.infer<typeof pushSubscriptionSchema>;
 export class PushConfigurationError extends Error {
   constructor() {
     super("Web Push is not configured");
+  }
+}
+
+export class PushSubscriptionConflictError extends Error {
+  constructor() {
+    super("This browser is already subscribed by another workspace member");
   }
 }
 
@@ -138,8 +146,8 @@ export async function subscribe(
       .insert(pushNotificationPreferences)
       .values({ id: crypto.randomUUID(), userId, workspaceId, enabled: true, createdAt: now, updatedAt: now })
       .onConflictDoUpdate({
-        target: pushNotificationPreferences.workspaceId,
-        set: { userId, enabled: true, updatedAt: now },
+        target: [pushNotificationPreferences.userId, pushNotificationPreferences.workspaceId],
+        set: { enabled: true, updatedAt: now },
       });
 
     const saved = await tx
@@ -168,7 +176,7 @@ export async function subscribe(
         },
       })
       .returning({ id: pushSubscriptions.id });
-    if (!saved[0]) throw new Error("Push subscription not found or unauthorized");
+    if (!saved[0]) throw new PushSubscriptionConflictError();
   });
 }
 
@@ -183,8 +191,8 @@ export async function unsubscribe(userId: string, workspaceId: string, endpoint?
       .insert(pushNotificationPreferences)
       .values({ id: crypto.randomUUID(), userId, workspaceId, enabled: false, createdAt: now, updatedAt: now })
       .onConflictDoUpdate({
-        target: pushNotificationPreferences.workspaceId,
-        set: { userId, enabled: false, updatedAt: now },
+        target: [pushNotificationPreferences.userId, pushNotificationPreferences.workspaceId],
+        set: { enabled: false, updatedAt: now },
       });
     await tx
       .update(pushSubscriptions)
@@ -221,6 +229,7 @@ export async function dispatchPushNotifications(options: { today?: string; send?
       id: pushSubscriptions.id,
       userId: pushSubscriptions.userId,
       workspaceId: pushSubscriptions.workspaceId,
+      sourceUserId: workspaces.userId,
       endpoint: pushSubscriptions.endpoint,
       p256dh: pushSubscriptions.p256dh,
       auth: pushSubscriptions.auth,
@@ -232,6 +241,14 @@ export async function dispatchPushNotifications(options: { today?: string; send?
         eq(pushNotificationPreferences.userId, pushSubscriptions.userId),
         eq(pushNotificationPreferences.workspaceId, pushSubscriptions.workspaceId),
         eq(pushNotificationPreferences.enabled, true),
+      ),
+    )
+    .innerJoin(workspaces, eq(workspaces.id, pushSubscriptions.workspaceId))
+    .innerJoin(
+      workspaceMemberships,
+      and(
+        eq(workspaceMemberships.userId, pushSubscriptions.userId),
+        eq(workspaceMemberships.workspaceId, pushSubscriptions.workspaceId),
       ),
     )
     .where(eq(pushSubscriptions.enabled, true));
@@ -254,9 +271,10 @@ export async function dispatchPushNotifications(options: { today?: string; send?
     let notifications = notificationsByWorkspace.get(workspaceKey);
     if (!notifications) {
       notifications = (await notificationsService.listCurrent(
-        subscription.userId,
+        subscription.sourceUserId,
         subscription.workspaceId,
         options.today,
+        subscription.userId,
       )).filter((notification) => !notification.readAt);
       notificationsByWorkspace.set(workspaceKey, notifications);
       summary.notifications += notifications.length;

@@ -297,8 +297,11 @@ export const notificationStates = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("idx_notification_states_workspace_event").on(t.workspaceId, t.eventKey),
-    index("idx_notification_states_user_workspace").on(t.userId, t.workspaceId),
+    uniqueIndex("idx_notification_states_user_workspace_event").on(
+      t.userId,
+      t.workspaceId,
+      t.eventKey,
+    ),
   ],
 );
 
@@ -318,8 +321,7 @@ export const pushNotificationPreferences = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("idx_push_notification_preferences_workspace").on(t.workspaceId),
-    index("idx_push_notification_preferences_user_workspace").on(t.userId, t.workspaceId),
+    uniqueIndex("idx_push_notification_preferences_user_workspace").on(t.userId, t.workspaceId),
   ],
 );
 
@@ -339,8 +341,7 @@ export const emailNotificationPreferences = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    uniqueIndex("idx_email_notification_preferences_workspace").on(t.workspaceId),
-    index("idx_email_notification_preferences_user_workspace").on(t.userId, t.workspaceId),
+    uniqueIndex("idx_email_notification_preferences_user_workspace").on(t.userId, t.workspaceId),
   ],
 );
 

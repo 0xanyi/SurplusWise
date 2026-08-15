@@ -19,8 +19,8 @@ function emailErrorResponse(error: unknown) {
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
-    return NextResponse.json(await getEmailNotificationStatus(userId, workspaceId));
+    const { actorUserId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    return NextResponse.json(await getEmailNotificationStatus(actorUserId, workspaceId));
   } catch (error) {
     return emailErrorResponse(error);
   }
@@ -28,10 +28,10 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
+    const { actorUserId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const { enabled } = updateSchema.parse(await request.json());
-    await setEmailNotifications(userId, workspaceId, enabled);
-    return NextResponse.json(await getEmailNotificationStatus(userId, workspaceId));
+    await setEmailNotifications(actorUserId, workspaceId, enabled);
+    return NextResponse.json(await getEmailNotificationStatus(actorUserId, workspaceId));
   } catch (error) {
     return emailErrorResponse(error);
   }

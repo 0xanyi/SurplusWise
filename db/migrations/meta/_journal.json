@@ -253,6 +253,20 @@
       "when": 1786806623975,
       "tag": "0035_smiling_screwball",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1786816455898,
+      "tag": "0036_lying_stephen_strange",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1786816606951,
+      "tag": "0037_dusty_vin_gonzales",
+      "breakpoints": true
     }
   ]
 }
