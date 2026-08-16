@@ -281,6 +281,20 @@
       "when": 1786898722372,
       "tag": "0039_mute_butterfly",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1786902152767,
+      "tag": "0040_third_aaron_stack",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1786907378534,
+      "tag": "0041_warm_eddie_brock",
+      "breakpoints": true
     }
   ]
 }
