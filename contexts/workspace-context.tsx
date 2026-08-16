@@ -71,6 +71,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const fetchWorkspaces = useCallback(async () => {
     try {
+      // eslint-disable-next-line no-restricted-syntax -- /api/workspaces is user-scoped (requireAuth), and this call is what decides the active workspace, so it cannot depend on it.
       const res = await fetch("/api/workspaces");
       if (!res.ok) return;
       const data = await res.json();
@@ -119,6 +120,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   const createWorkspace = useCallback(
     async (name: string, type: "personal" | "business", currency = "GBP") => {
+      // eslint-disable-next-line no-restricted-syntax -- user-scoped (requireAuth); creates a workspace rather than acting inside one.
       const res = await fetch("/api/workspaces", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -140,6 +142,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         Pick<Workspace, "name" | "type" | "currency" | "envelope_budgeting_enabled">
       >,
     ) => {
+      // eslint-disable-next-line no-restricted-syntax -- user-scoped (requireAuth); the target workspace is the path segment, not the header.
       const res = await fetch(`/api/workspaces/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CheckCircle2, Sparkles } from "lucide-react";
 import { useWorkspace } from "@/contexts/workspace-context";
+import { apiFetch } from "@/hooks/use-api";
 import { SUPPORTED_CURRENCIES } from "@/lib/currency";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +28,7 @@ function getMonthRange() {
 }
 
 export function OnboardingCard({ onCompleted }: OnboardingCardProps) {
-  const { activeWorkspace } = useWorkspace();
+  const { activeWorkspace, refreshWorkspaces } = useWorkspace();
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
   const [currency, setCurrency] = useState(activeWorkspace?.currency ?? "GBP");
@@ -65,18 +66,19 @@ export function OnboardingCard({ onCompleted }: OnboardingCardProps) {
           : null,
       };
 
-      const response = await fetch("/api/onboarding", {
+      // Must go through apiFetch: a bare fetch omits `x-workspace-id`, so the
+      // server falls back to the default workspace and onboards that one
+      // instead of the one the card is showing in.
+      await apiFetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error((body as { error?: string }).error ?? "Failed to complete onboarding");
-      }
-
       toast({ title: "Setup complete", description: "Your workspace is ready to use." });
+      // Setup can change the workspace currency; without this the rail and every
+      // formatted amount keep the pre-setup currency until a full reload.
+      refreshWorkspaces();
       onCompleted?.();
     } catch (error) {
       toast({

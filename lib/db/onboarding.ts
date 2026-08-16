@@ -73,9 +73,8 @@ export async function complete(userId: string, workspaceId: string, input: Compl
       updatedAt: now,
     })
     .onConflictDoUpdate({
-      target: onboardingStatus.userId,
+      target: [onboardingStatus.userId, onboardingStatus.workspaceId],
       set: {
-        workspaceId,
         hasCompleted: true,
         updatedAt: now,
       },

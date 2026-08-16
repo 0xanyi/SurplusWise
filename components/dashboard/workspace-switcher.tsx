@@ -115,13 +115,16 @@ export function WorkspaceSwitcher({
             }}
           />
 
-          {/* Dropdown */}
+          {/* Dropdown. The sidebar rail is `overflow-y-auto`, which makes
+              overflow-x compute to auto too, so anything wider than the rail's
+              content box is clipped and grows a horizontal scrollbar. Anchor to
+              the trigger's own width instead of a fixed 16rem. */}
           <div
             className={cn(
               "z-50 rounded-xl border border-border bg-popover shadow-lg",
               compact
                 ? "fixed left-4 right-4 top-16 max-h-[calc(100dvh-5rem)] overflow-y-auto"
-                : "absolute left-0 top-full mt-1.5 w-64"
+                : "absolute inset-x-0 top-full mt-1.5"
             )}
           >
             <div className="p-1.5">
@@ -153,13 +156,15 @@ export function WorkspaceSwitcher({
                   onClick={() => handleSelect(ws.id)}
                   className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent transition-colors"
                 >
-                  <WorkspaceIcon type={ws.type} />
-                  <span className="flex-1 text-left truncate">{ws.name}</span>
-                  <span className="text-xs text-muted-foreground capitalize">
+                  <span className="flex-none">
+                    <WorkspaceIcon type={ws.type} />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-left">{ws.name}</span>
+                  <span className="flex-none text-xs capitalize text-muted-foreground">
                     {ws.type}
                   </span>
                   {ws.id === activeWorkspace.id && (
-                    <Check className="h-3.5 w-3.5 text-primary" />
+                    <Check className="h-3.5 w-3.5 flex-none text-primary" />
                   )}
                 </button>
               ))}
