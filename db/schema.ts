@@ -268,7 +268,7 @@ export const onboardingStatus = pgTable(
   "onboarding_status",
   {
     userId: text("user_id")
-      .primaryKey()
+      .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id")
       .notNull()
@@ -277,7 +277,17 @@ export const onboardingStatus = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("idx_onboarding_status_workspace").on(t.workspaceId)],
+  // Onboarding is per workspace: each one has its own currency and first
+  // budget. Keying on user_id alone let a second workspace's setup steal the
+  // single row, so finishing setup never stuck and the other workspace's card
+  // came back.
+  (t) => [
+    primaryKey({
+      name: "onboarding_status_user_workspace_pk",
+      columns: [t.userId, t.workspaceId],
+    }),
+    index("idx_onboarding_status_workspace").on(t.workspaceId),
+  ],
 );
 
 /** Per-occurrence read state for notifications derived from live source records. */
