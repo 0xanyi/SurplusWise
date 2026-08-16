@@ -27,15 +27,25 @@ export default function DashboardLayout({
       return;
     }
 
-    if (session?.user?.id) {
-      // Seeding is workspace-scoped, so this has to carry the active workspace
-      // rather than defaulting to the user's first one. `apiFetch` reads it
-      // straight from localStorage, so it is correct even on this first render
-      // before WorkspaceProvider below has resolved.
+    if (!session?.user?.id) return;
+
+    // Seeding is per workspace, so this has to carry the active one rather than
+    // defaulting to the user's first. `apiFetch` reads it straight from
+    // localStorage, so it is right even on this first render, before the
+    // WorkspaceProvider below has resolved.
+    const seed = () => {
       apiFetch("/api/categories/seed", { method: "POST" }).catch((error) => {
         console.error("Failed to seed default categories", error);
       });
-    }
+    };
+
+    seed();
+
+    // Mounting is not enough: switching into a workspace that has never been
+    // seeded has to fill it too, otherwise it shows an empty category list
+    // until the next full page load.
+    window.addEventListener("workspace-changed", seed);
+    return () => window.removeEventListener("workspace-changed", seed);
   }, [session, isPending, router]);
 
   if (isPending) {
