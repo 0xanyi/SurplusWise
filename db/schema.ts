@@ -790,6 +790,7 @@ export const transactions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id")
+      .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     accountId: text("account_id").references(() => financialAccounts.id, {
       onDelete: "set null",
@@ -917,6 +918,7 @@ export const categories = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id")
+      .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     type: transactionTypeEnum("type").notNull(),
@@ -946,6 +948,7 @@ export const budgets = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id")
+      .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     category: text("category").notNull(),
     amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
@@ -972,6 +975,7 @@ export const recurringOutgoings = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id")
+      .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
@@ -1158,6 +1162,7 @@ export const debtsCredits = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id")
+      .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     financialAccountId: text("financial_account_id")
       .references(() => financialAccounts.id, { onDelete: "set null" }),
@@ -1310,6 +1315,7 @@ export const loansGiven = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id")
+      .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     borrowerName: text("borrower_name").notNull(),
     amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
@@ -1358,6 +1364,7 @@ export const investments = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id")
+      .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     investmentType: investmentTypeEnum("investment_type").notNull(),
