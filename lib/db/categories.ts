@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { categories, workspaces } from "@/db/schema";
 import {
@@ -191,9 +191,7 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       .where(
         and(
           eq(categories.userId, userId),
-          cat.workspaceId
-            ? eq(categories.workspaceId, cat.workspaceId)
-            : isNull(categories.workspaceId),
+          eq(categories.workspaceId, cat.workspaceId),
           eq(categories.type, cat.type),
           eq(categories.name, input.name),
         ),
