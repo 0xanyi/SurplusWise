@@ -57,6 +57,7 @@ export function AIProviderSettings() {
 
   const fetchSettings = useCallback(async () => {
     try {
+      // eslint-disable-next-line no-restricted-syntax -- /api/ai-provider is user-scoped (requireAuth); the key is shared across the user's workspaces.
       const response = await fetch("/api/ai-provider");
       if (!response.ok) throw new Error("Failed to fetch settings");
       const data = await response.json();
@@ -94,6 +95,7 @@ export function AIProviderSettings() {
         body.apiKey = apiKeyInput;
       }
 
+      // eslint-disable-next-line no-restricted-syntax -- user-scoped (requireAuth); the key is shared across the user's workspaces.
       const response = await fetch("/api/ai-provider", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },

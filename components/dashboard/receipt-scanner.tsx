@@ -48,6 +48,7 @@ export function ReceiptScanner({ onScanComplete, onCancel }: ReceiptScannerProps
       const formData = new FormData();
       formData.append("file", file);
 
+      // eslint-disable-next-line no-restricted-syntax -- stateless OCR + upload; the route uses only actorUserId and the storage key is a random UUID. The scanned result is saved later through the workspace-scoped transactions API.
       const response = await fetch("/api/receipts/scan", {
         method: "POST",
         body: formData,

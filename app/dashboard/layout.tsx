@@ -9,6 +9,7 @@ import {
   DashboardTabBar,
 } from "@/components/dashboard/dashboard-mobile-nav";
 import { WorkspaceProvider } from "@/contexts/workspace-context";
+import { apiFetch } from "@/hooks/use-api";
 import { authClient } from "@/lib/auth-client";
 import { NotificationsProvider } from "@/hooks/use-notifications";
 
@@ -27,7 +28,11 @@ export default function DashboardLayout({
     }
 
     if (session?.user?.id) {
-      fetch("/api/categories/seed", { method: "POST" }).catch((error) => {
+      // Seeding is workspace-scoped, so this has to carry the active workspace
+      // rather than defaulting to the user's first one. `apiFetch` reads it
+      // straight from localStorage, so it is correct even on this first render
+      // before WorkspaceProvider below has resolved.
+      apiFetch("/api/categories/seed", { method: "POST" }).catch((error) => {
         console.error("Failed to seed default categories", error);
       });
     }

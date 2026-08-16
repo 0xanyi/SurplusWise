@@ -14,6 +14,7 @@ export function AcceptInvitation({ token }: { token: string }) {
   const accept = async () => {
     setLoading(true);
     try {
+      // eslint-disable-next-line no-restricted-syntax -- the invitation token names the workspace being joined; the user has no active workspace here yet.
       const response = await fetch("/api/workspace-invitations/accept", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
