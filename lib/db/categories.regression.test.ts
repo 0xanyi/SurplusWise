@@ -51,6 +51,18 @@ async function createTempUser() {
   return { ...user, workspaceId: wsId };
 }
 
+async function addWorkspace(userId: string, name: string) {
+  const id = crypto.randomUUID();
+  await db.insert(workspaces).values({
+    id,
+    userId,
+    name,
+    type: "business",
+    isDefault: false,
+  });
+  return id;
+}
+
 async function cleanupUser(userId: string) {
   await db.delete(users).where(eq(users.id, userId));
 }
@@ -154,6 +166,110 @@ describe("categories regression", { skip: process.env.DATABASE_URL ? false : "re
 
       await assert.rejects(
         () => categoriesService.update(user.id, second.id, { name: first.name }),
+        /already exists/,
+      );
+    } finally {
+      await cleanupUser(user.id);
+    }
+  });
+
+  it("seeds every workspace, not just the first one", async () => {
+    const user = await createTempUser();
+
+    try {
+      const business = await addWorkspace(user.id, "Business");
+
+      const personalSeed = await categoriesService.ensureDefaults(user.id, user.workspaceId);
+      const businessSeed = await categoriesService.ensureDefaults(user.id, business);
+
+      assert.ok(personalSeed.inserted > 0, "expected the first workspace to be seeded");
+      assert.strictEqual(
+        businessSeed.inserted,
+        personalSeed.inserted,
+        "a second workspace must get its own full set of defaults",
+      );
+
+      const personal = await categoriesService.list(user.id, user.workspaceId);
+      const businessCategories = await categoriesService.list(user.id, business);
+      assert.strictEqual(businessCategories.length, personal.length);
+
+      // Same names, but they are distinct rows owned by distinct workspaces.
+      const overlap = personal.filter((p) =>
+        businessCategories.some((b) => b.name === p.name && b.type === p.type),
+      );
+      assert.ok(overlap.length > 0, "expected the default names to repeat across workspaces");
+      assert.strictEqual(
+        personal.filter((p) => businessCategories.some((b) => b.id === p.id)).length,
+        0,
+        "workspaces must not share category rows",
+      );
+    } finally {
+      await cleanupUser(user.id);
+    }
+  });
+
+  it("keeps the seeded marker per workspace", async () => {
+    const user = await createTempUser();
+
+    try {
+      const business = await addWorkspace(user.id, "Business");
+      await categoriesService.ensureDefaults(user.id, user.workspaceId);
+
+      // Emptying one workspace must not make the other look unseeded, and must
+      // not resurrect its own defaults.
+      for (const category of await categoriesService.list(user.id, user.workspaceId)) {
+        await categoriesService.remove(user.id, category.id);
+      }
+      assert.strictEqual(
+        (await categoriesService.ensureDefaults(user.id, user.workspaceId)).inserted,
+        0,
+      );
+      assert.strictEqual((await categoriesService.list(user.id, user.workspaceId)).length, 0);
+
+      // The untouched workspace still gets its own seed.
+      assert.ok((await categoriesService.ensureDefaults(user.id, business)).inserted > 0);
+    } finally {
+      await cleanupUser(user.id);
+    }
+  });
+
+  it("allows the same category name in a sibling workspace", async () => {
+    const user = await createTempUser();
+
+    try {
+      const business = await addWorkspace(user.id, "Business");
+
+      const personal = await categoriesService.create(user.id, user.workspaceId, {
+        name: "Studio Rent",
+        type: "expense",
+        color: "#123456",
+      });
+      assert.ok(personal);
+
+      // Creating the same name in another workspace used to hit the unique
+      // index on (user_id, type, name) and fail.
+      const sibling = await categoriesService.create(user.id, business, {
+        name: "Studio Rent",
+        type: "expense",
+        color: "#123456",
+      });
+      assert.ok(sibling);
+      assert.notStrictEqual(sibling.id, personal.id);
+
+      // Renaming to a name that only exists in the *other* workspace is allowed.
+      const spare = await categoriesService.create(user.id, user.workspaceId, {
+        name: "Equipment",
+        type: "expense",
+        color: "#654321",
+      });
+      const renamed = await categoriesService.update(user.id, spare.id, {
+        name: "Kit Hire",
+      });
+      assert.strictEqual(renamed?.name, "Kit Hire");
+
+      // Renaming to a name taken inside the same workspace is still rejected.
+      await assert.rejects(
+        () => categoriesService.update(user.id, spare.id, { name: "Studio Rent" }),
         /already exists/,
       );
     } finally {

@@ -1,6 +1,6 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { db } from "@/db/client";
-import { categories, users } from "@/db/schema";
+import { categories, workspaces } from "@/db/schema";
 import {
   ALL_DEFAULTS,
   type TransactionType,
@@ -57,27 +57,27 @@ export async function list(userId: string, workspaceId: string, type?: Transacti
 }
 
 /**
- * One-time seed per user.
+ * One-time seed per workspace.
  *
- * Uses users.categoriesSeeded as a durable marker so defaults are never
- * re-created after a user renames/deletes them (even if all categories are removed).
- *
- * Seeds categories into the given workspace.
+ * Uses workspaces.categoriesSeeded as a durable marker so defaults are never
+ * re-created after they are renamed or deleted (even if every category in the
+ * workspace is removed). Each workspace gets its own set: a business workspace
+ * needs its own "Food & Dining" rather than sharing the personal one.
  */
 export async function ensureDefaults(userId: string, workspaceId: string) {
   userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
 
-  const [user] = await db
-    .select({ id: users.id, categoriesSeeded: users.categoriesSeeded })
-    .from(users)
-    .where(eq(users.id, userId))
+  const [workspace] = await db
+    .select({ id: workspaces.id, categoriesSeeded: workspaces.categoriesSeeded })
+    .from(workspaces)
+    .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
     .limit(1);
 
-  if (!user) throw new Error("User not found or unauthorized");
+  if (!workspace) throw new Error("Workspace not found or unauthorized");
 
-  // Seed has already happened once for this user.
-  if (user.categoriesSeeded) return { inserted: 0 };
+  // Seed has already happened once for this workspace.
+  if (workspace.categoriesSeeded) return { inserted: 0 };
 
   let inserted = 0;
 
@@ -85,7 +85,13 @@ export async function ensureDefaults(userId: string, workspaceId: string) {
     const existing = await db
       .select({ name: categories.name })
       .from(categories)
-      .where(and(eq(categories.userId, userId), eq(categories.type, type)));
+      .where(
+        and(
+          eq(categories.userId, userId),
+          eq(categories.workspaceId, workspaceId),
+          eq(categories.type, type),
+        ),
+      );
 
     const { missing } = getMissingDefaults(
       existing.map((c) => c.name),
@@ -106,18 +112,23 @@ export async function ensureDefaults(userId: string, workspaceId: string) {
           isDefault: true,
         })
         .onConflictDoNothing({
-          target: [categories.userId, categories.type, categories.name],
+          target: [
+            categories.userId,
+            categories.workspaceId,
+            categories.type,
+            categories.name,
+          ],
         })
         .returning({ id: categories.id });
       if (result.length > 0) inserted++;
     }
   }
 
-  // Mark seeded even if zero inserted (e.g. legacy users already had categories).
+  // Mark seeded even if zero inserted (e.g. legacy workspaces already had categories).
   await db
-    .update(users)
+    .update(workspaces)
     .set({ categoriesSeeded: true })
-    .where(eq(users.id, userId));
+    .where(eq(workspaces.id, workspaceId));
 
   return { inserted };
 }
@@ -172,12 +183,17 @@ export async function update(userId: string, id: string, input: UpdateInput) {
   if (!cat) throw new Error("Category not found or unauthorized");
 
   if (input.name && input.name !== cat.name) {
+    // Scoped to the category's own workspace: the same name in a sibling
+    // workspace is a different category, not a clash.
     const [existing] = await db
       .select({ id: categories.id })
       .from(categories)
       .where(
         and(
           eq(categories.userId, userId),
+          cat.workspaceId
+            ? eq(categories.workspaceId, cat.workspaceId)
+            : isNull(categories.workspaceId),
           eq(categories.type, cat.type),
           eq(categories.name, input.name),
         ),
