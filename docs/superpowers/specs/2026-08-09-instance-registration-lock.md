@@ -1,8 +1,7 @@
 # Instance registration lock — product spec
 
 **Status:** Decided 2026-08-09  
-**Product home:** `PRODUCT.md` (Operating Context + Decided section)  
-**Implementation plan:** `docs/superpowers/plans/2026-08-09-instance-registration-lock.md`
+**Product home:** `PRODUCT.md` (Operating Context + Decided section)
 
 ## Problem
 
