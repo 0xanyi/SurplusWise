@@ -325,6 +325,50 @@ describe(
       }
     });
 
+    it("does not treat received projected income as a budget limit", async () => {
+      const userId = crypto.randomUUID();
+      const workspaceId = crypto.randomUUID();
+      await db.insert(users).values({
+        id: userId,
+        name: "Income projection notification user",
+        email: `income-projection-${userId.slice(0, 8)}@example.com`,
+      });
+      await db.insert(workspaces).values({
+        id: workspaceId,
+        userId,
+        name: "Personal",
+        type: "personal",
+        currency: "GBP",
+        isDefault: true,
+      });
+
+      try {
+        await budgetsService.create(userId, workspaceId, {
+          category: "Salary",
+          amount: 1000,
+          period: "monthly",
+          startDate: "2028-02-01",
+          endDate: "2028-02-29",
+          type: "income",
+        });
+        await transactionsService.create(userId, workspaceId, {
+          amount: 1000,
+          date: "2028-02-05",
+          type: "income",
+          category: "Salary",
+        });
+
+        assert.equal(
+          (await notificationsService.listBudgetLimits(userId, workspaceId, "2028-02-10")).length,
+          0,
+          "meeting an income projection is not a budget-limit alert",
+        );
+      } finally {
+        await db.delete(users).where(eq(users.id, userId));
+      }
+    });
+
+
     it("alerts only the default workspace when configured backup status is stale", async () => {
       const originalToken = process.env.BACKUP_REPORT_TOKEN;
       const userId = crypto.randomUUID();

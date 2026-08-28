@@ -1,4 +1,5 @@
 import { BudgetManagement } from "@/components/dashboard/budget-management";
+import { ProjectedIncomeManagement } from "@/components/dashboard/projected-income-management";
 import { CategoryManagement } from "@/components/dashboard/category-management";
 import { GoalsManagement } from "@/components/dashboard/goals-management";
 import { AIProviderSettings } from "@/components/dashboard/ai-provider-settings";
@@ -15,6 +16,7 @@ const sections: SettingsSection[] = [
   { id: "notifications", label: "Notifications" },
   { id: "data-resilience", label: "Data resilience" },
   { id: "ai-provider", label: "AI provider" },
+  { id: "projected-income", label: "Projected income" },
   { id: "budgets", label: "Budgets" },
   { id: "categories", label: "Categories" },
   { id: "transaction-rules", label: "Transaction rules" },
@@ -47,14 +49,27 @@ export default function SettingsPage() {
             <AIProviderSettings />
           </section>
 
+          <section id="projected-income" className="scroll-mt-6 space-y-4">
+            <div>
+              <h2 className="font-display text-base font-semibold tracking-[-0.015em]">
+                Projected income
+              </h2>
+              <p className="mt-1 text-[12.5px] text-muted-foreground">
+                Set what you expect to receive this period, then compare it with
+                recorded income. Personal and business workspaces each keep their
+                own projections.
+              </p>
+            </div>
+            <ProjectedIncomeManagement />
+          </section>
+
           <section id="budgets" className="scroll-mt-6 space-y-4">
             <div>
               <h2 className="font-display text-base font-semibold tracking-[-0.015em]">
                 Budgets
               </h2>
               <p className="mt-1 text-[12.5px] text-muted-foreground">
-                Set monthly, quarterly, or yearly targets for income, expenses,
-                and giving.
+                Set monthly, quarterly, or yearly targets for expenses and giving.
               </p>
             </div>
             <BudgetManagement />

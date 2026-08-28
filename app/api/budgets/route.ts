@@ -3,7 +3,8 @@ import * as budgetsService from "@/lib/db/budgets";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 
-function getBudgetStatus(percentage: number) {
+function getBudgetStatus(percentage: number, type: unknown) {
+  if (type === "income") return "ok";
   if (percentage >= 100) return "exceeded";
   if (percentage >= 80) return "warning";
   return "ok";
@@ -30,7 +31,7 @@ function toBudget(budget: Record<string, unknown>) {
     spent,
     remaining,
     percentage: percentUsed,
-    status: getBudgetStatus(percentUsed),
+    status: getBudgetStatus(percentUsed, budget.type),
   };
 }
 

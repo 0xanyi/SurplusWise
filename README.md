@@ -124,6 +124,11 @@ See [SECURITY.md](SECURITY.md) for the full checklist, and
 - ✅ Real-time budget vs actual spending tracking
 - ✅ Budget progress indicators with color coding
 
+**Projected Income**
+- ✅ Set expected income by category and period, per workspace
+- ✅ Compare received income with the month's projection
+- ✅ Copy a projection forward without treating extra receipts as over-budget
+
 **Analytics & Reports**
 - 📊 Interactive analytics dashboard with charts
 - 📈 Spending trends visualization (line charts)

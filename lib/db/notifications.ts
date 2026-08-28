@@ -140,7 +140,8 @@ export async function listBudgetLimits(
   workspaceIdSchema.parse(workspaceId);
   const budgets = (await budgetsService.getWithSpending(userId, workspaceId))
     .filter((budget) => (
-      budget.startDate <= today
+      budget.type !== "income"
+      && budget.startDate <= today
       && budget.endDate >= today
       && budget.percentUsed >= 80
     ));
