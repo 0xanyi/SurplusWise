@@ -16,6 +16,7 @@ import { NetPositionHero } from "@/components/dashboard/net-position-hero";
 import { NeedsAttention } from "@/components/dashboard/needs-attention";
 import { UpcomingBills } from "@/components/dashboard/upcoming-bills";
 import { BudgetOverview } from "@/components/dashboard/budget-overview";
+import { ProjectedIncomeOverview } from "@/components/dashboard/projected-income-overview";
 import { GoalsOverview } from "@/components/dashboard/goals-overview";
 import { NetWorthOverview } from "@/components/dashboard/net-worth-overview";
 import { ClientsOverview } from "@/components/dashboard/clients/clients-overview";
@@ -284,7 +285,8 @@ export default function DashboardPage() {
         </Card>
       </section>
 
-      {/* Band 4 — budgets */}
+      {/* Band 4 — expected income, then spending budgets */}
+      <ProjectedIncomeOverview />
       <BudgetOverview />
 
       {/* Band 5 — the balance sheet, in one figure */}

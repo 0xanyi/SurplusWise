@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
-import { AlertTriangle, Plus, TrendingDown, TrendingUp } from "lucide-react";
+import { Plus, TrendingDown } from "lucide-react";
 import { useApiQuery } from "@/hooks/use-api";
 import type { ApiBudget } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ export function BudgetOverview() {
     if (!budgets) return [];
 
     return budgets
+      .filter((budget) => budget.type !== "income")
       .map((budget) => ({
         id: budget.id,
         category: budget.category,
@@ -90,7 +91,7 @@ export function BudgetOverview() {
               Create your first budget to track progress.
             </p>
             <Button asChild size="sm" className="mt-4">
-              <Link href="/dashboard/settings">
+              <Link href="/dashboard/settings#budgets">
                 <Plus />
                 Create budget
               </Link>

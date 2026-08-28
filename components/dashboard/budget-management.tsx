@@ -29,7 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
-type BudgetType = "expense" | "giving" | "income";
+type BudgetType = "expense" | "giving";
 type BudgetPeriod = "monthly" | "quarterly" | "yearly";
 
 interface ApiCategory {
@@ -67,6 +67,10 @@ export function BudgetManagement() {
 
   const budgets = budgetData?.budgets;
   const categories = catData?.categories;
+  const spendingBudgets = useMemo(
+    () => (budgets ?? []).filter((budget) => budget.type !== "income"),
+    [budgets],
+  );
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -234,7 +238,7 @@ export function BudgetManagement() {
       category: budget.category,
       amount: budget.amount.toString(),
       period: budget.period,
-      type: budget.type,
+      type: budget.type === "giving" ? "giving" : "expense",
     });
     setIsEditDialogOpen(true);
   };
@@ -305,7 +309,11 @@ export function BudgetManagement() {
               </div>
               {monthlyEnvelopePlan.expectedIncome === 0 ? (
                 <p className="text-xs text-obligation">
-                  Add a monthly income budget to define how much is available to assign.
+                  Add{" "}
+                  <a href="#projected-income" className="underline underline-offset-2">
+                    monthly projected income
+                  </a>{" "}
+                  to define how much is available to assign.
                 </p>
               ) : monthlyEnvelopePlan.unassigned === 0 ? (
                 <p className="text-xs font-medium">Every unit of expected income is assigned.</p>
@@ -350,7 +358,6 @@ export function BudgetManagement() {
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="income">Income</SelectItem>
                   <SelectItem value="expense">Expense</SelectItem>
                   <SelectItem value="giving">Giving</SelectItem>
                 </SelectContent>
@@ -545,7 +552,7 @@ export function BudgetManagement() {
       </Dialog>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {budgets.length === 0 ? (
+        {spendingBudgets.length === 0 ? (
           <Card>
             <CardContent className="pt-6 text-center text-muted-foreground">
               <p className="font-medium text-foreground">No budgets yet</p>
@@ -553,18 +560,18 @@ export function BudgetManagement() {
             </CardContent>
           </Card>
         ) : (
-          budgets.map((budget) => {
+          spendingBudgets.map((budget) => {
             const status = getBudgetStatus(budget.percentage);
             return (
               <Card key={budget.id}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className={`rounded-xl p-2 ${budget.type === "expense" ? "bg-expense-surface" : budget.type === "income" ? "bg-income-surface" : "bg-giving-surface"}`}>
+                      <div className={`rounded-xl p-2 ${budget.type === "expense" ? "bg-expense-surface" : "bg-giving-surface"}`}>
                         {budget.type === "expense" ? (
                           <TrendingDown className="size-4 text-expense" />
                         ) : (
-                          <TrendingUp className={`size-4 ${budget.type === "income" ? "text-income" : "text-giving"}`} />
+                          <TrendingUp className="size-4 text-giving" />
                         )}
                       </div>
                       <div>

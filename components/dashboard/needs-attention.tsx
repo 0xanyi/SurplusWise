@@ -127,7 +127,7 @@ export function NeedsAttention() {
     }
 
     for (const budget of budgetsData?.budgets ?? []) {
-      if (!budget.is_active) continue;
+      if (!budget.is_active || budget.type === "income") continue;
       if (budget.status !== "exceeded" && budget.status !== "warning") continue;
 
       const exceeded = budget.status === "exceeded";

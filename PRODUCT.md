@@ -105,8 +105,11 @@ today; it is a position, not a measured market finding.)*
   transactions remain explicitly unassigned until the user places them.
 - Categories: 10 default expense, 8 default giving, plus custom, color-coded,
   per workspace.
-- Budgets: monthly / quarterly / yearly, per category, with live spent-vs-allocated
-  progress.
+- Budgets: monthly / quarterly / yearly, per expense and giving category, with
+  live spent-vs-allocated progress.
+- Projected income: the same periods for income categories, compared with
+  recorded income so a month has an expected total before it is received.
+  Workspace-scoped, so personal and business projections stay separate.
 - Recurring outgoings with payment logs; loans given with repayments and status;
   investments (stock, crypto, forex, property, business, savings, other) with
   return/dividend/sale/loss/fee events; goals; net-worth rollup.

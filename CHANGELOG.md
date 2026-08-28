@@ -4,6 +4,16 @@ All notable changes to Sika will be documented in this file.
 
 ## [Unreleased]
 
+### Projected income
+
+- Added a workspace-scoped projected income section, the income counterpart to
+  category budgets, so personal and business workspaces can each plan what they
+  expect to receive in a month, quarter, or year
+- The overview now shows this month's expected versus recorded income by
+  category, without treating extra receipts as over-budget
+- Envelope budgeting still uses these income amounts as the expected total to
+  assign across expense and giving envelopes
+
 ### Recurring money foundation
 
 - Extended recurring records to cover income, expenses, and giving through one
