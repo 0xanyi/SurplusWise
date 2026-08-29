@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
@@ -70,12 +70,31 @@ export default function DashboardLayout({
     <WorkspaceProvider>
       <NotificationsProvider>
         <div className="flex min-h-screen bg-background">
+          <a
+            href="#main"
+            className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-[11px] focus:bg-primary focus:px-3.5 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground"
+          >
+            Skip to content
+          </a>
           <DashboardSidebar user={user} />
-          {/* max-w caps the measure on very wide screens so the content column
-              never outruns the sidebar it sits beside. */}
           <main className="flex min-w-0 flex-1 flex-col gap-6 px-4 pb-5 pt-4.5 lg:max-w-[1240px] lg:gap-[26px] lg:px-8 lg:pb-14 lg:pt-6">
             <DashboardMobileHeader user={user} />
-            {children}
+            <div id="main" tabIndex={-1} className="flex min-w-0 flex-1 flex-col outline-none">
+              <Suspense
+                fallback={
+                  <div
+                    className="flex min-h-[320px] items-center justify-center"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <Loader2 className="size-7 animate-spin text-muted-foreground" />
+                    <span className="sr-only">Loading dashboard</span>
+                  </div>
+                }
+              >
+                {children}
+              </Suspense>
+            </div>
             <DashboardTabBar />
           </main>
         </div>

@@ -10,6 +10,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency } from "@/lib/utils";
 import { SectionHeading } from "@/components/dashboard/panel";
+import {
+  budgetApiPeriod,
+  budgetBandTitle,
+  dashboardDateRange,
+  registerHref,
+  type DashboardPeriod,
+} from "@/lib/dashboard-period";
 
 function BudgetSkeleton() {
   return (
@@ -24,8 +31,12 @@ function BudgetSkeleton() {
   );
 }
 
-export function BudgetOverview() {
-  const { data, loading } = useApiQuery<{ budgets: ApiBudget[] }>("/api/budgets?period=monthly");
+export function BudgetOverview({ period }: { period: DashboardPeriod }) {
+  const grain = budgetApiPeriod(period);
+  const range = dashboardDateRange(period);
+  const { data, loading } = useApiQuery<{ budgets: ApiBudget[] }>(
+    `/api/budgets?period=${grain}`,
+  );
   const budgets = data?.budgets;
 
   const topBudgets = useMemo(() => {
@@ -51,7 +62,7 @@ export function BudgetOverview() {
     return (
       <Card>
         <CardHeader className="pb-4">
-          <CardTitle>Budget Overview</CardTitle>
+          <CardTitle as="h2">Budgets</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
           <BudgetSkeleton />
@@ -64,15 +75,19 @@ export function BudgetOverview() {
 
   const now = new Date();
   const daysRemaining =
-    new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate();
+    grain === "monthly"
+      ? new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate()
+      : null;
 
   const header = (
     <SectionHeading
-      title="Budgets this month"
+      title={budgetBandTitle(period, "budgets")}
       aside={
-        daysRemaining === 0
-          ? "Last day"
-          : `${daysRemaining} ${daysRemaining === 1 ? "day" : "days"} remaining`
+        daysRemaining == null
+          ? undefined
+          : daysRemaining === 0
+            ? "Last day"
+            : `${daysRemaining} ${daysRemaining === 1 ? "day" : "days"} remaining`
       }
     />
   );
@@ -107,18 +122,44 @@ export function BudgetOverview() {
       {header}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {topBudgets.map((budget) => {
-          const over = budget.status === "exceeded";
-          const near = budget.status === "warning";
-          const statusTone = over
-            ? "text-expense"
-            : near
-            ? "text-obligation"
-            : "text-muted-foreground";
+          const giving = budget.type === "giving";
+          const over = !giving && budget.status === "exceeded";
+          const near = !giving && budget.status === "warning";
+          const statusTone = giving
+            ? "text-giving"
+            : over
+              ? "text-expense"
+              : near
+                ? "text-obligation"
+                : "text-muted-foreground";
+          const fill = giving
+            ? "bg-giving"
+            : over
+              ? "bg-expense"
+              : near
+                ? "bg-obligation"
+                : "bg-foreground/70";
+          const href = giving
+            ? "/dashboard/giving"
+            : registerHref({
+                type: "expense",
+                category: budget.category,
+                startDate: range.startDate,
+                endDate: range.endDate,
+              });
+          const remainder = giving
+            ? budget.remaining >= 0
+              ? `${formatCurrency(budget.remaining)} to target`
+              : `${formatCurrency(Math.abs(budget.remaining))} past target`
+            : budget.remaining >= 0
+              ? `${formatCurrency(budget.remaining)} left`
+              : `${formatCurrency(Math.abs(budget.remaining))} over`;
 
           return (
-            <div
+            <Link
               key={budget.id}
-              className="rounded-2xl border border-border/70 bg-card p-4 sm:px-[18px]"
+              href={href}
+              className="rounded-2xl border border-border/70 bg-card p-4 transition-colors hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-[18px]"
             >
               <div className="flex items-baseline justify-between gap-3">
                 <p className="truncate text-[13.5px] font-medium">{budget.category}</p>
@@ -132,29 +173,25 @@ export function BudgetOverview() {
                 aria-valuenow={Math.min(Math.round(budget.percentage), 100)}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label={`${budget.category} budget used`}
+                aria-label={
+                  giving
+                    ? `${budget.category} given toward target`
+                    : `${budget.category} budget used`
+                }
                 className="my-3 h-[5px] overflow-hidden rounded-full bg-track"
               >
-                {/* On track is neutral ink: staying under budget is not giving. */}
                 <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    over ? "bg-expense" : near ? "bg-obligation" : "bg-foreground/70"
-                  }`}
+                  className={`h-full rounded-full transition-all duration-500 ${fill}`}
                   style={{ width: `${Math.min(budget.percentage, 100)}%` }}
                 />
               </div>
 
-              {/* The bar's colour also encodes status, so name it in words. */}
               <p className="text-xs text-muted-foreground tabular-nums">
                 {formatCurrency(budget.spent)} of {formatCurrency(budget.amount)}
                 {" · "}
-                <span className={statusTone}>
-                  {budget.remaining >= 0
-                    ? `${formatCurrency(budget.remaining)} left`
-                    : `${formatCurrency(Math.abs(budget.remaining))} over`}
-                </span>
+                <span className={statusTone}>{remainder}</span>
               </p>
-            </div>
+            </Link>
           );
         })}
       </div>

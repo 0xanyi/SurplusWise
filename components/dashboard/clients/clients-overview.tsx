@@ -6,6 +6,7 @@ import { usePartyLabels } from "@/hooks/use-party-labels";
 import type { ApiClient } from "@/types";
 import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
+import { quietLink, SectionHeading } from "@/components/dashboard/panel";
 
 interface ClientsResponse {
   clients: ApiClient[];
@@ -44,7 +45,9 @@ export function ClientsOverview() {
       : `Behind on ${labels.lowerPlural}`;
 
   return (
-    <Card>
+    <section>
+      <SectionHeading title={labels.plural} />
+      <Card>
       <CardContent className="flex flex-wrap items-start justify-between gap-6 pt-5 sm:pt-6">
         <div>
           <p className="text-xs text-muted-foreground">{headline}</p>
@@ -63,13 +66,11 @@ export function ClientsOverview() {
           </p>
         </div>
 
-        <Link
-          href="/dashboard/clients"
-          className="text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
+        <Link href="/dashboard/clients" className={quietLink}>
           View all
         </Link>
       </CardContent>
-    </Card>
+      </Card>
+    </section>
   );
 }
