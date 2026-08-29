@@ -63,16 +63,22 @@ export function LoanFormFields({ formData, onChange }: LoanFormFieldsProps) {
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor="loan-interest">Interest Rate % (optional)</Label>
+        <Label htmlFor="loan-interest">Monthly interest rate % (optional)</Label>
         <Input
           id="loan-interest"
           type="number"
           min="0"
+          max="100"
           step="0.01"
           placeholder="0.00"
           value={formData.interestRate}
           onChange={(e) => onChange({ interestRate: e.target.value })}
+          aria-describedby="loan-interest-hint"
         />
+        <p id="loan-interest-hint" className="text-xs text-muted-foreground">
+          Charged per month on the outstanding balance, never compounded. Leave
+          blank for an interest-free loan.
+        </p>
       </div>
       <div className="space-y-2">
         <Label htmlFor="loan-notes">Notes (optional)</Label>

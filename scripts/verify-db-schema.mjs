@@ -57,6 +57,8 @@ const REQUIRED_COLUMNS = [
   { table: "notification_deliveries", column: "event_key" },
   { table: "notification_deliveries", column: "destination_key" },
   { table: "backup_status", column: "last_successful_at" },
+  // migration 0042 — loan interest accrual freeze
+  { table: "loans_given", column: "accrual_stopped_on" },
 ];
 
 const REQUIRED_INDEXES = ["idx_workspace_memberships_user_workspace"];

@@ -110,9 +110,21 @@ today; it is a position, not a measured market finding.)*
 - Projected income: the same periods for income categories, compared with
   recorded income so a month has an expected total before it is received.
   Workspace-scoped, so personal and business projections stay separate.
-- Recurring outgoings with payment logs; loans given with repayments and status;
-  investments (stock, crypto, forex, property, business, savings, other) with
-  return/dividend/sale/loss/fee events; goals; net-worth rollup.
+- Recurring outgoings with payment logs; investments (stock, crypto, forex,
+  property, business, savings, other) with return/dividend/sale/loss/fee events;
+  goals; net-worth rollup.
+- Loans given, with repayments, status, and **monthly interest**. A loan carries
+  a per-month rate charged to the borrower; interest is simple, never compounded,
+  and accrues on the declining principal, in whole months ticking on the loan
+  date's day-of-month — a figure the borrower can check by hand. The loan page
+  shows the interest assumed when the term was agreed, the interest accrued to
+  date, what settles the loan today, and a month-by-month schedule whose rows sum
+  to the total; a settlement-date control projects what a further delay costs
+  without recording anything. Repayments settle principal first, so cash above
+  principal counts as interest paid. Writing a loan off freezes accrual at that
+  date. Interest is derived on read and never stored: `outstanding_balance` stays
+  principal only, and outstanding interest is reported beside it rather than
+  inside it, so unpaid interest never enters net worth as an asset.
 - Clients (business workspaces) / people (personal), with the costs carried on
   their behalf. A recurring outgoing can name the vendor it is paid to and the
   client it is really for, on one of four terms: **own cost**, **at cost**,
