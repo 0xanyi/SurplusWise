@@ -2,6 +2,45 @@ import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as loansService from "@/lib/db/loans-given";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { toLoan, toSchedule } from "../serialize";
+
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { userId } = await requireAuthWithWorkspace("viewer");
+    const { id } = await params;
+
+    const loan = await loansService.getById(userId, id);
+    const repayments = await loansService.listRepayments(userId, id);
+
+    return NextResponse.json({
+      ...toLoan(loan),
+      interest_schedule: toSchedule(loan.interest.months),
+      repayments: repayments.map((row) => ({
+        id: row.id,
+        loan_id: row.loanId,
+        amount: Number(row.amount),
+        repayment_date: row.repaymentDate,
+        notes: row.notes,
+        created_at: row.createdAt?.toISOString() ?? null,
+      })),
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (
+      error instanceof Error &&
+      (error.message.includes("not found") || error.message.includes("unauthorized"))
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
+    }
+    console.error("Failed to fetch loan given:", error);
+    return NextResponse.json({ error: "Failed to fetch loan given" }, { status: 500 });
+  }
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -17,9 +56,9 @@ export async function PATCH(
         borrowerName: body.borrowerName ?? body.borrower_name,
       }),
       ...(body.amount !== undefined && { amount: body.amount }),
-      ...((body.outstandingBalance ?? body.outstanding_balance) !== undefined && {
-        outstandingBalance: body.outstandingBalance ?? body.outstanding_balance,
-      }),
+      // `outstanding_balance` is no longer accepted: it is derived from the
+      // repayment ledger, and a hand-set value would make the interest figures
+      // computed against it wrong.
       ...((body.loanDate ?? body.loan_date) !== undefined && {
         loanDate: body.loanDate ?? body.loan_date,
       }),

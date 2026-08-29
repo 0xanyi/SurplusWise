@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Plus,
   Edit2,
@@ -10,8 +11,7 @@ import {
   CalendarDays,
   History,
   Loader2,
-  ChevronDown,
-  ChevronUp,
+  ChevronRight,
   AlertTriangle,
 } from "lucide-react";
 import { useApiQuery, apiFetch } from "@/hooks/use-api";
@@ -27,7 +27,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { RepaymentSection } from "./loans/repayment-section";
 import { LoanFormFields, type LoanFormData } from "./loans/loan-form-fields";
 import { StatTile } from "@/components/dashboard/panel";
 
@@ -57,8 +56,10 @@ const STATUS_CONFIG: Record<LoanStatus, { label: string; color: string; bg: stri
 interface LoansGivenResponse {
   loans: ApiLoanGiven[];
   total_lent: number;
+  /** Principal only. Interest is reported separately so neither figure lies. */
   total_outstanding: number;
   active_count: number;
+  total_interest_outstanding: number;
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────────
@@ -78,7 +79,6 @@ export function LoansGivenManagement() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingItem, setEditingItem] = useState<ApiLoanGiven | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<LoanFormData>({
     borrowerName: "",
@@ -233,15 +233,23 @@ export function LoansGivenManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Total lent"
           value={formatCurrency(data?.total_lent ?? 0)}
         />
         <StatTile
-          label="Total outstanding"
+          label="Principal outstanding"
           value={formatCurrency(data?.total_outstanding ?? 0)}
           tone="text-obligation"
+        />
+        {/* Deliberately its own tile: unpaid interest is not counted in net
+            worth, so folding it into the outstanding figure would inflate a
+            number other pages read as money actually lent. */}
+        <StatTile
+          label="Interest outstanding"
+          value={formatCurrency(data?.total_interest_outstanding ?? 0)}
+          tone={(data?.total_interest_outstanding ?? 0) > 0 ? "text-obligation" : undefined}
         />
         <StatTile
           label="Active loans"
@@ -426,10 +434,51 @@ export function LoansGivenManagement() {
                     </div>
                   )}
 
-                  {item.interest_rate != null && (
+                  {item.interest.accrued_interest > 0 && (
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">Interest Rate</span>
-                      <span className="font-medium tabular-nums">{item.interest_rate}%</span>
+                      <span className="text-muted-foreground">
+                        Interest {item.interest.settled_on ? "charged" : "accrued"}
+                        {item.interest_rate != null && (
+                          <span className="text-xs"> · {item.interest_rate}%/mo</span>
+                        )}
+                      </span>
+                      <span className="font-semibold tabular-nums text-obligation">
+                        {formatCurrency(item.interest.accrued_interest)}
+                      </span>
+                    </div>
+                  )}
+
+                  {item.interest.payoff_today > 0 && item.interest.accrued_interest > 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">To settle today</span>
+                      <span className="font-semibold tabular-nums">
+                        {formatCurrency(item.interest.payoff_today)}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* An overrun is the figure worth surfacing without a click. */}
+                  {item.interest.expected_interest != null &&
+                    item.interest.accrued_interest > item.interest.expected_interest && (
+                      <p className="flex items-center gap-1.5 text-xs text-obligation">
+                        <AlertTriangle className="size-3 flex-none" />
+                        {formatCurrency(
+                          Math.round(
+                            (item.interest.accrued_interest -
+                              item.interest.expected_interest) *
+                              100,
+                          ) / 100,
+                        )}{" "}
+                        over the {formatCurrency(item.interest.expected_interest)} assumed
+                      </p>
+                    )}
+
+                  {item.interest_rate != null && item.interest.accrued_interest === 0 && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Interest rate</span>
+                      <span className="font-medium tabular-nums">
+                        {item.interest_rate}% a month
+                      </span>
                     </div>
                   )}
 
@@ -439,27 +488,17 @@ export function LoansGivenManagement() {
                     </p>
                   )}
 
-                  {/* Expand/collapse repayment history */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full h-8 text-xs text-muted-foreground mt-2"
-                    onClick={() =>
-                      setExpandedId(expandedId === item.id ? null : item.id)
-                    }
+                  {/* Repayments and the interest schedule live on the detail
+                      page now. Two places to record a repayment is one too
+                      many, and the schedule cannot fit in a card. */}
+                  <Link
+                    href={`/dashboard/loans/${item.id}`}
+                    className="mt-2 flex h-9 items-center justify-center gap-1.5 rounded-[9px] text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card"
                   >
-                    <History className="size-3 mr-1" />
-                    {expandedId === item.id ? "Hide" : "Show"} Repayment History
-                    {expandedId === item.id ? (
-                      <ChevronUp className="size-3 ml-1" />
-                    ) : (
-                      <ChevronDown className="size-3 ml-1" />
-                    )}
-                  </Button>
-
-                  {expandedId === item.id && (
-                    <RepaymentSection loanId={item.id} onChanged={refresh} />
-                  )}
+                    <History className="size-3" />
+                    Repayments &amp; interest schedule
+                    <ChevronRight className="size-3" />
+                  </Link>
                 </CardContent>
               </Card>
             );

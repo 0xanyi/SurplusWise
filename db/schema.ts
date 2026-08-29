@@ -1323,7 +1323,15 @@ export const loansGiven = pgTable(
     loanDate: date("loan_date", { mode: "string" }).notNull(),
     expectedPaybackDate: date("expected_payback_date", { mode: "string" }),
     status: loanStatusEnum("status").notNull().default("active"),
+    /** Monthly rate charged to the borrower. Null means no interest agreed. */
     interestRate: decimal("interest_rate", { precision: 5, scale: 2 }),
+    /**
+     * Date interest stopped accruing, set when the loan is written off. Without
+     * it a defaulted loan would keep charging indefinitely, and `updated_at`
+     * cannot stand in: editing a note years later would silently inflate the
+     * frozen figure. Cleared if the loan leaves `defaulted`.
+     */
+    accrualStoppedOn: date("accrual_stopped_on", { mode: "string" }),
     notes: text("notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

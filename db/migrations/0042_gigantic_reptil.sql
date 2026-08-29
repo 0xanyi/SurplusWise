@@ -1,0 +1,1 @@
+ALTER TABLE "loans_given" ADD COLUMN "accrual_stopped_on" date;

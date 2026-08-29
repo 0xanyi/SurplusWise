@@ -39,6 +39,27 @@ export const dateStringSchema = z
     { message: "date is not a valid calendar date" },
   );
 
+/**
+ * Earliest and latest dates that can drive per-period arithmetic. Generous
+ * enough that no real financial record is rejected.
+ */
+export const MIN_BOUNDED_DATE = "1900-01-01";
+export const MAX_BOUNDED_DATE = "2100-12-31";
+
+/**
+ * A date a figure can accrue against.
+ *
+ * `dateStringSchema` proves a date is real, not that it is plausible, and an
+ * unbounded date is a denial of service wherever something accrues per month
+ * between two dates: `9999-12-31` is roughly 95,700 monthly periods, which is
+ * ~72ms of blocked event loop per loan per request. Use this for any date the
+ * server does arithmetic over, not merely stores and prints.
+ */
+export const boundedDateSchema = dateStringSchema.refine(
+  (value) => value >= MIN_BOUNDED_DATE && value <= MAX_BOUNDED_DATE,
+  { message: `date must be between ${MIN_BOUNDED_DATE} and ${MAX_BOUNDED_DATE}` },
+);
+
 /** Positive monetary amount. */
 export const amountSchema = z.number().positive("amount must be positive");
 
@@ -741,8 +762,11 @@ export const loanStatusSchema = z.enum([
 export const loanGivenCreateSchema = z.object({
   borrowerName: z.string().min(1, "borrower name is required").max(200),
   amount: z.number().positive("amount must be positive"),
-  loanDate: dateStringSchema,
-  expectedPaybackDate: dateStringSchema.nullish(),
+  // Bounded: these two dates delimit the interest schedule, so an implausible
+  // one is an unbounded server-side loop rather than a cosmetic mistake.
+  loanDate: boundedDateSchema,
+  expectedPaybackDate: boundedDateSchema.nullish(),
+  /** Rate charged to the borrower, **per month**. There is no annual basis. */
   interestRate: z.number().min(0).max(100).nullish(),
   notes: z.string().nullish(),
 });
@@ -751,9 +775,11 @@ export const loanGivenUpdateSchema = z
   .object({
     borrowerName: z.string().min(1).max(200).optional(),
     amount: z.number().positive().optional(),
-    outstandingBalance: z.number().min(0).optional(),
-    loanDate: dateStringSchema.optional(),
-    expectedPaybackDate: dateStringSchema.nullish(),
+    loanDate: boundedDateSchema.optional(),
+    expectedPaybackDate: boundedDateSchema.nullish(),
+    // `outstandingBalance` is intentionally not accepted. It is derived from
+    // the repayment ledger (`amount − Σ repayments`), and the interest figures
+    // are only correct while that identity holds.
     status: loanStatusSchema.optional(),
     interestRate: z.number().min(0).max(100).nullish(),
     notes: z.string().nullish(),
@@ -765,7 +791,7 @@ export const loanGivenUpdateSchema = z
 
 export const loanRepaymentCreateSchema = z.object({
   amount: z.number().positive("amount must be positive"),
-  repaymentDate: dateStringSchema,
+  repaymentDate: boundedDateSchema,
   notes: z.string().nullish(),
 });
 

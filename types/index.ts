@@ -542,18 +542,57 @@ export interface ApiUpcomingDebtPayment {
 
 export type LoanStatus = 'active' | 'partially_repaid' | 'fully_repaid' | 'defaulted'
 
+/** Every interest figure for one loan, derived on read — never stored. */
+export interface ApiLoanInterest {
+  /** Whole monthly anniversaries reached since the loan date. */
+  months_elapsed: number
+  /** Charged so far, or frozen at settlement once that happened. */
+  accrued_interest: number
+  /** Cash received above principal; repayments settle principal first. */
+  interest_paid: number
+  interest_outstanding: number
+  /** Principal plus outstanding interest: what clears the loan today. */
+  payoff_today: number
+  /** Interest had the loan run exactly to its expected payback date. */
+  expected_interest: number | null
+  /** Frozen total once settled; null while anything is owed. */
+  final_interest: number | null
+  settled_on: string | null
+}
+
+/** One monthly charge in the schedule shown to a borrower. */
+export interface ApiLoanInterestMonth {
+  index: number
+  period_start: string
+  period_end: string
+  charged_on: string
+  opening_balance: number
+  charge: number
+}
+
 export interface ApiLoanGiven {
   id: string
   borrower_name: string
   amount: number
+  /** Principal only: `amount − Σ repayments`. Interest is never folded in. */
   outstanding_balance: number
   loan_date: string
   expected_payback_date: string | null
   status: LoanStatus
+  /** Rate charged to the borrower, **per month**. Null means interest-free. */
   interest_rate: number | null
+  /** Date accrual froze when the loan was written off. */
+  accrual_stopped_on: string | null
   notes: string | null
   created_at: string | null
   updated_at: string | null
+  interest: ApiLoanInterest
+}
+
+/** A single loan with its full monthly schedule and repayment ledger. */
+export interface ApiLoanGivenDetail extends ApiLoanGiven {
+  interest_schedule: ApiLoanInterestMonth[]
+  repayments: ApiLoanRepayment[]
 }
 
 export interface ApiLoanRepayment {

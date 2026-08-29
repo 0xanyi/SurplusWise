@@ -2,22 +2,7 @@ import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as loansService from "@/lib/db/loans-given";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
-
-function toLoan(row: Record<string, unknown>) {
-  return {
-    id: row.id,
-    borrower_name: row.borrowerName,
-    amount: Number(row.amount),
-    outstanding_balance: Number(row.outstandingBalance),
-    loan_date: row.loanDate,
-    expected_payback_date: row.expectedPaybackDate,
-    status: row.status,
-    interest_rate: row.interestRate != null ? Number(row.interestRate) : null,
-    notes: row.notes,
-    created_at: row.createdAt,
-    updated_at: row.updatedAt,
-  };
-}
+import { toLoan } from "./serialize";
 
 export async function GET() {
   try {
@@ -30,6 +15,12 @@ export async function GET() {
       total_lent: summary.totalLent,
       total_outstanding: summary.totalOutstanding,
       active_count: summary.count,
+      // Interest owed across every unsettled loan — the receivable the
+      // principal-only `total_outstanding` deliberately excludes.
+      total_interest_outstanding:
+        Math.round(
+          loans.reduce((sum, loan) => sum + loan.interest.interestOutstanding, 0) * 100,
+        ) / 100,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

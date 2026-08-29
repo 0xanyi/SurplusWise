@@ -4,6 +4,36 @@ All notable changes to Sika will be documented in this file.
 
 ## [Unreleased]
 
+### Loan interest
+
+- Loans given now carry a **monthly** interest rate and report what it has
+  actually cost the borrower. The rate field was previously stored and displayed
+  as a bare percentage with no period and no arithmetic behind it
+- Interest is simple, never compounded, and accrues on the declining principal,
+  so a part-payment reduces every later month's charge. Months are whole,
+  ticking on the loan date's day-of-month, so the figure is one a borrower can
+  verify in their head
+- A loan detail page at `/dashboard/loans/[id]` shows the month-by-month
+  schedule alongside four figures: interest assumed when the term was agreed,
+  interest accrued to date, what it takes to settle today, and a frozen total
+  once the loan is cleared. A settlement-date control answers "what if they pay
+  in March instead" without recording anything
+- Repayments settle principal first, and cash received above principal now
+  counts as interest paid instead of being silently discarded
+- `fully_repaid` now means principal *and* interest are settled, and the status
+  is rederived from the repayment ledger on every mutation, including edits to
+  the rate, principal, or dates
+- Writing a loan off freezes interest at that date, so an unpaid balance stops
+  growing towards a figure nobody would put in front of a borrower
+- Outstanding interest is reported separately from outstanding principal and is
+  deliberately excluded from net worth: unpaid interest on an informal loan is
+  not an asset. `loans_given.outstanding_balance` remains principal only
+- Fixed a lost-update bug where two repayments recorded close together each
+  computed the balance from a snapshot read outside the transaction, so one
+  silently overwrote the other
+- `outstanding_balance` is no longer settable through the API; it is derived
+  from the repayment ledger
+
 ### Projected income
 
 - Added a workspace-scoped projected income section, the income counterpart to
