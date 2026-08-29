@@ -49,6 +49,14 @@ export function EmptyState({
 export const navigableFigure =
   "-m-2 block rounded-xl p-2 transition-colors hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card";
 
+/** Inline “view all” / “view calendar” — 24px tall, mint focus ring. */
+export const quietLink =
+  "inline-flex min-h-6 items-center text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-card rounded-[7px]";
+
+/** Full-width row inside a list card. */
+export const attentionRowLink =
+  "flex min-h-11 items-center gap-3 px-5 py-3.5 transition-colors hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-6";
+
 /**
  * A label over one figure. Not a Card: a tile holds a single number, so it
  * takes the tile radius and the tighter padding — see Shapes in DESIGN.md.

@@ -25,11 +25,13 @@ export function NavLink({
   label,
   icon: Icon,
   badge,
+  badgeNoun = "due or overdue",
 }: {
   href: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: number;
+  badgeNoun?: string;
 }) {
   const pathname = usePathname();
   const active = pathname === href;
@@ -42,7 +44,7 @@ export function NavLink({
         itemClasses,
         active
           ? "bg-secondary text-foreground"
-          : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
+          : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
       )}
     >
       <Icon className="size-4 flex-none" />
@@ -50,7 +52,7 @@ export function NavLink({
       {badge != null && badge > 0 && (
         <span className="ml-auto rounded-md bg-obligation-surface px-1.5 py-0.5 text-[11px] font-semibold text-obligation tabular-nums">
           {badge}
-          <span className="sr-only"> due or overdue</span>
+          <span className="sr-only"> {badgeNoun}</span>
         </span>
       )}
     </Link>
@@ -100,6 +102,7 @@ export function DashboardSidebar({ user }: { user: AccountUser }) {
                       ? notifications?.unread
                       : undefined
                 }
+                badgeNoun={item.showsNotificationBadge ? "unread" : "due or overdue"}
               />
             ))}
           </div>

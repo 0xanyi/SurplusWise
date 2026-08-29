@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
 import { formatDaysUntilDue, getDueState } from "@/lib/outgoings-date";
 import { useDebtDueDates } from "@/hooks/use-debt-due-dates";
+import { quietLink } from "@/components/dashboard/panel";
 
 interface OutgoingsResponse {
   outgoings: ApiRecurringOutgoing[];
@@ -104,11 +105,8 @@ export function UpcomingBills() {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3.5">
-        <CardTitle>Coming up</CardTitle>
-        <Link
-          href="/dashboard/calendar"
-          className="text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
+        <CardTitle as="h2">Coming up</CardTitle>
+        <Link href="/dashboard/calendar" className={quietLink}>
           View calendar
         </Link>
       </CardHeader>
@@ -129,25 +127,34 @@ export function UpcomingBills() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-2.5 px-5 pb-4 sm:px-6">
-              <div className="rounded-2xl border border-border/70 bg-sunken p-4">
-                <p className="text-xs text-muted-foreground">Committed each month</p>
+            {committedTotal === unpaidTotal ? (
+              <div className="px-5 pb-4 sm:px-6">
+                <p className="text-xs text-muted-foreground">Committed this cycle · nothing paid yet</p>
                 <p className="mt-1 font-display text-[23px] font-semibold tracking-[-0.02em] tabular-nums">
                   {formatCurrency(committedTotal)}
                 </p>
               </div>
-              <div className="rounded-2xl border border-border/70 bg-sunken p-4">
-                <p className="text-xs text-muted-foreground">Still unpaid</p>
-                <p
-                  className={cn(
-                    "mt-1 font-display text-[23px] font-semibold tracking-[-0.02em] tabular-nums",
-                    unpaidTotal > 0 ? "text-obligation" : "text-foreground"
-                  )}
-                >
-                  {formatCurrency(unpaidTotal)}
-                </p>
+            ) : (
+              <div className="grid grid-cols-2 gap-2.5 px-5 pb-4 sm:px-6">
+                <div className="rounded-2xl bg-sunken p-4">
+                  <p className="text-xs text-muted-foreground">Committed each month</p>
+                  <p className="mt-1 font-display text-[23px] font-semibold tracking-[-0.02em] tabular-nums">
+                    {formatCurrency(committedTotal)}
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-sunken p-4">
+                  <p className="text-xs text-muted-foreground">Still unpaid</p>
+                  <p
+                    className={cn(
+                      "mt-1 font-display text-[23px] font-semibold tracking-[-0.02em] tabular-nums",
+                      unpaidTotal > 0 ? "text-obligation" : "text-foreground",
+                    )}
+                  >
+                    {formatCurrency(unpaidTotal)}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             {!hasBills ? (
               <div className="border-t border-border/60 px-5 py-10 text-center sm:px-6">
@@ -199,14 +206,17 @@ export function UpcomingBills() {
                       <span
                         className={cn(
                           "flex-none text-[11.5px]",
-                          soon ? "text-obligation" : "text-muted-foreground"
+                          soon ? "text-obligation" : "text-muted-foreground",
                         )}
                       >
                         {formatDaysUntilDue(row.daysUntilDue)}
                       </span>
                       <span className="w-[90px] flex-none text-right text-sm font-semibold tabular-nums">
                         {row.isEstimate && (
-                          <span className="mr-1 text-[10.5px] font-normal text-muted-foreground">
+                          <span
+                            className="mr-1 text-[10.5px] font-normal text-muted-foreground"
+                            title="Estimated from the last statement"
+                          >
                             est.
                           </span>
                         )}

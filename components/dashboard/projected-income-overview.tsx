@@ -14,6 +14,13 @@ import {
   incomeProjectionCopy,
   summarizeProjectedIncome,
 } from "@/lib/projected-income";
+import {
+  budgetApiPeriod,
+  budgetBandTitle,
+  dashboardDateRange,
+  registerHref,
+  type DashboardPeriod,
+} from "@/lib/dashboard-period";
 
 function ProjectionSkeleton() {
   return (
@@ -28,9 +35,11 @@ function ProjectionSkeleton() {
   );
 }
 
-export function ProjectedIncomeOverview() {
+export function ProjectedIncomeOverview({ period }: { period: DashboardPeriod }) {
+  const grain = budgetApiPeriod(period);
+  const range = dashboardDateRange(period);
   const { data, loading } = useApiQuery<{ budgets: ApiBudget[] }>(
-    "/api/budgets?period=monthly",
+    `/api/budgets?period=${grain}`,
   );
   const budgets = data?.budgets;
 
@@ -60,7 +69,7 @@ export function ProjectedIncomeOverview() {
 
   const header = (
     <SectionHeading
-      title="Projected income this month"
+      title={budgetBandTitle(period, "income")}
       aside={
         projections.length === 0
           ? undefined
@@ -105,8 +114,13 @@ export function ProjectedIncomeOverview() {
           return (
             <Link
               key={projection.id}
-              href="/dashboard/settings#projected-income"
-              className="rounded-2xl border border-border/70 bg-card p-4 transition-colors hover:bg-secondary/30 sm:px-[18px]"
+              href={registerHref({
+                type: "income",
+                category: projection.category,
+                startDate: range.startDate,
+                endDate: range.endDate,
+              })}
+              className="rounded-2xl border border-border/70 bg-card p-4 transition-colors hover:bg-secondary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:px-[18px]"
             >
               <div className="flex items-baseline justify-between gap-3">
                 <p className="truncate text-[13.5px] font-medium">

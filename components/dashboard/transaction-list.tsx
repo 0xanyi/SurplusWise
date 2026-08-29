@@ -37,6 +37,24 @@ const typeFilterOptions: { label: string; value: TypeFilter }[] = [
   { label: "Giving", value: "giving" },
 ];
 
+function replaceQuery(mutate: (params: URLSearchParams) => void) {
+  const params = new URLSearchParams(window.location.search);
+  mutate(params);
+  const qs = params.toString();
+  window.history.replaceState(
+    null,
+    "",
+    `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`,
+  );
+}
+
+/** YYYY-MM-DD → DD/MM/YYYY without a timezone shift. */
+function formatIsoDay(iso: string) {
+  const [year, month, day] = iso.split("-");
+  if (!year || !month || !day) return iso;
+  return `${day}/${month}/${year}`;
+}
+
 interface TransactionsResponse {
   transactions: ApiTransaction[];
   page: number;
@@ -96,6 +114,9 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [startDateFilter, setStartDateFilter] = useState("");
+  const [endDateFilter, setEndDateFilter] = useState("");
   const [accountFilter, setAccountFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [reviewFilter, setReviewFilter] = useState<ReviewFilter>("all");
@@ -117,6 +138,9 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
       params.set("page", String(pageNum));
       params.set("pageSize", String(PAGE_SIZE));
       if (typeFilter !== "all") params.set("type", typeFilter);
+      if (categoryFilter) params.set("category", categoryFilter);
+      if (startDateFilter) params.set("startDate", startDateFilter);
+      if (endDateFilter) params.set("endDate", endDateFilter);
       if (accountFilter !== "all") params.set("accountId", accountFilter);
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (reviewFilter !== "all") {
@@ -127,7 +151,18 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
       if (debouncedSearch) params.set("search", debouncedSearch);
       return `/api/transactions?${params.toString()}`;
     },
-    [typeFilter, accountFilter, statusFilter, reviewFilter, assigneeFilter, tagFilter, debouncedSearch],
+    [
+      typeFilter,
+      categoryFilter,
+      startDateFilter,
+      endDateFilter,
+      accountFilter,
+      statusFilter,
+      reviewFilter,
+      assigneeFilter,
+      tagFilter,
+      debouncedSearch,
+    ],
   );
 
   const loadPage = useCallback(
@@ -155,7 +190,7 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
     if (!locationFilterReady) return;
     setPage(0);
     loadPage(0, true);
-  }, [typeFilter, accountFilter, statusFilter, reviewFilter, assigneeFilter, tagFilter, debouncedSearch, locationFilterReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [typeFilter, categoryFilter, startDateFilter, endDateFilter, accountFilter, statusFilter, reviewFilter, assigneeFilter, tagFilter, debouncedSearch, locationFilterReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (refreshKey > 0) {
@@ -168,12 +203,16 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
     if (search.get("needsReview") === "true") {
       setReviewFilter("needs_review");
     }
-    // Arriving from a money figure elsewhere in the app — a dashboard stat tile,
-    // a report — lands on that type already filtered rather than on everything.
     const type = search.get("type");
     if (typeFilterOptions.some((option) => option.value === type)) {
       setTypeFilter(type as TypeFilter);
     }
+    const category = search.get("category");
+    if (category) setCategoryFilter(category);
+    const startDate = search.get("startDate");
+    if (startDate) setStartDateFilter(startDate);
+    const endDate = search.get("endDate");
+    if (endDate) setEndDateFilter(endDate);
     setLocationFilterReady(true);
     if (window.location.hash === "#transaction-search") {
       requestAnimationFrame(() => {
@@ -378,6 +417,56 @@ export function TransactionList({ refreshKey = 0 }: TransactionListProps) {
           ))}
         </div>
       </div>
+
+      {categoryFilter || startDateFilter || endDateFilter ? (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Showing</span>
+          {categoryFilter ? (
+            <>
+              <span className="rounded-md bg-secondary px-2 py-1 font-medium">{categoryFilter}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setCategoryFilter("");
+                  replaceQuery((params) => {
+                    params.delete("category");
+                  });
+                }}
+              >
+                Clear category
+              </Button>
+            </>
+          ) : null}
+          {startDateFilter || endDateFilter ? (
+            <>
+              <span className="rounded-md bg-secondary px-2 py-1 font-medium tabular-nums">
+                {startDateFilter && endDateFilter
+                  ? `${formatIsoDay(startDateFilter)} – ${formatIsoDay(endDateFilter)}`
+                  : startDateFilter
+                    ? `from ${formatIsoDay(startDateFilter)}`
+                    : `until ${formatIsoDay(endDateFilter)}`}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setStartDateFilter("");
+                  setEndDateFilter("");
+                  replaceQuery((params) => {
+                    params.delete("startDate");
+                    params.delete("endDate");
+                  });
+                }}
+              >
+                Clear dates
+              </Button>
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
       {selectedIds.size > 0 && (
         <div className="flex flex-col gap-2 rounded-xl border border-border/60 bg-card p-3 sm:flex-row sm:items-center">

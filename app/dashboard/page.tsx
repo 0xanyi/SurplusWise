@@ -7,8 +7,15 @@ import { authClient } from "@/lib/auth-client";
 import { apiFetch } from "@/hooks/use-api";
 import { cn } from "@/lib/utils";
 import { formatSignedAmount, moneyTypeTone } from "@/lib/money-type";
+import {
+  DASHBOARD_PERIOD_OPTIONS,
+  dashboardDateRange,
+  periodOption,
+  registerHref,
+} from "@/lib/dashboard-period";
+import { useDashboardPeriod } from "@/hooks/use-dashboard-period";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/dashboard/page-header";
 import { PageHeaderActions } from "@/components/dashboard/page-header-actions";
@@ -21,6 +28,7 @@ import { GoalsOverview } from "@/components/dashboard/goals-overview";
 import { NetWorthOverview } from "@/components/dashboard/net-worth-overview";
 import { ClientsOverview } from "@/components/dashboard/clients/clients-overview";
 import { OnboardingCard } from "@/components/dashboard/onboarding-card";
+import { quietLink } from "@/components/dashboard/panel";
 import { useWorkspace } from "@/contexts/workspace-context";
 import type { ApiTransaction } from "@/types";
 
@@ -45,47 +53,34 @@ interface AnalyticsResponse {
   netBalance: number;
 }
 
-type DashboardPeriod = "week" | "month" | "quarter" | "year";
-
-const DASHBOARD_PERIOD_OPTIONS: {
-  value: DashboardPeriod;
-  short: string;
-  label: string;
-}[] = [
-  { value: "week", short: "7D", label: "Last 7 days" },
-  { value: "month", short: "30D", label: "Last 30 days" },
-  { value: "quarter", short: "3M", label: "Last 3 months" },
-  { value: "year", short: "1Y", label: "Last 12 months" },
-];
-
 interface OnboardingResponse {
   completed: boolean;
 }
 
-const ZERO_TOTALS: AnalyticsResponse = {
-  totalIncome: 0,
-  totalExpenses: 0,
-  totalGivings: 0,
-  netBalance: 0,
-};
+const ANALYTICS_UNAVAILABLE =
+  "Couldn't load your totals for this period. The figures below are unavailable, not zero.";
+const ACTIVITY_UNAVAILABLE = "Couldn't load recent activity. This list is unavailable, not empty.";
 
 export default function DashboardPage() {
   const { data: session } = authClient.useSession();
   const { activeWorkspace } = useWorkspace();
   const userId = session?.user?.id;
   const firstName = session?.user?.name?.split(" ")[0] || "there";
+  const [period, setPeriod] = useDashboardPeriod();
 
   const [totals, setTotals] = useState<AnalyticsResponse | undefined>(undefined);
-  const [recentTransactions, setRecentTransactions] = useState<ApiTransaction[] | undefined>(undefined);
+  const [recentTransactions, setRecentTransactions] = useState<ApiTransaction[] | undefined>(
+    undefined,
+  );
   const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [transactionsError, setTransactionsError] = useState<string | null>(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState<boolean | undefined>(undefined);
-  const [period, setPeriod] = useState<DashboardPeriod>("month");
 
   const loadData = useCallback(async () => {
     if (!userId) return;
 
-    setAnalyticsError(null);
+    const range = dashboardDateRange(period);
 
     const analyticsPromise = apiFetch<AnalyticsResponse>(`/api/analytics?period=${period}`)
       .then((data) => {
@@ -94,17 +89,21 @@ export default function DashboardPage() {
       })
       .catch((error) => {
         console.error("Failed to fetch analytics:", error);
-        setTotals(ZERO_TOTALS);
-        setAnalyticsError("Unable to load analytics. Showing zero totals.");
+        setTotals(undefined);
+        setAnalyticsError(ANALYTICS_UNAVAILABLE);
       });
 
-    const transactionsPromise = apiFetch<TransactionsResponse>("/api/transactions?pageSize=6")
+    const transactionsPromise = apiFetch<TransactionsResponse>(
+      `/api/transactions?pageSize=6&startDate=${range.startDate}&endDate=${range.endDate}`,
+    )
       .then((recentData) => {
         setRecentTransactions(recentData.transactions);
+        setTransactionsError(null);
       })
       .catch((error) => {
         console.error("Failed to fetch recent transactions:", error);
-        setRecentTransactions([]);
+        setRecentTransactions(undefined);
+        setTransactionsError(ACTIVITY_UNAVAILABLE);
       });
 
     const onboardingPromise = apiFetch<OnboardingResponse>("/api/onboarding")
@@ -128,26 +127,30 @@ export default function DashboardPage() {
     loadData();
   }, [loadData]);
 
-  // Re-fetch when workspace changes
   useEffect(() => {
     const handler = () => loadData();
     window.addEventListener("workspace-changed", handler);
     return () => window.removeEventListener("workspace-changed", handler);
   }, [loadData]);
 
-  if (!userId || totals === undefined) {
+  const analyticsSettled = totals !== undefined || analyticsError !== null;
+
+  if (!userId || !analyticsSettled) {
     return (
-      <div className="flex min-h-[320px] items-center justify-center">
+      <div
+        className="flex min-h-[320px] items-center justify-center"
+        role="status"
+        aria-live="polite"
+      >
         <Loader2 className="size-7 animate-spin text-muted-foreground" />
+        <span className="sr-only">Loading dashboard</span>
       </div>
     );
   }
 
-  const { totalIncome, totalExpenses, totalGivings, netBalance } = totals;
-  const activeOption =
-    DASHBOARD_PERIOD_OPTIONS.find((o) => o.value === period) ??
-    DASHBOARD_PERIOD_OPTIONS[1];
-  const recent = recentTransactions ?? [];
+  const activeOption = periodOption(period);
+  const range = dashboardDateRange(period);
+  const ember = Boolean(totals && totals.netBalance < 0);
 
   const periodControl = (
     <div
@@ -165,10 +168,17 @@ export default function DashboardPage() {
             aria-pressed={active}
             title={option.label}
             className={cn(
-              "rounded-[7px] px-2.5 py-1 text-[11.5px] transition-colors",
+              "min-h-7 rounded-[7px] px-2.5 py-1 text-[11.5px] transition-colors focus-visible:outline-none focus-visible:ring-2",
+              ember
+                ? "focus-visible:ring-hero-debt-ink/80"
+                : "focus-visible:ring-hero-accent/80",
               active
-                ? "bg-hero-accent/20 font-semibold text-hero-accent"
-                : "font-medium text-hero-muted hover:text-hero-ink"
+                ? ember
+                  ? "bg-hero-debt-ink/20 font-semibold text-hero-debt-ink"
+                  : "bg-hero-accent/20 font-semibold text-hero-accent"
+                : ember
+                  ? "font-medium text-hero-debt-muted hover:text-hero-debt-ink"
+                  : "font-medium text-hero-muted hover:text-hero-ink",
             )}
           >
             {option.short}
@@ -187,16 +197,15 @@ export default function DashboardPage() {
         title={`${getGreeting()}, ${firstName}`}
         actions={<PageHeaderActions onTransactionAdded={loadData} />}
       />
-
       {analyticsError && (
         <Alert variant="destructive">
           <AlertCircle className="size-4" />
-          <AlertDescription className="flex items-center justify-between gap-2">
+          <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <span>{analyticsError}</span>
             <Button
               variant="outline"
               size="sm"
-              className="shrink-0"
+              className="shrink-0 gap-1.5 self-start sm:self-auto"
               onClick={handleRetry}
               disabled={isRetrying}
             >
@@ -207,50 +216,71 @@ export default function DashboardPage() {
         </Alert>
       )}
 
-      {/* Band 1 — the anchor figure */}
       <NetPositionHero
-        totalIncome={totalIncome}
-        totalExpenses={totalExpenses}
-        totalGivings={totalGivings}
-        netBalance={netBalance}
+        totals={totals ?? null}
         periodControl={periodControl}
         periodLabel={activeOption.label}
+        startDate={range.startDate}
+        endDate={range.endDate}
       />
 
       {onboardingCompleted === false && <OnboardingCard onCompleted={loadData} />}
 
-      {/* Band 2 — what is late, and what is next */}
       <section className="grid gap-4 lg:grid-cols-2">
-        <NeedsAttention />
+        <NeedsAttention period={period} />
         <UpcomingBills />
       </section>
 
-      {/* Band 3 — what just happened */}
       <section>
         <Card className="overflow-hidden">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3.5">
-            <CardTitle>Recent activity</CardTitle>
+          <div className="flex items-center justify-between px-5 pt-5 pb-3.5 sm:px-6">
+            <h2 className="font-display text-base font-semibold leading-none tracking-[-0.015em]">
+              Recent activity
+            </h2>
             <Link
-              href="/dashboard/transactions"
-              className="text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+              href={registerHref({ startDate: range.startDate, endDate: range.endDate })}
+              className={quietLink}
             >
               View all
             </Link>
-          </CardHeader>
+          </div>
           <CardContent className="p-0">
-            {recent.length === 0 ? (
+            {transactionsError ? (
+              <div className="px-5 py-12 text-center sm:px-6" role="status">
+                <p className="text-sm text-muted-foreground">{transactionsError}</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 gap-1.5"
+                  onClick={handleRetry}
+                  disabled={isRetrying}
+                >
+                  {isRetrying ? <Loader2 className="size-3 animate-spin" /> : null}
+                  Retry
+                </Button>
+              </div>
+            ) : recentTransactions === undefined ? (
+              <div
+                className="flex justify-center py-12"
+                role="status"
+                aria-live="polite"
+              >
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                <span className="sr-only">Loading recent activity</span>
+              </div>
+            ) : recentTransactions.length === 0 ? (
               <div className="px-5 py-12 text-center sm:px-6">
                 <div className="mx-auto mb-3 flex size-11 items-center justify-center rounded-2xl bg-secondary">
                   <FileText className="size-5 text-muted-foreground" />
                 </div>
                 <p className="font-medium">No transactions yet</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Use Quick add to create your first entry.
+                  Use Add to create your first entry.
                 </p>
               </div>
             ) : (
               <ul>
-                {recent.map((tx) => (
+                {recentTransactions.map((tx) => (
                   <li
                     key={tx.id}
                     className="flex items-center gap-3 border-t border-border/60 px-5 py-3.5 sm:px-6"
@@ -258,21 +288,22 @@ export default function DashboardPage() {
                     <span
                       className={cn(
                         "size-[7px] flex-none rounded-full",
-                        moneyTypeTone(tx.type).bg
+                        moneyTypeTone(tx.type).bg,
                       )}
                     />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13.5px] font-medium">
-                        {tx.category}
+                        {tx.payee || tx.category}
                       </span>
                       <span className="block truncate text-xs capitalize text-muted-foreground">
+                        {tx.payee ? `${tx.category} · ` : null}
                         {tx.type} · {new Date(tx.date).toLocaleDateString("en-GB")}
                       </span>
                     </span>
                     <span
                       className={cn(
                         "flex-none text-sm font-semibold tabular-nums",
-                        moneyTypeTone(tx.type).text
+                        moneyTypeTone(tx.type).text,
                       )}
                     >
                       {formatSignedAmount(tx.type, tx.amount)}
@@ -285,17 +316,10 @@ export default function DashboardPage() {
         </Card>
       </section>
 
-      {/* Band 4 — expected income, then spending budgets */}
-      <ProjectedIncomeOverview />
-      <BudgetOverview />
-
-      {/* Band 5 — the balance sheet, in one figure */}
+      <ProjectedIncomeOverview period={period} />
+      <BudgetOverview period={period} />
       <NetWorthOverview />
-
-      {/* Band 5b — what is carried for other people, if anything is */}
       <ClientsOverview />
-
-      {/* Band 6 — goals */}
       <GoalsOverview />
     </div>
   );

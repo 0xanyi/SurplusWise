@@ -53,6 +53,7 @@ export function PageHeaderActions({
         </Link>
         <Button
           type="button"
+          size="lg"
           className="flex-1 min-[860px]:flex-none"
           onClick={() => setFormOpen(true)}
         >

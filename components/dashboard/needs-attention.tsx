@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
-  AlertTriangle,
   CheckCircle2,
   Clock,
   Loader2,
@@ -18,7 +17,13 @@ import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getDueState } from "@/lib/outgoings-date";
 import { useDebtDueDates } from "@/hooks/use-debt-due-dates";
-import { EmptyState } from "@/components/dashboard/panel";
+import { attentionRowLink, EmptyState } from "@/components/dashboard/panel";
+import {
+  budgetApiPeriod,
+  dashboardDateRange,
+  registerHref,
+  type DashboardPeriod,
+} from "@/lib/dashboard-period";
 
 interface OutgoingsResponse {
   outgoings: ApiRecurringOutgoing[];
@@ -54,19 +59,21 @@ const TONE = {
  * question — "what needs me today" — so they belong in the same place, sorted
  * by urgency rather than by which table they came from.
  */
-export function NeedsAttention() {
+export function NeedsAttention({ period }: { period: DashboardPeriod }) {
   const {
     data: outgoingsData,
     loading: outgoingsLoading,
     error: outgoingsError,
     refresh: refreshOutgoings,
   } = useApiQuery<OutgoingsResponse>("/api/recurring-outgoings");
+  const budgetPeriod = budgetApiPeriod(period);
+  const range = dashboardDateRange(period);
   const {
     data: budgetsData,
     loading: budgetsLoading,
     error: budgetsError,
     refresh: refreshBudgets,
-  } = useApiQuery<{ budgets: ApiBudget[] }>("/api/budgets?period=monthly");
+  } = useApiQuery<{ budgets: ApiBudget[] }>(`/api/budgets?period=${budgetPeriod}`);
   const { items: debtDues } = useDebtDueDates();
 
   const items = useMemo<AttentionItem[]>(() => {
@@ -127,29 +134,30 @@ export function NeedsAttention() {
     }
 
     for (const budget of budgetsData?.budgets ?? []) {
-      if (!budget.is_active || budget.type === "income") continue;
-      if (budget.status !== "exceeded" && budget.status !== "warning") continue;
+      // Giving near its target is progress, not arrears. Expense warnings
+      // already live on the budgets band — only an overrun needs this list.
+      if (!budget.is_active || budget.type !== "expense") continue;
+      if (budget.status !== "exceeded") continue;
 
-      const exceeded = budget.status === "exceeded";
       result.push({
         id: `budget-${budget.id}`,
-        title: exceeded
-          ? `${budget.category} is over budget`
-          : `${budget.category} near its limit`,
-        detail: exceeded
-          ? `${formatCurrency(budget.spent)} spent of ${formatCurrency(budget.amount)}`
-          : `${Math.round(budget.percentage)}% used`,
+        title: `${budget.category} is over budget`,
+        detail: `${formatCurrency(budget.spent)} spent of ${formatCurrency(budget.amount)}`,
         amount: Math.abs(budget.remaining),
-        icon: exceeded ? TrendingDown : AlertTriangle,
-        // Over budget is money that already left; nearing a limit is a caution.
-        tone: exceeded ? "expense" : "obligation",
-        rank: exceeded ? 0 : 1,
-        href: "/dashboard/settings",
+        icon: TrendingDown,
+        tone: "expense",
+        rank: 0,
+        href: registerHref({
+          type: "expense",
+          category: budget.category,
+          startDate: range.startDate,
+          endDate: range.endDate,
+        }),
       });
     }
 
     return result.sort((a, b) => a.rank - b.rank || b.amount - a.amount);
-  }, [outgoingsData, budgetsData, debtDues]);
+  }, [outgoingsData, budgetsData, debtDues, range.endDate, range.startDate]);
 
   // The list is capped, the count is not — a badge reading "6 items" when nine
   // need you is worse than no badge.
@@ -164,7 +172,7 @@ export function NeedsAttention() {
   return (
     <Card className="overflow-hidden">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3.5">
-        <CardTitle>Needs your attention</CardTitle>
+        <CardTitle as="h2">Needs your attention</CardTitle>
         {!loading && !error && items.length > 0 && (
           <span className="rounded-md bg-obligation-surface px-2 py-0.5 text-[11.5px] font-semibold text-obligation tabular-nums">
             {items.length} {items.length === 1 ? "item" : "items"}
@@ -195,7 +203,7 @@ export function NeedsAttention() {
           <EmptyState
             icon={CheckCircle2}
             title="Nothing needs you right now"
-            description="No overdue bills and no budgets over their limit."
+            description="No overdue bills or debts."
           />
         ) : (
           <ul>
@@ -204,10 +212,7 @@ export function NeedsAttention() {
               const tone = TONE[item.tone];
               return (
                 <li key={item.id} className="border-t border-border/60">
-                  <Link
-                    href={item.href}
-                    className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-secondary/40 sm:px-6"
-                  >
+                  <Link href={item.href} className={attentionRowLink}>
                     <span
                       className={cn(
                         "flex size-[30px] flex-none items-center justify-center rounded-[10px]",
@@ -245,7 +250,7 @@ export function NeedsAttention() {
                   type="button"
                   onClick={() => setShowAll((prev) => !prev)}
                   aria-expanded={showAll}
-                  className="block w-full px-5 py-3 text-left text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground sm:px-6"
+                  className="block min-h-11 w-full px-5 py-3 text-left text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:px-6"
                 >
                   {showAll
                     ? "Show fewer"

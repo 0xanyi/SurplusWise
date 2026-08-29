@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useApiQuery } from "@/hooks/use-api";
 import { cn, formatCurrency } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
-import { navigableFigure } from "@/components/dashboard/panel";
+import { navigableFigure, SectionHeading } from "@/components/dashboard/panel";
 
 interface NetWorthResponse {
   assets: number;
@@ -97,21 +97,21 @@ export function NetWorthOverview() {
   ];
 
   return (
-    <Card>
+    <section>
+      <SectionHeading
+        title="Net worth"
+        aside={`${formatCurrency(data.assets)} in assets against ${formatCurrency(data.liabilities)} owed`}
+      />
+      <Card>
       <CardContent className="flex flex-wrap items-start justify-between gap-8 pt-5 sm:pt-6">
         <div>
-          <p className="text-xs text-muted-foreground">Net worth</p>
           <p
             className={cn(
-              "mt-1.5 font-display text-[30px] font-semibold leading-none tracking-[-0.03em] tabular-nums sm:text-4xl",
-              positive ? "text-foreground" : "text-expense"
+              "font-display text-[30px] font-semibold leading-none tracking-[-0.03em] tabular-nums sm:text-4xl",
+              positive ? "text-foreground" : "text-expense",
             )}
           >
             {formatCurrency(data.netWorth)}
-          </p>
-          <p className="mt-2 text-[12.5px] text-muted-foreground tabular-nums">
-            {formatCurrency(data.assets)} in assets against{" "}
-            {formatCurrency(data.liabilities)} owed
           </p>
         </div>
 
@@ -120,9 +120,9 @@ export function NetWorthOverview() {
             className="mb-3.5 flex h-2.5 gap-[3px]"
             role="img"
             aria-label={`Balance sheet: investments ${Math.round(
-              share(data.investmentsValue)
+              share(data.investmentsValue),
             )}%, cash and other ${Math.round(share(cashAndOther))}%, loans out ${Math.round(
-              share(data.loansReceivable)
+              share(data.loansReceivable),
             )}%, debts owed ${Math.round(share(data.liabilities))}%`}
           >
             {segments.map((seg, i) =>
@@ -132,7 +132,7 @@ export function NetWorthOverview() {
                   className={cn("rounded-full", seg.className)}
                   style={{ width: `${share(seg.value)}%` }}
                 />
-              ) : null
+              ) : null,
             )}
             {total === 0 && <div className="w-full rounded-full bg-track" />}
           </div>
@@ -151,7 +151,7 @@ export function NetWorthOverview() {
                 <p
                   className={cn(
                     "mt-1 text-[15px] font-semibold tabular-nums",
-                    col.tone
+                    col.tone,
                   )}
                 >
                   {col.value < 0 ? "−" : ""}
@@ -162,6 +162,7 @@ export function NetWorthOverview() {
           </div>
         </div>
       </CardContent>
-    </Card>
+      </Card>
+    </section>
   );
 }
