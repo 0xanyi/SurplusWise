@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import { errorResponse } from "@/lib/api-errors";
+import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
+import * as draftsService from "@/lib/db/recurring-money-drafts";
 import * as recurringMoneyService from "@/lib/db/recurring-outgoings";
 
 function toRecurringMoney(row: Awaited<ReturnType<typeof recurringMoneyService.list>>[number]) {
@@ -28,13 +30,44 @@ function toRecurringMoney(row: Awaited<ReturnType<typeof recurringMoneyService.l
   };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const { workspaceId } = await requireAuthWithWorkspace("viewer");
-    const rows = await recurringMoneyService.list(workspaceId);
+    const typeParam = request.nextUrl.searchParams.get("type");
+    const type =
+      typeParam === "income" || typeParam === "expense" || typeParam === "giving"
+        ? typeParam
+        : undefined;
+    const periodMonth =
+      request.nextUrl.searchParams.get("periodMonth") ??
+      getPeriodMonthFromDate(getCurrentUtcDate());
+    const rows = await recurringMoneyService.list(workspaceId, undefined, type);
+    const occurrences = await draftsService.listOccurrences(workspaceId, periodMonth);
+    const occurrenceById = new Map(
+      occurrences.map((occurrence) => [occurrence.recurringMoneyId, occurrence]),
+    );
+    const items = rows.map((row) => {
+      const occurrence = occurrenceById.get(row.id);
+      const mapped = toRecurringMoney(row);
+      return {
+        ...mapped,
+        settlement: occurrence
+          ? {
+              status: occurrence.status,
+              recorded_amount: occurrence.recordedAmount,
+              outstanding_amount: occurrence.outstandingAmount,
+              transaction_id: occurrence.settlements[0]?.transactionId ?? null,
+            }
+          : null,
+      };
+    });
     const active = rows.filter((row) => row.isActive);
+    const summary = type === "expense"
+      ? await recurringMoneyService.getMonthlyTotal(workspaceId)
+      : null;
     return NextResponse.json({
-      items: rows.map(toRecurringMoney),
+      items,
+      period_month: periodMonth,
       monthly_totals: {
         income: active
           .filter((row) => row.type === "income")
@@ -46,6 +79,12 @@ export async function GET() {
           .filter((row) => row.type === "giving")
           .reduce((sum, row) => sum + Number(row.amount), 0),
       },
+      ...(summary && {
+        monthly_total: summary.total,
+        monthly_overhead: summary.overhead,
+        monthly_pass_through: summary.passThrough,
+        active_count: summary.count,
+      }),
     });
   } catch (error) {
     return errorResponse(error, "Failed to fetch recurring money");

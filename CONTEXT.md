@@ -19,3 +19,7 @@ _Avoid_: user, actor, collaborator, guest
 **Member setting**:
 A preference or read-state that belongs to one Member in one Workspace (onboarding, notification read-state, push and email prefs). Isolated by Member and Workspace together, not by Workspace alone.
 _Avoid_: user preference, account setting
+
+**Recurring money**:
+A schedule of expected income, expense, or giving on a day of the month. It is not a Transaction. A month is settled only by matching Transactions.
+_Avoid_: outgoing, recurring outgoing, bill (as the record)

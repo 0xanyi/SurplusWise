@@ -79,14 +79,32 @@ function getCurrentMonthLabel() {
   return new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 }
 
+interface RecurringMoneyItem extends Omit<ApiRecurringOutgoing, "payment_status"> {
+  payee?: string | null;
+  settlement: {
+    status: "draft" | "partial" | "settled" | "overpaid";
+    recorded_amount: number;
+    outstanding_amount: number;
+    transaction_id: string | null;
+  } | null;
+}
+
 interface OutgoingsResponse {
-  outgoings: ApiRecurringOutgoing[];
+  items: RecurringMoneyItem[];
   monthly_total: number;
   /** The two halves of monthly_total, never netted against each other. */
   monthly_overhead: number;
   monthly_pass_through: number;
   active_count: number;
   period_month: string;
+}
+
+function itemIsPaid(item: RecurringMoneyItem) {
+  return Boolean(
+    item.settlement &&
+      item.settlement.recorded_amount > 0 &&
+      item.settlement.outstanding_amount === 0,
+  );
 }
 
 export function RecurringOutgoingsManagement() {
@@ -97,9 +115,9 @@ export function RecurringOutgoingsManagement() {
     loading,
     error,
     refresh,
-  } = useApiQuery<OutgoingsResponse>("/api/recurring-outgoings");
+  } = useApiQuery<OutgoingsResponse>("/api/recurring-money?type=expense");
 
-  const outgoings = data?.outgoings;
+  const outgoings = data?.items;
   const monthlyTotal = data?.monthly_total ?? 0;
   const overhead = data?.monthly_overhead ?? 0;
   const passThrough = data?.monthly_pass_through ?? 0;
@@ -114,7 +132,7 @@ export function RecurringOutgoingsManagement() {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loggingPayment, setLoggingPayment] = useState<string | null>(null);
-  const [editingItem, setEditingItem] = useState<ApiRecurringOutgoing | null>(null);
+  const [editingItem, setEditingItem] = useState<RecurringMoneyItem | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -154,19 +172,18 @@ export function RecurringOutgoingsManagement() {
     };
   };
 
-  const handleLogPayment = async (item: ApiRecurringOutgoing) => {
+  const handleLogPayment = async (item: RecurringMoneyItem) => {
     setLoggingPayment(item.id);
     try {
-      await apiFetch(`/api/recurring-outgoings/${item.id}/payment-logs`, {
+      await apiFetch(`/api/recurring-money/${item.id}/settle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: item.amount,
           paidAt: getCurrentUtcDate(),
         }),
       });
       toast({
-        title: "Payment logged",
+        title: "Payment recorded",
         description: `${item.name} marked as paid for ${getCurrentMonthLabel()}. This will count as an expense.`,
       });
       refresh();
@@ -178,13 +195,10 @@ export function RecurringOutgoingsManagement() {
     }
   };
 
-  const handleUndoPayment = async (item: ApiRecurringOutgoing) => {
-    if (!item.payment_status.paid || !item.payment_status.payment_id) return;
+  const handleUndoPayment = async (item: RecurringMoneyItem) => {
+    if (!itemIsPaid(item)) return;
     try {
-      await apiFetch(
-        `/api/recurring-outgoings/${item.id}/payment-logs/${item.payment_status.payment_id}`,
-        { method: "DELETE" },
-      );
+      await apiFetch(`/api/recurring-money/${item.id}/settle`, { method: "DELETE" });
       toast({
         title: "Payment undone",
         description: `${item.name} marked as unpaid for ${getCurrentMonthLabel()}.`,
@@ -212,7 +226,7 @@ export function RecurringOutgoingsManagement() {
 
     setSaving(true);
     try {
-      await apiFetch("/api/recurring-outgoings", {
+      await apiFetch("/api/recurring-money", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -222,6 +236,7 @@ export function RecurringOutgoingsManagement() {
           frequency: "monthly",
           category: formData.category || null,
           notes: formData.notes || null,
+          type: "expense",
           ...rebillPayload(formData),
         }),
       });
@@ -255,7 +270,7 @@ export function RecurringOutgoingsManagement() {
 
     setSaving(true);
     try {
-      await apiFetch(`/api/recurring-outgoings/${editingItem.id}`, {
+      await apiFetch(`/api/recurring-money/${editingItem.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -280,10 +295,10 @@ export function RecurringOutgoingsManagement() {
     }
   };
 
-  const handleDelete = async (item: ApiRecurringOutgoing) => {
+  const handleDelete = async (item: RecurringMoneyItem) => {
     if (!confirm(`Delete "${item.name}"?`)) return;
     try {
-      await apiFetch(`/api/recurring-outgoings/${item.id}`, { method: "DELETE" });
+      await apiFetch(`/api/recurring-money/${item.id}`, { method: "DELETE" });
       toast({ title: "Success", description: "Outgoing deleted" });
       refresh();
     } catch (error: unknown) {
@@ -292,7 +307,7 @@ export function RecurringOutgoingsManagement() {
     }
   };
 
-  const openEditDialog = (item: ApiRecurringOutgoing) => {
+  const openEditDialog = (item: RecurringMoneyItem) => {
     setEditingItem(item);
     setFormData({
       name: item.name,
@@ -332,15 +347,15 @@ export function RecurringOutgoingsManagement() {
   // The month's schedule, in the order the days fall.
   const activeOutgoings = outgoings.filter((o) => o.is_active);
   const schedule = [...outgoings].sort((a, b) => a.day_of_month - b.day_of_month);
-  const paidCount = activeOutgoings.filter((o) => o.payment_status.paid).length;
+  const paidCount = activeOutgoings.filter((o) => itemIsPaid(o)).length;
   const overdueCount = activeOutgoings.filter(
     (o) =>
-      !o.payment_status.paid &&
+      !itemIsPaid(o) &&
       getDueState(o.day_of_month, false).urgency === "overdue",
   ).length;
   const upcomingCount = activeOutgoings.length - paidCount - overdueCount;
   const unpaidTotal = activeOutgoings
-    .filter((o) => !o.payment_status.paid)
+    .filter((o) => !itemIsPaid(o))
     .reduce((sum, o) => sum + o.amount, 0);
   // Share of income needs income, which this endpoint does not carry.
   const shareOfIncome =
@@ -542,7 +557,7 @@ export function RecurringOutgoingsManagement() {
         ) : (
           <ul>
             {schedule.map((item) => {
-              const isPaid = item.payment_status.paid;
+              const isPaid = itemIsPaid(item);
               const due = getDueState(item.day_of_month, isPaid);
               const isOverdue = !isPaid && item.is_active && due.urgency === "overdue";
               const isToday = !isPaid && item.is_active && due.urgency === "today";

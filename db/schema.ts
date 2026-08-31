@@ -1092,7 +1092,7 @@ export const recurringMoneyDrafts = pgTable(
   ],
 );
 
-/** Real ledger transactions allocated to an expected recurring occurrence. */
+/** Real ledger transactions allocated to an expected Recurring money occurrence. */
 export const recurringMoneyDraftSettlements = pgTable(
   "recurring_money_draft_settlements",
   {
@@ -1114,41 +1114,6 @@ export const recurringMoneyDraftSettlements = pgTable(
   (t) => [
     index("idx_recurring_money_draft_settlements_draft").on(t.draftId),
     uniqueIndex("idx_recurring_money_draft_settlements_transaction").on(t.transactionId),
-  ],
-);
-
-// ─── Outgoing Payment Logs ───────────────────────────────────────────────────
-
-/**
- * Tracks actual payments made against recurring outgoings.
- * One row per outgoing per month = "I paid my rent for Feb 2026".
- * The `period_month` column stores the first day of the target month (YYYY-MM-01).
- */
-export const outgoingPaymentLogs = pgTable(
-  "outgoing_payment_logs",
-  {
-    id: text("id").primaryKey(),
-    outgoingId: text("outgoing_id")
-      .notNull()
-      .references(() => recurringOutgoings.id, { onDelete: "cascade" }),
-    userId: text("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
-    paidAt: date("paid_at", { mode: "string" }).notNull(), // actual payment date
-    periodMonth: date("period_month", { mode: "string" }).notNull(), // YYYY-MM-01
-    notes: text("notes"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [
-    index("idx_outgoing_payment_logs_user").on(t.userId, t.paidAt),
-    index("idx_outgoing_payment_logs_outgoing").on(t.outgoingId, t.periodMonth),
-    check(
-      "chk_outgoing_payment_logs_period_month_day",
-      sql`EXTRACT(DAY FROM ${t.periodMonth}) = 1`,
-    ),
-    // One payment per outgoing per month
-    uniqueIndex("idx_outgoing_payment_logs_unique").on(t.outgoingId, t.periodMonth),
   ],
 );
 

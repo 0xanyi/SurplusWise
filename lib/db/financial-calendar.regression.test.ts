@@ -9,7 +9,7 @@ import * as statementsService from "./debt-statements";
 import * as recurringMoneyService from "./recurring-outgoings";
 import * as draftsService from "./recurring-money-drafts";
 import * as transactionsService from "./transactions";
-import * as paymentLogsService from "./outgoing-payment-logs";
+
 import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
 
 describe(
@@ -165,15 +165,11 @@ describe(
           1,
           "materialized expectations must remain outside the ledger",
         );
-        await paymentLogsService.create(
-          workspaceId,
-          utility.id,
-          {
-            amount: 100,
-            paidAt: getCurrentUtcDate(),
-            periodMonth: currentMonth,
-          },
-        );
+        await recurringMoneyService.settle(workspaceId, utility.id, {
+          amount: 100,
+          paidAt: getCurrentUtcDate(),
+          periodMonth: currentMonth,
+        });
         const currentCalendar = await calendarService.getMonth(
           workspaceId,
           currentMonth,

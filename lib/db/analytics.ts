@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
-import { transactions, outgoingPaymentLogs, debtPayments, debtStatements, recurringOutgoings, debtsCredits, goals } from "@/db/schema";
+import { transactions, debtPayments, debtStatements, debtsCredits, goals, recurringOutgoings } from "@/db/schema";
 import { getCostOfBorrowing } from "./debt-statements";
 import {
   analyticsQuerySchema,
@@ -73,7 +73,7 @@ export interface AnalyticsResult {
     netBalanceChange: number | null;
     transactionCountChange: number | null;
   };
-  /** Outgoing payments logged this period (included in totalExpenses) */
+  /** Always 0: Recurring money settles only through Transactions. */
   outgoingPaymentsTotal: number;
   /** Debt payments logged this period (included in totalExpenses) */
   debtPaymentsTotal: number;
@@ -134,29 +134,6 @@ async function getTotalsForRange(
     else if (row.type === "income") totalIncome = value;
   }
 
-  const outgoingPayments = await db
-    .select({
-      amount: outgoingPaymentLogs.amount,
-    })
-    .from(outgoingPaymentLogs)
-    .innerJoin(
-      recurringOutgoings,
-      eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id),
-    )
-    .where(
-      and(
-        eq(recurringOutgoings.workspaceId, workspaceId),
-        eq(recurringOutgoings.type, "expense"),
-        gte(outgoingPaymentLogs.paidAt, range.startDate),
-        lte(outgoingPaymentLogs.paidAt, range.endDate),
-      ),
-    );
-
-  const outgoingPaymentsTotal = outgoingPayments.reduce(
-    (sum, row) => sum + Number(row.amount),
-    0,
-  );
-
   const debtPaymentRows = await db
     .select({
       amount: debtPayments.amount,
@@ -177,7 +154,7 @@ async function getTotalsForRange(
   );
 
   return {
-    totalExpenses: totalExpenses + outgoingPaymentsTotal + debtPaymentsTotal,
+    totalExpenses: totalExpenses + debtPaymentsTotal,
     totalGivings,
     totalIncome,
     transactionCount,
@@ -231,22 +208,6 @@ async function getHistoricalMonthlyAverages(
     else if (row.type === "income") totalIncome = value;
   }
 
-  // Also include outgoing payments and debt payments
-  const outgoingPayments = await db
-    .select({
-      amount: sql<string>`coalesce(sum(${outgoingPaymentLogs.amount}), 0)`,
-    })
-    .from(outgoingPaymentLogs)
-    .innerJoin(recurringOutgoings, eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id))
-    .where(
-      and(
-        eq(recurringOutgoings.workspaceId, workspaceId),
-        eq(recurringOutgoings.type, "expense"),
-        gte(outgoingPaymentLogs.paidAt, range.startDate),
-        lte(outgoingPaymentLogs.paidAt, range.endDate),
-      ),
-    );
-
   const debtPaymentTotals = await db
     .select({
       paid: sql<string>`coalesce(sum(${debtPayments.amount}), 0)`,
@@ -261,7 +222,6 @@ async function getHistoricalMonthlyAverages(
       ),
     );
 
-  totalExpenses += Number(outgoingPayments[0]?.amount ?? 0);
   totalExpenses += Number(debtPaymentTotals[0]?.paid ?? 0);
 
   return {
@@ -481,48 +441,10 @@ export async function getAnalytics(
     else if (row.type === "income") incomeByCategoryArray.push(entry);
   }
 
-  // 3. Outgoing payment logs as expenses
-  const outgoingPayments = await db
-    .select({
-      amount: outgoingPaymentLogs.amount,
-      paidAt: outgoingPaymentLogs.paidAt,
-      category: recurringOutgoings.category,
-    })
-    .from(outgoingPaymentLogs)
-    .innerJoin(
-      recurringOutgoings,
-      eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id),
-    )
-    .where(
-      and(
-        eq(recurringOutgoings.workspaceId, workspaceId),
-        eq(recurringOutgoings.type, "expense"),
-        gte(outgoingPaymentLogs.paidAt, range.startDate),
-        lte(outgoingPaymentLogs.paidAt, range.endDate),
-      ),
-    );
+  const outgoingPaymentsTotal = 0;
 
-  let outgoingPaymentsTotal = 0;
-  const outgoingCategoryTotals = new Map<string, number>();
-  for (const row of outgoingPayments) {
-    const amount = Number(row.amount);
-    outgoingPaymentsTotal += amount;
-    const cat = row.category ?? "Recurring Outgoings";
-    outgoingCategoryTotals.set(cat, (outgoingCategoryTotals.get(cat) ?? 0) + amount);
-  }
+  // Debt payments as expenses.
 
-  // Merge outgoing payments into expense categories
-  for (const [cat, total] of outgoingCategoryTotals) {
-    const existing = expensesByCategoryArray.find((c) => c.name === cat);
-    if (existing) {
-      existing.value += total;
-    } else {
-      expensesByCategoryArray.push({ name: cat, value: total });
-    }
-  }
-  totalExpenses += outgoingPaymentsTotal;
-
-  // 4. Debt payments as expenses.
   //
   // The payment is the expense, not the interest on the statement. Sika counts
   // cash leaving the bank; the interest charged is already inside that figure,
@@ -586,17 +508,6 @@ export async function getAnalytics(
     if (row.type === "expense") entry.expenses = v;
     else if (row.type === "giving") entry.givings = v;
     else if (row.type === "income") entry.income = v;
-  }
-
-  // Merge outgoing payments into daily trends
-  for (const row of outgoingPayments) {
-    const date = row.paidAt;
-    let entry = dailyMap.get(date);
-    if (!entry) {
-      entry = { date, expenses: 0, givings: 0, income: 0 };
-      dailyMap.set(date, entry);
-    }
-    entry.expenses += Number(row.amount);
   }
 
   // Merge debt payments into daily trends

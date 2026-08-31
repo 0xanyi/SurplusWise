@@ -6,8 +6,9 @@ import { users, workspaces } from "@/db/schema";
 import * as analyticsService from "./analytics";
 import * as clientsService from "./clients";
 import * as givingRecipientsService from "./giving-recipients";
-import * as paymentLogsService from "./outgoing-payment-logs";
+import * as draftsService from "./recurring-money-drafts";
 import * as recurringMoneyService from "./recurring-outgoings";
+import * as transactionsService from "./transactions";
 
 describe(
   "recurring money foundation regression",
@@ -57,15 +58,11 @@ describe(
           amount: 800,
           dayOfMonth: 1,
         });
-        const settlement = await paymentLogsService.create(
-          workspaceId,
-          settledExpense.id,
-          {
-            amount: 800,
-            paidAt: "2026-08-01",
-            periodMonth: "2026-08-01",
-          },
-        );
+        await recurringMoneyService.settle(workspaceId, settledExpense.id, {
+          amount: 800,
+          paidAt: "2026-08-01",
+          periodMonth: "2026-08-01",
+        });
         const income = await recurringMoneyService.create(workspaceId, {
           name: "Salary",
           amount: 2000,
@@ -101,7 +98,7 @@ describe(
 
         await assert.rejects(
           () => recurringMoneyService.update(workspaceId, settledExpense.id, { type: "income" }),
-          /type cannot change after payments have been logged/,
+          /Unmatch this Recurring money from its Transactions/,
         );
         await assert.rejects(
           () => recurringMoneyService.create(workspaceId, {
@@ -160,35 +157,13 @@ describe(
           () => recurringMoneyService.remove(otherWorkspaceId, income.id),
           /not found or unauthorized/,
         );
-        assert.equal(
-          (await paymentLogsService.listForOutgoing(workspaceId, settledExpense.id)).length,
-          1,
+        const rent = (await draftsService.listOccurrences(workspaceId, "2026-08-01")).find(
+          (row) => row.recurringMoneyId === settledExpense.id,
         );
-        assert.equal(
-          (await paymentLogsService.getMonthlyStatus(workspaceId, "2026-08-01")).get(
-            settledExpense.id,
-          )?.id,
-          settlement.id,
-        );
-        assert.equal(
-          (await paymentLogsService.getMonthlyStatus(otherWorkspaceId, "2026-08-01")).size,
-          0,
-        );
+        assert.equal(rent?.status, "settled");
+        assert.equal(rent?.recordedAmount, 800);
         await assert.rejects(
-          () => paymentLogsService.listForOutgoing(otherWorkspaceId, settledExpense.id),
-          /not found or unauthorized/,
-        );
-        await assert.rejects(
-          () => paymentLogsService.remove(otherWorkspaceId, settledExpense.id, settlement.id),
-          /not found or unauthorized/,
-        );
-        await assert.rejects(
-          () =>
-            paymentLogsService.create(workspaceId, giving.id, {
-              amount: 100,
-              paidAt: "2026-08-01",
-              periodMonth: "2026-08-01",
-            }),
+          () => recurringMoneyService.unsettle(otherWorkspaceId, settledExpense.id, "2026-08-01"),
           /not found or unauthorized/,
         );
         await assert.rejects(
@@ -213,6 +188,69 @@ describe(
           800,
           "recurring income and giving must not be counted as committed expenses",
         );
+      } finally {
+        await db.delete(users).where(eq(users.id, userId));
+      }
+    });
+
+    it("caps mark-paid to remaining outstanding in one write", async () => {
+      const userId = crypto.randomUUID();
+      const workspaceId = crypto.randomUUID();
+      await db.insert(users).values({
+        id: userId,
+        name: "Settlement cap test user",
+        email: `settlement-cap-${userId.slice(0, 8)}@example.com`,
+      });
+      await db.insert(workspaces).values({
+        id: workspaceId,
+        userId,
+        name: "Personal",
+        type: "personal",
+        currency: "GBP",
+        isDefault: true,
+      });
+
+      try {
+        const bill = await recurringMoneyService.create(workspaceId, {
+          name: "Electricity",
+          amount: 100,
+          dayOfMonth: 10,
+        });
+        await draftsService.generate(workspaceId, "2026-08-01");
+        const draft = (await draftsService.list(workspaceId, "2026-08-01")).find(
+          (row) => row.recurringMoneyId === bill.id,
+        );
+        assert.ok(draft);
+        const partial = await transactionsService.create(workspaceId, {
+          amount: 40,
+          date: "2026-08-10",
+          type: "expense",
+          category: "Utilities",
+        });
+        await draftsService.matchTransaction(workspaceId, draft.id, partial.id);
+
+        await recurringMoneyService.settle(workspaceId, bill.id, {
+          amount: 100,
+          paidAt: "2026-08-12",
+          periodMonth: "2026-08-01",
+        });
+        const occurrence = (await draftsService.listOccurrences(workspaceId, "2026-08-01")).find(
+          (row) => row.recurringMoneyId === bill.id,
+        );
+        assert.equal(occurrence?.status, "settled");
+        assert.equal(occurrence?.recordedAmount, 100);
+        assert.equal(occurrence?.outstandingAmount, 0);
+        assert.equal((await transactionsService.list(workspaceId)).length, 2);
+
+        await assert.rejects(
+          () =>
+            recurringMoneyService.settle(workspaceId, bill.id, {
+              paidAt: "2026-08-13",
+              periodMonth: "2026-08-01",
+            }),
+          /already settled/,
+        );
+        assert.equal((await transactionsService.list(workspaceId)).length, 2);
       } finally {
         await db.delete(users).where(eq(users.id, userId));
       }

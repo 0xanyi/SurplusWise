@@ -2,7 +2,8 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   clients,
-  outgoingPaymentLogs,
+  recurringMoneyDraftSettlements,
+  recurringMoneyDrafts,
   recurringOutgoings,
   transactionRules,
   transactions,
@@ -103,19 +104,25 @@ export async function listWithRollups(
   const ids = rows.map((row) => row.id);
 
   const [paymentRows, serviceRows, transactionRows] = await Promise.all([
-    // Costs actually paid on a client's behalf.
+    // Costs actually paid on a client's behalf (Recurring money settled by Transactions).
     db
       .select({
         clientId: recurringOutgoings.clientId,
-        amountPaid: outgoingPaymentLogs.amount,
+        amountPaid: transactions.amount,
         rebillMode: recurringOutgoings.rebillMode,
         rebillAmount: recurringOutgoings.rebillAmount,
+        transactionId: transactions.id,
       })
-      .from(outgoingPaymentLogs)
+      .from(recurringMoneyDraftSettlements)
+      .innerJoin(
+        recurringMoneyDrafts,
+        eq(recurringMoneyDraftSettlements.draftId, recurringMoneyDrafts.id),
+      )
       .innerJoin(
         recurringOutgoings,
-        eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id),
+        eq(recurringMoneyDrafts.recurringMoneyId, recurringOutgoings.id),
       )
+      .innerJoin(transactions, eq(recurringMoneyDraftSettlements.transactionId, transactions.id))
       .where(
         and(
           eq(recurringOutgoings.workspaceId, workspaceId),
@@ -145,6 +152,7 @@ export async function listWithRollups(
     // One-off money tagged straight to a client.
     db
       .select({
+        id: transactions.id,
         clientId: transactions.clientId,
         type: transactions.type,
         amount: transactions.amount,
@@ -165,10 +173,13 @@ export async function listWithRollups(
     payments.set(row.clientId, list);
   }
 
+  const settledTransactionIds = new Set(paymentRows.map((row) => row.transactionId));
+
   const taggedExpenses = new Map<string, number[]>();
   const taggedIncome = new Map<string, number[]>();
   for (const row of transactionRows) {
     if (!row.clientId) continue;
+    if (settledTransactionIds.has(row.id)) continue;
     // `giving` is not a client relationship; it is deliberately ignored rather
     // than folded into either side.
     const target =

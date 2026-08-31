@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { Calendar, CheckCircle2, Clock, Loader2 } from "lucide-react";
 import { useApiQuery } from "@/hooks/use-api";
-import type { ApiRecurringOutgoing } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -12,9 +11,26 @@ import { formatDaysUntilDue, getDueState } from "@/lib/outgoings-date";
 import { useDebtDueDates } from "@/hooks/use-debt-due-dates";
 import { quietLink } from "@/components/dashboard/panel";
 
+type RecurringMoneyItem = {
+  id: string
+  name: string
+  amount: number
+  is_active: boolean
+  day_of_month: number
+  settlement: { recorded_amount: number; outstanding_amount: number } | null
+}
+
 interface OutgoingsResponse {
-  outgoings: ApiRecurringOutgoing[];
+  items: RecurringMoneyItem[];
   monthly_total: number;
+}
+
+function itemIsPaid(item: RecurringMoneyItem) {
+  return Boolean(
+    item.settlement &&
+      item.settlement.recorded_amount > 0 &&
+      item.settlement.outstanding_amount === 0,
+  );
 }
 
 interface UpcomingRow {
@@ -50,12 +66,12 @@ function ordinal(day: number) {
  */
 export function UpcomingBills() {
   const { data, loading, error, refresh } =
-    useApiQuery<OutgoingsResponse>("/api/recurring-outgoings");
+    useApiQuery<OutgoingsResponse>("/api/recurring-money?type=expense");
   const { items: debtDues } = useDebtDueDates();
 
   const { upcoming, unpaidTotal, committedTotal, hasBills } = useMemo(() => {
-    const active = (data?.outgoings ?? []).filter((o) => o.is_active);
-    const unpaid = active.filter((o) => !o.payment_status?.paid);
+    const active = (data?.items ?? []).filter((o) => o.is_active);
+    const unpaid = active.filter((o) => !itemIsPaid(o));
     const now = new Date();
 
     const dated: UpcomingRow[] = unpaid.map((outgoing) => {

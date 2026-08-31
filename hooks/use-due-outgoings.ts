@@ -3,24 +3,36 @@
 import { useMemo } from "react";
 import { useApiQuery } from "@/hooks/use-api";
 import { getDueState } from "@/lib/outgoings-date";
-import type { ApiRecurringOutgoing } from "@/types";
+type RecurringMoneyItem = {
+  is_active: boolean
+  day_of_month: number
+  settlement: { recorded_amount: number; outstanding_amount: number } | null
+}
+
+function itemIsPaid(item: RecurringMoneyItem) {
+  return Boolean(
+    item.settlement &&
+      item.settlement.recorded_amount > 0 &&
+      item.settlement.outstanding_amount === 0,
+  );
+}
 
 /**
  * How many outgoings are unpaid and already due. Shared so the sidebar badge
  * and the mobile tab badge always show the same number.
  */
 export function useDueOutgoingsCount(): number {
-  const { data } = useApiQuery<{ outgoings: ApiRecurringOutgoing[] }>(
-    "/api/recurring-outgoings"
+  const { data } = useApiQuery<{ items: RecurringMoneyItem[] }>(
+    "/api/recurring-money?type=expense"
   );
 
   return useMemo(() => {
-    if (!data?.outgoings) return 0;
+    if (!data?.items) return 0;
     const now = new Date();
-    return data.outgoings.filter(
+    return data.items.filter(
       (o) =>
         o.is_active &&
-        !o.payment_status?.paid &&
+        !itemIsPaid(o) &&
         getDueState(o.day_of_month, false, now).isDueNow
     ).length;
   }, [data]);

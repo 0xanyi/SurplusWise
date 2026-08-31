@@ -13,6 +13,7 @@ import {
   workspaceIdSchema,
 } from "./validation";
 import { ownerUserId } from "./workspaces";
+import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
 
 type TransactionType = "income" | "expense" | "giving";
 
@@ -370,4 +371,82 @@ export async function unmatch(
     )
     .returning({ id: recurringMoneyDraftSettlements.id });
   if (deleted.length === 0) throw new Error("Recurring money match not found or unauthorized");
+}
+
+export type RecurringOccurrenceStatus = "draft" | "partial" | "settled" | "overpaid";
+
+export interface RecurringOccurrence {
+  id: string;
+  recurringMoneyId: string;
+  date: string;
+  title: string;
+  amount: number;
+  type: TransactionType;
+  status: RecurringOccurrenceStatus;
+  recordedAmount: number;
+  outstandingAmount: number;
+  settlements: Awaited<ReturnType<typeof list>>[number]["settlements"];
+}
+
+/**
+ * This Workspace's Recurring money for one month. Generates missing drafts
+ * for the current month; future months that have none yet are projected from
+ * the schedule without writing rows.
+ */
+export async function listOccurrences(
+  workspaceId: string,
+  periodMonth: string,
+): Promise<RecurringOccurrence[]> {
+  workspaceIdSchema.parse(workspaceId);
+  periodMonthSchema.parse(periodMonth);
+  const currentMonth = getPeriodMonthFromDate(getCurrentUtcDate());
+  if (periodMonth === currentMonth) {
+    await generate(workspaceId, periodMonth);
+  }
+
+  const drafts = await list(workspaceId, periodMonth);
+  const occurrences: RecurringOccurrence[] = drafts.map((draft) => ({
+    id: `recurring:${draft.id}`,
+    recurringMoneyId: draft.recurringMoneyId,
+    date: draft.dueDate,
+    title: draft.recurringMoneyName,
+    amount: Number(draft.expectedAmount),
+    type: draft.type,
+    status: draft.status,
+    recordedAmount: draft.recordedAmount,
+    outstandingAmount: draft.outstandingAmount,
+    settlements: draft.settlements,
+  }));
+
+  if (periodMonth < currentMonth) return occurrences;
+
+  const draftedIds = new Set(drafts.map((draft) => draft.recurringMoneyId));
+  const schedules = await db
+    .select()
+    .from(recurringOutgoings)
+    .where(
+      and(
+        eq(recurringOutgoings.workspaceId, workspaceId),
+        eq(recurringOutgoings.isActive, true),
+        eq(recurringOutgoings.frequency, "monthly"),
+      ),
+    );
+  for (const schedule of schedules) {
+    if (draftedIds.has(schedule.id)) continue;
+    occurrences.push({
+      id: `recurring-projection:${schedule.id}:${periodMonth}`,
+      recurringMoneyId: schedule.id,
+      date: dateForPeriod(periodMonth, schedule.dayOfMonth),
+      title: schedule.name,
+      amount: Number(schedule.amount),
+      type: schedule.type,
+      status: "draft",
+      recordedAmount: 0,
+      outstandingAmount: Number(schedule.amount),
+      settlements: [],
+    });
+  }
+  return occurrences.sort(
+    (left, right) => left.date.localeCompare(right.date) || left.title.localeCompare(right.title),
+  );
 }
