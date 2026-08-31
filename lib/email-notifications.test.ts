@@ -11,7 +11,7 @@ import {
 } from "@/db/schema";
 import { reportBackupSuccess } from "@/lib/backup-status";
 import * as notificationsService from "@/lib/db/notifications";
-import * as paymentLogService from "@/lib/db/outgoing-payment-logs";
+
 import * as recurringMoneyService from "@/lib/db/recurring-outgoings";
 import * as transactionsService from "@/lib/db/transactions";
 import { getCurrentUtcDate } from "@/lib/outgoings-date";
@@ -123,11 +123,11 @@ describe(
           type: "expense",
           dayOfMonth: dueDay,
         });
-        await paymentLogService.create(
-          workspaceId,
-          settled.id,
-          { amount: 40, paidAt: today, periodMonth: `${today.slice(0, 7)}-01` },
-        );
+        await recurringMoneyService.settle(workspaceId, settled.id, {
+          amount: 40,
+          paidAt: today,
+          periodMonth: `${today.slice(0, 7)}-01`,
+        });
 
         assert.deepEqual(await getEmailNotificationStatus(userId, workspaceId), {
           configured: true,

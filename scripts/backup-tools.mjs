@@ -38,7 +38,6 @@ export const REQUIRED_BACKUP_TABLES = [
   "recurring_outgoings",
   "recurring_money_drafts",
   "recurring_money_draft_settlements",
-  "outgoing_payment_logs",
   "debts_credits",
   "debt_balance_logs",
   "debt_payments",

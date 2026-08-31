@@ -4,13 +4,10 @@ import {
   debtPayments,
   debtsCredits,
   debtStatements,
-  outgoingPaymentLogs,
-  recurringOutgoings,
 } from "@/db/schema";
 import { forecastMinimumPayment, isRevolvingDebt } from "@/lib/debt-interest";
 import * as draftsService from "./recurring-money-drafts";
 import { periodMonthSchema, workspaceIdSchema } from "./validation";
-import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
 
 export type CalendarEventType = "income" | "expense" | "giving" | "debt";
 export type CalendarEventStatus =
@@ -241,90 +238,25 @@ export async function getMonth(workspaceId: string, periodMonth: string) {
   workspaceIdSchema.parse(workspaceId);
   periodMonthSchema.parse(periodMonth);
 
-  const currentMonth = getPeriodMonthFromDate(getCurrentUtcDate());
-  if (periodMonth === currentMonth) {
-    await draftsService.generate(workspaceId, periodMonth);
-  }
-  const [drafts, debtEvents, schedules, paymentLogs] = await Promise.all([
-    draftsService.list(workspaceId, periodMonth),
+  const [occurrences, debtEvents] = await Promise.all([
+    draftsService.listOccurrences(workspaceId, periodMonth),
     listDebtEvents(workspaceId, periodMonth),
-    periodMonth >= currentMonth
-      ? db
-          .select()
-          .from(recurringOutgoings)
-          .where(
-            and(
-              eq(recurringOutgoings.workspaceId, workspaceId),
-              eq(recurringOutgoings.isActive, true),
-              eq(recurringOutgoings.frequency, "monthly"),
-            ),
-          )
-      : Promise.resolve([]),
-    db
-      .select({
-        recurringMoneyId: outgoingPaymentLogs.outgoingId,
-        amount: outgoingPaymentLogs.amount,
-      })
-      .from(outgoingPaymentLogs)
-      .innerJoin(
-        recurringOutgoings,
-        eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id),
-      )
-      .where(
-        and(
-          eq(outgoingPaymentLogs.periodMonth, periodMonth),
-          eq(recurringOutgoings.workspaceId, workspaceId),
-        ),
-      ),
   ]);
-  const paymentLogBySchedule = new Map(
-    paymentLogs.map((payment) => [payment.recurringMoneyId, Number(payment.amount)]),
-  );
-
-  const recurringEvents: FinancialCalendarEvent[] = drafts.map((draft) => {
-    const paymentLog = paymentLogBySchedule.get(draft.recurringMoneyId) ?? 0;
-    // A linked transaction and a payment log can describe the same payment.
-    // Prefer settlements when present rather than counting both sources.
-    const amounts = draft.recordedAmount > 0 || paymentLog === 0
-      ? {
-          recordedAmount: draft.recordedAmount,
-          outstandingAmount: draft.outstandingAmount,
-          status: draft.status,
-        }
-      : settlement(paymentLog, Number(draft.expectedAmount));
-    return {
-      id: `recurring:${draft.id}`,
-      sourceId: draft.recurringMoneyId,
-      source: "recurring",
-      date: draft.dueDate,
-      title: draft.recurringMoneyName,
-      amount: Number(draft.expectedAmount),
-      type: draft.type,
-      status: amounts.status,
-      certainty: "expected",
-      recordedAmount: amounts.recordedAmount,
-      outstandingAmount: amounts.outstandingAmount,
-      href: "/dashboard/outgoings",
-    };
-  });
-  const draftedScheduleIds = new Set(drafts.map((draft) => draft.recurringMoneyId));
-  const projectedEvents: FinancialCalendarEvent[] = schedules
-    .filter((schedule) => !draftedScheduleIds.has(schedule.id))
-    .map((schedule) => ({
-      id: `recurring-projection:${schedule.id}:${periodMonth}`,
-      sourceId: schedule.id,
-      source: "recurring",
-      date: draftsService.dateForPeriod(periodMonth, schedule.dayOfMonth),
-      title: schedule.name,
-      amount: Number(schedule.amount),
-      type: schedule.type,
-      status: "draft",
-      certainty: "expected",
-      recordedAmount: 0,
-      outstandingAmount: Number(schedule.amount),
-      href: "/dashboard/outgoings",
-    }));
-  const events = [...recurringEvents, ...projectedEvents, ...debtEvents].sort(
+  const recurringEvents: FinancialCalendarEvent[] = occurrences.map((occurrence) => ({
+    id: occurrence.id,
+    sourceId: occurrence.recurringMoneyId,
+    source: "recurring",
+    date: occurrence.date,
+    title: occurrence.title,
+    amount: occurrence.amount,
+    type: occurrence.type,
+    status: occurrence.status,
+    certainty: "expected",
+    recordedAmount: occurrence.recordedAmount,
+    outstandingAmount: occurrence.outstandingAmount,
+    href: "/dashboard/outgoings",
+  }));
+  const events = [...recurringEvents, ...debtEvents].sort(
     (left, right) => left.date.localeCompare(right.date) || left.title.localeCompare(right.title),
   );
 

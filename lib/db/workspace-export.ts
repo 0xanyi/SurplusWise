@@ -22,7 +22,6 @@ import {
   loansGiven,
   notificationStates,
   onboardingStatus,
-  outgoingPaymentLogs,
   pushNotificationPreferences,
   recurringMoneyDraftSettlements,
   recurringMoneyDrafts,
@@ -37,7 +36,7 @@ import {
 } from "@/db/schema";
 
 export const WORKSPACE_EXPORT_FORMAT = "sika-workspace-export";
-export const WORKSPACE_EXPORT_VERSION = 3;
+export const WORKSPACE_EXPORT_VERSION = 4;
 
 /**
  * User-owned, portable records included in a JSON workspace export.
@@ -69,7 +68,6 @@ export const WORKSPACE_EXPORT_DATASETS = [
   "recurringOutgoings",
   "recurringMoneyDrafts",
   "recurringMoneyDraftSettlements",
-  "outgoingPaymentLogs",
   "debtsCredits",
   "debtBalanceLogs",
   "debtPayments",
@@ -145,7 +143,6 @@ async function readWorkspaceExport(
     recurringRows,
     draftRows,
     settlementRows,
-    outgoingPaymentRows,
     debtRows,
     debtBalanceRows,
     debtPaymentRows,
@@ -216,9 +213,6 @@ async function readWorkspaceExport(
     await tx.select().from(recurringOutgoings).where(eq(recurringOutgoings.workspaceId, workspaceId)),
     await tx.select().from(recurringMoneyDrafts).where(eq(recurringMoneyDrafts.workspaceId, workspaceId)),
     await tx.select().from(recurringMoneyDraftSettlements).where(eq(recurringMoneyDraftSettlements.workspaceId, workspaceId)),
-    await tx.select({ child: outgoingPaymentLogs }).from(outgoingPaymentLogs)
-      .innerJoin(recurringOutgoings, eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id))
-      .where(eq(recurringOutgoings.workspaceId, workspaceId)),
     await tx.select().from(debtsCredits).where(eq(debtsCredits.workspaceId, workspaceId)),
     await tx.select({ child: debtBalanceLogs }).from(debtBalanceLogs)
       .innerJoin(debtsCredits, eq(debtBalanceLogs.debtId, debtsCredits.id))
@@ -268,7 +262,6 @@ async function readWorkspaceExport(
       recurringOutgoings: recurringRows,
       recurringMoneyDrafts: draftRows,
       recurringMoneyDraftSettlements: settlementRows,
-      outgoingPaymentLogs: childRows(outgoingPaymentRows),
       debtsCredits: debtRows,
       debtBalanceLogs: childRows(debtBalanceRows),
       debtPayments: childRows(debtPaymentRows),

@@ -32,7 +32,7 @@ construction. Correct this if the emphasis is wrong.)*
 ## Product Purpose
 
 Sika is a self-hosted personal and business finance manager. It records income,
-expenses, and giving; tracks recurring outgoings, debts, money lent to others,
+expenses, and giving; tracks Recurring money, debts, money lent to others,
 investments, budgets, and goals; and reports on all of it by period and category,
 with optional AI receipt scanning for capture.
 
@@ -112,7 +112,8 @@ today; it is a position, not a measured market finding.)*
 - Projected income: the same periods for income categories, compared with
   recorded income so a month has an expected total before it is received.
   Workspace-scoped, so personal and business projections stay separate.
-- Recurring outgoings with payment logs; investments (stock, crypto, forex,
+- Recurring money (expected income, expense, or giving on a day of the month),
+  settled only by matching Transactions; investments (stock, crypto, forex,
   property, business, savings, other) with return/dividend/sale/loss/fee events;
   goals; net-worth rollup.
 - Loans given, with repayments, status, and **monthly interest**. A loan carries
@@ -128,7 +129,7 @@ today; it is a position, not a measured market finding.)*
   principal only, and outstanding interest is reported beside it rather than
   inside it, so unpaid interest never enters net worth as an asset.
 - Clients (business workspaces) / people (personal), with the costs carried on
-  their behalf. A recurring outgoing can name the vendor it is paid to and the
+  their behalf. Recurring money can name the payee it is paid to and the
   client it is really for, on one of four terms: **own cost**, **at cost**,
   **fixed price**, or **in retainer**. Transactions can be attributed to a client
   so money coming back is matched against money fronted. Recovery accrues when a

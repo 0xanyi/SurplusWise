@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useApiQuery } from "@/hooks/use-api";
-import type { ApiBudget, ApiRecurringOutgoing } from "@/types";
+import type { ApiBudget } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -25,8 +25,26 @@ import {
   type DashboardPeriod,
 } from "@/lib/dashboard-period";
 
+type RecurringMoneyItem = {
+  id: string
+  name: string
+  amount: number
+  is_active: boolean
+  day_of_month: number
+  frequency: string
+  settlement: { recorded_amount: number; outstanding_amount: number } | null
+}
+
 interface OutgoingsResponse {
-  outgoings: ApiRecurringOutgoing[];
+  items: RecurringMoneyItem[];
+}
+
+function itemIsPaid(item: RecurringMoneyItem) {
+  return Boolean(
+    item.settlement &&
+      item.settlement.recorded_amount > 0 &&
+      item.settlement.outstanding_amount === 0,
+  );
 }
 
 interface AttentionItem {
@@ -65,7 +83,7 @@ export function NeedsAttention({ period }: { period: DashboardPeriod }) {
     loading: outgoingsLoading,
     error: outgoingsError,
     refresh: refreshOutgoings,
-  } = useApiQuery<OutgoingsResponse>("/api/recurring-outgoings");
+  } = useApiQuery<OutgoingsResponse>("/api/recurring-money?type=expense");
   const budgetPeriod = budgetApiPeriod(period);
   const range = dashboardDateRange(period);
   const {
@@ -80,8 +98,8 @@ export function NeedsAttention({ period }: { period: DashboardPeriod }) {
     const result: AttentionItem[] = [];
     const now = new Date();
 
-    for (const outgoing of outgoingsData?.outgoings ?? []) {
-      if (!outgoing.is_active || outgoing.payment_status?.paid) continue;
+    for (const outgoing of outgoingsData?.items ?? []) {
+      if (!outgoing.is_active || itemIsPaid(outgoing)) continue;
 
       const { dueDate, daysUntilDue, urgency, isDueNow } = getDueState(
         outgoing.day_of_month,
