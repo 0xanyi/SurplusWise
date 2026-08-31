@@ -40,9 +40,9 @@ function toDraft(row: Awaited<ReturnType<typeof draftsService.list>>[number]) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const periodMonth = request.nextUrl.searchParams.get("periodMonth") ?? currentPeriodMonth();
-    const rows = await draftsService.list(userId, workspaceId, periodMonth);
+    const rows = await draftsService.list(workspaceId, periodMonth);
     return NextResponse.json({
       period_month: periodMonth,
       drafts: rows.map(toDraft),
@@ -60,11 +60,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
     const periodMonth = body.periodMonth ?? body.period_month ?? currentPeriodMonth();
-    const created = await draftsService.generate(userId, workspaceId, periodMonth);
-    const rows = await draftsService.list(userId, workspaceId, periodMonth);
+    const created = await draftsService.generate(workspaceId, periodMonth);
+    const rows = await draftsService.list(workspaceId, periodMonth);
     return NextResponse.json(
       {
         period_month: periodMonth,

@@ -26,8 +26,8 @@ export function workspaceExportResponse(payload: Awaited<ReturnType<typeof creat
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
-    return workspaceExportResponse(await createWorkspaceExport(userId, workspaceId));
+    const { workspaceId } = await requireAuthWithWorkspace("owner");
+    return workspaceExportResponse(await createWorkspaceExport(workspaceId));
   } catch (error) {
     return errorResponse(error, "Failed to export workspace data");
   }

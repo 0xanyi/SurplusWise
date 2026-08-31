@@ -3,10 +3,10 @@ import { db } from "@/db/client";
 import { transactionImportProfiles } from "@/db/schema";
 import type { TransactionImportMapping } from "@/lib/transaction-import";
 import * as financialAccountsService from "./financial-accounts";
+import { ownerUserId } from "./workspaces";
 import {
   idSchema,
   transactionImportProfileCreateSchema,
-  userIdSchema,
   workspaceIdSchema,
 } from "./validation";
 
@@ -16,16 +16,14 @@ export interface SaveInput {
   mapping: TransactionImportMapping;
 }
 
-export async function list(userId: string, workspaceId: string, accountId?: string) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string, accountId?: string) {
   workspaceIdSchema.parse(workspaceId);
   if (accountId) {
     idSchema.parse(accountId);
-    await financialAccountsService.assertInWorkspace(userId, workspaceId, accountId);
+    await financialAccountsService.assertInWorkspace(workspaceId, accountId);
   }
 
   const conditions = [
-    eq(transactionImportProfiles.userId, userId),
     eq(transactionImportProfiles.workspaceId, workspaceId),
   ];
   if (accountId) {
@@ -39,12 +37,11 @@ export async function list(userId: string, workspaceId: string, accountId?: stri
     .orderBy(asc(transactionImportProfiles.name));
 }
 
-export async function save(userId: string, workspaceId: string, input: SaveInput) {
-  userIdSchema.parse(userId);
+export async function save(workspaceId: string, input: SaveInput) {
   workspaceIdSchema.parse(workspaceId);
   const validInput = transactionImportProfileCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   await financialAccountsService.assertInWorkspace(
-    userId,
     workspaceId,
     validInput.accountId,
   );
@@ -74,8 +71,7 @@ export async function save(userId: string, workspaceId: string, input: SaveInput
   return row;
 }
 
-export async function remove(userId: string, workspaceId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function remove(workspaceId: string, id: string) {
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const [removed] = await db
@@ -83,7 +79,6 @@ export async function remove(userId: string, workspaceId: string, id: string) {
     .where(
       and(
         eq(transactionImportProfiles.id, id),
-        eq(transactionImportProfiles.userId, userId),
         eq(transactionImportProfiles.workspaceId, workspaceId),
       ),
     )

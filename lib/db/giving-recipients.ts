@@ -8,26 +8,19 @@ import {
   givingRecipientCreateSchema,
   givingRecipientUpdateSchema,
   idSchema,
-  userIdSchema,
   workspaceIdSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 export type RecipientCreateInput = z.input<typeof givingRecipientCreateSchema>;
 export type RecipientUpdateInput = z.input<typeof givingRecipientUpdateSchema>;
 export type DesignationCreateInput = z.input<typeof givingDesignationCreateSchema>;
 export type DesignationUpdateInput = z.input<typeof givingDesignationUpdateSchema>;
 
-export async function list(userId: string, workspaceId: string, activeOnly = false) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string, activeOnly = false) {
   workspaceIdSchema.parse(workspaceId);
-  const recipientConditions = [
-    eq(givingRecipients.userId, userId),
-    eq(givingRecipients.workspaceId, workspaceId),
-  ];
-  const designationConditions = [
-    eq(givingDesignations.userId, userId),
-    eq(givingDesignations.workspaceId, workspaceId),
-  ];
+  const recipientConditions = [eq(givingRecipients.workspaceId, workspaceId)];
+  const designationConditions = [eq(givingDesignations.workspaceId, workspaceId)];
   if (activeOnly) {
     recipientConditions.push(eq(givingRecipients.isActive, true));
     designationConditions.push(eq(givingDesignations.isActive, true));
@@ -43,13 +36,12 @@ export async function list(userId: string, workspaceId: string, activeOnly = fal
 }
 
 export async function createRecipient(
-  userId: string,
   workspaceId: string,
   input: RecipientCreateInput,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   const valid = givingRecipientCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   const now = new Date();
   const [row] = await db.insert(givingRecipients).values({
     id: crypto.randomUUID(),
@@ -64,12 +56,10 @@ export async function createRecipient(
 }
 
 export async function updateRecipient(
-  userId: string,
   workspaceId: string,
   id: string,
   input: RecipientUpdateInput,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const valid = givingRecipientUpdateSchema.parse(input);
@@ -80,7 +70,6 @@ export async function updateRecipient(
     updatedAt: new Date(),
   }).where(and(
     eq(givingRecipients.id, id),
-    eq(givingRecipients.userId, userId),
     eq(givingRecipients.workspaceId, workspaceId),
   )).returning();
   if (!row) throw new Error("Giving recipient not found or unauthorized");
@@ -88,14 +77,13 @@ export async function updateRecipient(
 }
 
 export async function createDesignation(
-  userId: string,
   workspaceId: string,
   input: DesignationCreateInput,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   const valid = givingDesignationCreateSchema.parse(input);
-  await assertRecipientInWorkspace(userId, workspaceId, valid.recipientId);
+  const userId = await ownerUserId(workspaceId);
+  await assertRecipientInWorkspace(workspaceId, valid.recipientId);
   const now = new Date();
   const [row] = await db.insert(givingDesignations).values({
     id: crypto.randomUUID(),
@@ -110,12 +98,10 @@ export async function createDesignation(
 }
 
 export async function updateDesignation(
-  userId: string,
   workspaceId: string,
   id: string,
   input: DesignationUpdateInput,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const valid = givingDesignationUpdateSchema.parse(input);
@@ -124,25 +110,22 @@ export async function updateDesignation(
     updatedAt: new Date(),
   }).where(and(
     eq(givingDesignations.id, id),
-    eq(givingDesignations.userId, userId),
     eq(givingDesignations.workspaceId, workspaceId),
   )).returning();
   if (!row) throw new Error("Giving designation not found or unauthorized");
   return row;
 }
 
-export async function assertRecipientInWorkspace(userId: string, workspaceId: string, id: string) {
+export async function assertRecipientInWorkspace(workspaceId: string, id: string) {
   idSchema.parse(id);
   const [row] = await db.select({ id: givingRecipients.id }).from(givingRecipients).where(and(
     eq(givingRecipients.id, id),
-    eq(givingRecipients.userId, userId),
     eq(givingRecipients.workspaceId, workspaceId),
   )).limit(1);
   if (!row) throw new Error("Giving recipient not found or unauthorized");
 }
 
 export async function assertDesignationInWorkspace(
-  userId: string,
   workspaceId: string,
   designationId: string,
   recipientId: string,
@@ -151,7 +134,6 @@ export async function assertDesignationInWorkspace(
   const [row] = await db.select({ id: givingDesignations.id }).from(givingDesignations).where(and(
     eq(givingDesignations.id, designationId),
     eq(givingDesignations.recipientId, recipientId),
-    eq(givingDesignations.userId, userId),
     eq(givingDesignations.workspaceId, workspaceId),
   )).limit(1);
   if (!row) throw new Error("Giving designation not found for this recipient");

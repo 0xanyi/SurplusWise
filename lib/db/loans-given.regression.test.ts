@@ -40,7 +40,7 @@ describe(
       const { userId, workspaceId } = await seed();
 
       try {
-        const loan = await loansService.create(userId, workspaceId, {
+        const loan = await loansService.create(workspaceId, {
           borrowerName: "Future dated",
           amount: 10_000,
           loanDate: "2025-01-15",
@@ -49,12 +49,12 @@ describe(
 
         const future = new Date();
         future.setUTCFullYear(future.getUTCFullYear() + 1);
-        await loansService.addRepayment(userId, loan.id, {
+        await loansService.addRepayment(workspaceId, loan.id, {
           amount: 10_000,
           repaymentDate: future.toISOString().slice(0, 10),
         });
 
-        const { row, interest } = await loansService.getById(userId, loan.id);
+        const { row, interest } = await loansService.getById(workspaceId, loan.id);
 
         assert.equal(
           Number(row.outstandingBalance),
@@ -76,19 +76,19 @@ describe(
       const { userId, workspaceId } = await seed();
 
       try {
-        const loan = await loansService.create(userId, workspaceId, {
+        const loan = await loansService.create(workspaceId, {
           borrowerName: "Partial then settled",
           amount: 1000,
           loanDate: "2025-01-15",
           interestRate: 1,
         });
 
-        await loansService.addRepayment(userId, loan.id, {
+        await loansService.addRepayment(workspaceId, loan.id, {
           amount: 400,
           repaymentDate: "2025-03-15",
         });
 
-        const partial = await loansService.getById(userId, loan.id);
+        const partial = await loansService.getById(workspaceId, loan.id);
         assert.equal(Number(partial.row.outstandingBalance), 600);
         assert.equal(partial.row.status, "partially_repaid");
         assert.ok(
@@ -97,12 +97,12 @@ describe(
         );
         assert.equal(partial.interest.interestPaid, 0, "principal settles first");
 
-        await loansService.addRepayment(userId, loan.id, {
+        await loansService.addRepayment(workspaceId, loan.id, {
           amount: partial.interest.payoffToday,
           repaymentDate: new Date().toISOString().slice(0, 10),
         });
 
-        const settled = await loansService.getById(userId, loan.id);
+        const settled = await loansService.getById(workspaceId, loan.id);
         assert.equal(Number(settled.row.outstandingBalance), 0);
         assert.equal(
           settled.row.status,
@@ -120,21 +120,21 @@ describe(
       const { userId, workspaceId } = await seed();
 
       try {
-        const loan = await loansService.create(userId, workspaceId, {
+        const loan = await loansService.create(workspaceId, {
           borrowerName: "Written off",
           amount: 10_000,
           loanDate: "2025-01-15",
           interestRate: 3.5,
         });
 
-        await loansService.update(userId, loan.id, { status: "defaulted" });
-        const frozen = await loansService.getById(userId, loan.id);
+        await loansService.update(workspaceId, loan.id, { status: "defaulted" });
+        const frozen = await loansService.getById(workspaceId, loan.id);
 
         assert.equal(frozen.row.status, "defaulted");
         assert.ok(frozen.row.accrualStoppedOn, "writing off stamps the date accrual stopped");
 
-        await loansService.update(userId, loan.id, { status: "active" });
-        const reinstated = await loansService.getById(userId, loan.id);
+        await loansService.update(workspaceId, loan.id, { status: "active" });
+        const reinstated = await loansService.getById(workspaceId, loan.id);
 
         assert.equal(reinstated.row.accrualStoppedOn, null, "reinstating releases the freeze");
         assert.ok(
@@ -153,7 +153,7 @@ describe(
 
       try {
         await assert.rejects(
-          loansService.create(userId, workspaceId, {
+          loansService.create(workspaceId, {
             borrowerName: "Implausible",
             amount: 100,
             loanDate: "2025-01-15",

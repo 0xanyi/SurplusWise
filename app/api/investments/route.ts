@@ -29,9 +29,9 @@ function toInvestment(row: Record<string, unknown>) {
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
-    const investments = await investmentsService.list(userId, workspaceId);
-    const summary = await investmentsService.getSummary(userId, workspaceId);
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
+    const investments = await investmentsService.list(workspaceId);
+    const summary = await investmentsService.getSummary(workspaceId);
 
     return NextResponse.json({
       investments: investments.map(toInvestment),
@@ -54,10 +54,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
-    const row = await investmentsService.create(userId, workspaceId, {
+    const row = await investmentsService.create(workspaceId, {
       name: body.name,
       investmentType: body.investmentType ?? body.investment_type,
       platform: body.platform,

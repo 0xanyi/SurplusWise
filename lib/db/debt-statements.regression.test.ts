@@ -56,7 +56,7 @@ async function createTempDebt() {
     currentBalance: "2500",
     interestRate: "24.90",
   });
-  return { userId, debtId };
+  return { userId, workspaceId, debtId };
 }
 
 async function cleanupUser(userId: string) {
@@ -94,9 +94,9 @@ describe(
     before(loadDeps);
 
     it("create with a breakdown stores jsonb and sum-derived columns", async () => {
-      const { userId, debtId } = await createTempDebt();
+      const { userId, workspaceId, debtId } = await createTempDebt();
       try {
-        const created = await statementsService.createStatement(userId, debtId, {
+        const created = await statementsService.createStatement(workspaceId, debtId, {
           ...baseStatement,
           // Client totals disagree with the sums; sums must win.
           interestCharged: 999,
@@ -119,9 +119,9 @@ describe(
     });
 
     it("create without a breakdown stores null and keeps the sent totals", async () => {
-      const { userId, debtId } = await createTempDebt();
+      const { userId, workspaceId, debtId } = await createTempDebt();
       try {
-        const created = await statementsService.createStatement(userId, debtId, {
+        const created = await statementsService.createStatement(workspaceId, debtId, {
           ...baseStatement,
           interestCharged: 12.5,
           balanceSubjectToInterest: 800,
@@ -132,7 +132,7 @@ describe(
         assert.strictEqual(created.interestBreakdown, null);
 
         // An empty array also means "no split".
-        const second = await statementsService.createStatement(userId, debtId, {
+        const second = await statementsService.createStatement(workspaceId, debtId, {
           ...baseStatement,
           periodStart: "2026-06-01",
           periodEnd: "2026-06-30",
@@ -146,16 +146,14 @@ describe(
     });
 
     it("update replaces a breakdown and re-derives the totals", async () => {
-      const { userId, debtId } = await createTempDebt();
+      const { userId, workspaceId, debtId } = await createTempDebt();
       try {
-        const created = await statementsService.createStatement(userId, debtId, {
+        const created = await statementsService.createStatement(workspaceId, debtId, {
           ...baseStatement,
           interestBreakdown: splitBuckets,
         });
 
-        const updated = await statementsService.updateStatement(
-          userId,
-          debtId,
+        const updated = await statementsService.updateStatement(workspaceId, debtId,
           created.id,
           {
             interestBreakdown: [
@@ -179,18 +177,16 @@ describe(
     });
 
     it("patching the totals alone cannot drift from a stored split", async () => {
-      const { userId, debtId } = await createTempDebt();
+      const { userId, workspaceId, debtId } = await createTempDebt();
       try {
-        const created = await statementsService.createStatement(userId, debtId, {
+        const created = await statementsService.createStatement(workspaceId, debtId, {
           ...baseStatement,
           interestBreakdown: splitBuckets,
         });
 
         // No breakdown in the patch, so the stored one still governs: these
         // totals must be ignored rather than left contradicting the lines.
-        const updated = await statementsService.updateStatement(
-          userId,
-          debtId,
+        const updated = await statementsService.updateStatement(workspaceId, debtId,
           created.id,
           { interestCharged: 999, balanceSubjectToInterest: 7 },
         );
@@ -200,9 +196,7 @@ describe(
         assert.strictEqual((updated.interestBreakdown as unknown[]).length, 2);
 
         // Unrelated fields still patch normally, totals still held to the split.
-        const renotes = await statementsService.updateStatement(
-          userId,
-          debtId,
+        const renotes = await statementsService.updateStatement(workspaceId, debtId,
           created.id,
           { notes: "checked against the paper statement" },
         );
@@ -214,16 +208,14 @@ describe(
     });
 
     it("update with null clears the split and keeps patched totals", async () => {
-      const { userId, debtId } = await createTempDebt();
+      const { userId, workspaceId, debtId } = await createTempDebt();
       try {
-        const created = await statementsService.createStatement(userId, debtId, {
+        const created = await statementsService.createStatement(workspaceId, debtId, {
           ...baseStatement,
           interestBreakdown: splitBuckets,
         });
 
-        const updated = await statementsService.updateStatement(
-          userId,
-          debtId,
+        const updated = await statementsService.updateStatement(workspaceId, debtId,
           created.id,
           { interestBreakdown: null, interestCharged: 15 },
         );
@@ -236,10 +228,10 @@ describe(
     });
 
     it("rejects invalid breakdowns", async () => {
-      const { userId, debtId } = await createTempDebt();
+      const { userId, workspaceId, debtId } = await createTempDebt();
       try {
         await assert.rejects(() =>
-          statementsService.createStatement(userId, debtId, {
+          statementsService.createStatement(workspaceId, debtId, {
             ...baseStatement,
             interestBreakdown: [
               // Deliberately invalid type to prove zod rejects it at runtime.
@@ -248,7 +240,7 @@ describe(
           }),
         );
         await assert.rejects(() =>
-          statementsService.createStatement(userId, debtId, {
+          statementsService.createStatement(workspaceId, debtId, {
             ...baseStatement,
             interestBreakdown: Array.from({ length: 9 }, () => ({
               type: "other" as const,
@@ -263,14 +255,14 @@ describe(
     });
 
     it("list enriches buckets with rates and keeps the blended statement rate", async () => {
-      const { userId, debtId } = await createTempDebt();
+      const { userId, workspaceId, debtId } = await createTempDebt();
       try {
-        await statementsService.createStatement(userId, debtId, {
+        await statementsService.createStatement(workspaceId, debtId, {
           ...baseStatement,
           interestBreakdown: splitBuckets,
         });
 
-        const [statement] = await statementsService.listStatements(userId, debtId);
+        const [statement] = await statementsService.listStatements(workspaceId, debtId);
         assert.ok(statement);
 
         // Blended: exact, because the summed basis is printed, not estimated.

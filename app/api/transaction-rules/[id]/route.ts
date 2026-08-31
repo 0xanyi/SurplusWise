@@ -8,13 +8,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
     const transactionType =
       body.transactionType !== undefined ? body.transactionType : body.transaction_type;
     const clientId = body.clientId !== undefined ? body.clientId : body.client_id;
-    await rulesService.update(userId, workspaceId, id, {
+    await rulesService.update(workspaceId, id, {
       ...(body.name !== undefined && { name: body.name }),
       ...((body.matchField ?? body.match_field) !== undefined && {
         matchField: body.matchField ?? body.match_field,
@@ -64,9 +64,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
-    await rulesService.remove(userId, workspaceId, id);
+    await rulesService.remove(workspaceId, id);
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

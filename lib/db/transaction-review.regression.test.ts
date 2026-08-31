@@ -30,7 +30,7 @@ describe(
           userId: reviewerId,
           role: "editor",
         });
-        const transaction = await transactions.create(ownerId, workspace.id, {
+        const transaction = await transactions.create(workspace.id, {
           amount: 42,
           date: "2026-08-15",
           type: "expense",
@@ -39,7 +39,6 @@ describe(
 
         await assert.rejects(
           transactions.bulkUpdateMetadata(
-            ownerId,
             workspace.id,
             { ids: [transaction.id], assignedToUserId: outsiderId },
             ownerId,
@@ -47,13 +46,12 @@ describe(
           /owner or editor/,
         );
         await transactions.bulkUpdateMetadata(
-          ownerId,
           workspace.id,
           { ids: [transaction.id], needsReview: true, assignedToUserId: reviewerId },
           ownerId,
         );
         assert.deepEqual(
-          (await transactions.list(ownerId, workspace.id, {
+          (await transactions.list(workspace.id, {
             needsReview: true,
             assignedToUserId: reviewerId,
           })).map((row) => row.id),
@@ -61,18 +59,16 @@ describe(
         );
 
         await transactions.bulkUpdateMetadata(
-          ownerId,
           workspace.id,
           { ids: [transaction.id], needsReview: false },
           reviewerId,
         );
-        const reviewed = await transactions.getById(ownerId, transaction.id);
+        const reviewed = await transactions.getById(workspace.id, transaction.id);
         assert.equal(reviewed?.needsReview, false);
         assert.equal(reviewed?.reviewedByUserId, reviewerId);
         assert.ok(reviewed?.reviewedAt);
 
         const history = await transactions.listReviewHistory(
-          ownerId,
           workspace.id,
           transaction.id,
         );

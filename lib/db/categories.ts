@@ -6,7 +6,6 @@ import {
   type TransactionType,
 } from "./default-categories";
 import {
-  userIdSchema,
   idSchema,
   categoryCreateSchema,
   categoryUpdateSchema,
@@ -14,6 +13,7 @@ import {
   workspaceIdSchema,
 } from "./validation";
 import { getMissingDefaults } from "./helpers";
+import { ownerUserId } from "./workspaces";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -39,14 +39,10 @@ function genId() {
 // ─── Service functions ───────────────────────────────────────────────────────
 
 /** List categories, optionally filtered by type, sorted alphabetically. */
-export async function list(userId: string, workspaceId: string, type?: TransactionType) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string, type?: TransactionType) {
   workspaceIdSchema.parse(workspaceId);
   if (type) transactionTypeSchema.parse(type);
-  const conditions = [
-    eq(categories.userId, userId),
-    eq(categories.workspaceId, workspaceId),
-  ];
+  const conditions = [eq(categories.workspaceId, workspaceId)];
   if (type) conditions.push(eq(categories.type, type));
 
   return db
@@ -64,14 +60,14 @@ export async function list(userId: string, workspaceId: string, type?: Transacti
  * workspace is removed). Each workspace gets its own set: a business workspace
  * needs its own "Food & Dining" rather than sharing the personal one.
  */
-export async function ensureDefaults(userId: string, workspaceId: string) {
-  userIdSchema.parse(userId);
+export async function ensureDefaults(workspaceId: string) {
   workspaceIdSchema.parse(workspaceId);
+  const userId = await ownerUserId(workspaceId);
 
   const [workspace] = await db
     .select({ id: workspaces.id, categoriesSeeded: workspaces.categoriesSeeded })
     .from(workspaces)
-    .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
+    .where(eq(workspaces.id, workspaceId))
     .limit(1);
 
   if (!workspace) throw new Error("Workspace not found or unauthorized");
@@ -87,7 +83,6 @@ export async function ensureDefaults(userId: string, workspaceId: string) {
       .from(categories)
       .where(
         and(
-          eq(categories.userId, userId),
           eq(categories.workspaceId, workspaceId),
           eq(categories.type, type),
         ),
@@ -134,16 +129,15 @@ export async function ensureDefaults(userId: string, workspaceId: string) {
 }
 
 /** Create a custom (non-default) category. Throws on duplicate name+type in workspace. */
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   categoryCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   const [existing] = await db
     .select({ id: categories.id })
     .from(categories)
     .where(
       and(
-        eq(categories.userId, userId),
         eq(categories.workspaceId, workspaceId),
         eq(categories.name, input.name),
         eq(categories.type, input.type),
@@ -170,14 +164,14 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 }
 
 /** Update a category. Throws if unauthorized. */
-export async function update(userId: string, id: string, input: UpdateInput) {
-  userIdSchema.parse(userId);
+export async function update(workspaceId: string, id: string, input: UpdateInput) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   categoryUpdateSchema.parse(input);
   const [cat] = await db
     .select()
     .from(categories)
-    .where(and(eq(categories.id, id), eq(categories.userId, userId)))
+    .where(and(eq(categories.id, id), eq(categories.workspaceId, workspaceId)))
     .limit(1);
 
   if (!cat) throw new Error("Category not found or unauthorized");
@@ -190,8 +184,7 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       .from(categories)
       .where(
         and(
-          eq(categories.userId, userId),
-          eq(categories.workspaceId, cat.workspaceId),
+          eq(categories.workspaceId, workspaceId),
           eq(categories.type, cat.type),
           eq(categories.name, input.name),
         ),
@@ -208,24 +201,24 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       ...(input.color !== undefined && { color: input.color }),
       ...(input.icon !== undefined && { icon: input.icon }),
     })
-    .where(and(eq(categories.id, id), eq(categories.userId, userId)))
+    .where(and(eq(categories.id, id), eq(categories.workspaceId, workspaceId)))
     .returning();
   return row;
 }
 
 /** Delete a category. Throws if unauthorized. */
-export async function remove(userId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function remove(workspaceId: string, id: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const [cat] = await db
     .select()
     .from(categories)
-    .where(and(eq(categories.id, id), eq(categories.userId, userId)))
+    .where(and(eq(categories.id, id), eq(categories.workspaceId, workspaceId)))
     .limit(1);
 
   if (!cat) throw new Error("Category not found or unauthorized");
 
   await db
     .delete(categories)
-    .where(and(eq(categories.id, id), eq(categories.userId, userId)));
+    .where(and(eq(categories.id, id), eq(categories.workspaceId, workspaceId)));
 }

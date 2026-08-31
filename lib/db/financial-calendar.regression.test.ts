@@ -45,40 +45,40 @@ describe(
       ]);
 
       try {
-        await recurringMoneyService.create(userId, workspaceId, {
+        await recurringMoneyService.create(workspaceId, {
           name: "Salary",
           amount: 1000,
           type: "income",
           dayOfMonth: 31,
         });
-        const utility = await recurringMoneyService.create(userId, workspaceId, {
+        const utility = await recurringMoneyService.create(workspaceId, {
           name: "Electricity",
           amount: 100,
           type: "expense",
           dayOfMonth: 10,
         });
-        await recurringMoneyService.create(userId, otherWorkspaceId, {
+        await recurringMoneyService.create(otherWorkspaceId, {
           name: "Other workspace rent",
           amount: 900,
           type: "expense",
           dayOfMonth: 1,
         });
 
-        const forecastDebt = await debtsService.create(userId, workspaceId, {
+        const forecastDebt = await debtsService.create(workspaceId, {
           name: "Car loan",
           debtType: "loan",
           currentBalance: 5000,
           minimumPayment: 50,
           paymentDayOfMonth: 31,
         });
-        const statementDebt = await debtsService.create(userId, workspaceId, {
+        const statementDebt = await debtsService.create(workspaceId, {
           name: "Credit card",
           debtType: "credit_card",
           currentBalance: 1000,
           minimumPayment: 60,
           paymentDayOfMonth: 20,
         });
-        await statementsService.createStatement(userId, statementDebt.id, {
+        await statementsService.createStatement(workspaceId, statementDebt.id, {
           periodStart: "2028-01-01",
           periodEnd: "2028-01-31",
           statementDate: "2028-01-31",
@@ -87,12 +87,12 @@ describe(
           closingBalance: 1000,
           minimumPayment: 75,
         });
-        await statementsService.createPayment(userId, statementDebt.id, {
+        await statementsService.createPayment(workspaceId, statementDebt.id, {
           amount: 25,
           paidAt: "2028-02-10",
         });
 
-        let calendar = await calendarService.getMonth(userId, workspaceId, "2028-02-01");
+        let calendar = await calendarService.getMonth(workspaceId, "2028-02-01");
         assert.deepEqual(
           calendar.events.map((event) => event.title),
           ["Electricity", "Credit card", "Car loan", "Salary"],
@@ -115,40 +115,38 @@ describe(
         assert.equal(calendar.summary.incomingOutstanding, 1000);
         assert.equal(calendar.summary.outgoingOutstanding, 200);
         assert.equal(
-          (await transactionsService.list(userId, workspaceId)).length,
+          (await transactionsService.list(workspaceId)).length,
           0,
           "calendar projections must not create transactions",
         );
         assert.equal(
-          (await draftsService.list(userId, workspaceId, "2028-02-01")).length,
+          (await draftsService.list(workspaceId, "2028-02-01")).length,
           0,
           "viewing a future month must not freeze its expectations as drafts",
         );
         assert.equal(
-          (await calendarService.getMonth(userId, otherWorkspaceId, "2028-02-01")).events.length,
+          (await calendarService.getMonth(otherWorkspaceId, "2028-02-01")).events.length,
           1,
           "calendar events must remain workspace-scoped",
         );
 
-        await draftsService.generate(userId, workspaceId, "2028-02-01");
+        await draftsService.generate(workspaceId, "2028-02-01");
         const utilityDraft = (await draftsService.list(
-          userId,
           workspaceId,
           "2028-02-01",
         )).find((draft) => draft.recurringMoneyId === utility.id)!;
-        const payment = await transactionsService.create(userId, workspaceId, {
+        const payment = await transactionsService.create(workspaceId, {
           amount: 40,
           date: "2028-02-10",
           type: "expense",
           category: "Utilities",
         });
         await draftsService.matchTransaction(
-          userId,
           workspaceId,
           utilityDraft.id,
           payment.id,
         );
-        calendar = await calendarService.getMonth(userId, workspaceId, "2028-02-01");
+        calendar = await calendarService.getMonth(workspaceId, "2028-02-01");
         const utilityEvent = calendar.events.find((event) => event.title === "Electricity");
         assert.equal(utilityEvent?.status, "partial");
         assert.equal(utilityEvent?.recordedAmount, 40);
@@ -156,29 +154,27 @@ describe(
         assert.equal(calendar.summary.outgoingOutstanding, 160);
 
         const currentMonth = getPeriodMonthFromDate(getCurrentUtcDate());
-        await calendarService.getMonth(userId, workspaceId, currentMonth);
+        await calendarService.getMonth(workspaceId, currentMonth);
         assert.equal(
-          (await draftsService.list(userId, workspaceId, currentMonth)).length,
+          (await draftsService.list(workspaceId, currentMonth)).length,
           2,
           "the current month should materialize drafts for import matching",
         );
         assert.equal(
-          (await transactionsService.list(userId, workspaceId)).length,
+          (await transactionsService.list(workspaceId)).length,
           1,
           "materialized expectations must remain outside the ledger",
         );
         await paymentLogsService.create(
-          userId,
+          workspaceId,
           utility.id,
           {
             amount: 100,
             paidAt: getCurrentUtcDate(),
             periodMonth: currentMonth,
           },
-          workspaceId,
         );
         const currentCalendar = await calendarService.getMonth(
-          userId,
           workspaceId,
           currentMonth,
         );

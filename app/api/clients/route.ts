@@ -25,11 +25,11 @@ export function toClient(row: clientsService.ClientWithRollup) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const activeParam = request.nextUrl.searchParams.get("active");
     const isActive = activeParam === null ? undefined : activeParam === "true";
 
-    const rows = await clientsService.listWithRollups(userId, workspaceId, isActive);
+    const rows = await clientsService.listWithRollups(workspaceId, isActive);
     // Summed from the same rollups the rows show, so a stat tile can never
     // disagree with the list beneath it.
     const totals = sumRollups(rows);
@@ -50,10 +50,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
-    const row = await clientsService.create(userId, workspaceId, {
+    const row = await clientsService.create(workspaceId, {
       name: body.name,
       contactEmail: "contactEmail" in body ? body.contactEmail : body.contact_email,
       notes: body.notes,

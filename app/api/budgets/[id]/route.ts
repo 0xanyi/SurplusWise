@@ -8,7 +8,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
@@ -28,7 +28,7 @@ export async function PATCH(
       ...(body.is_active !== undefined && { isActive: body.is_active }),
     };
 
-    await budgetsService.update(userId, id, input);
+    await budgetsService.update(workspaceId, id, input);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -67,10 +67,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
 
-    await budgetsService.remove(userId, id);
+    await budgetsService.remove(workspaceId, id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

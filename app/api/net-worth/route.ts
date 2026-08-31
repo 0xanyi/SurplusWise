@@ -4,8 +4,8 @@ import { getNetWorthSummary } from "@/lib/db/net-worth";
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
-    const summary = await getNetWorthSummary(userId, workspaceId);
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
+    const summary = await getNetWorthSummary(workspaceId);
     return NextResponse.json(summary);
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

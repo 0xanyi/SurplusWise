@@ -30,11 +30,11 @@ function toDebt(row: Record<string, unknown>) {
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const [debts, summary, upcoming] = await Promise.all([
-      debtsService.list(userId, workspaceId),
-      debtsService.getSummary(userId, workspaceId),
-      statementsService.listUpcomingDebtPayments(userId, workspaceId),
+      debtsService.list(workspaceId),
+      debtsService.getSummary(workspaceId),
+      statementsService.listUpcomingDebtPayments(workspaceId),
     ]);
 
     return NextResponse.json({
@@ -71,10 +71,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
-    const row = await debtsService.create(userId, workspaceId, {
+    const row = await debtsService.create(workspaceId, {
       name: body.name,
       debtType: body.debtType ?? body.debt_type,
       financialAccountId: body.financialAccountId ?? body.financial_account_id,

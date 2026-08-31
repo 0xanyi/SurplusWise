@@ -32,8 +32,8 @@ export function workspaceArchiveResponse(
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
-    return workspaceArchiveResponse(await createWorkspaceArchive(userId, workspaceId));
+    const { workspaceId } = await requireAuthWithWorkspace("owner");
+    return workspaceArchiveResponse(await createWorkspaceArchive(workspaceId));
   } catch (error) {
     if (error instanceof WorkspaceArchiveError) {
       const status = error.code === "storage_unavailable" ? 503 : 502;

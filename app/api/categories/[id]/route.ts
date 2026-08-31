@@ -21,11 +21,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
-    const row = await categoriesService.update(userId, id, {
+    const row = await categoriesService.update(workspaceId, id, {
       name: body.name,
       color: body.color,
       icon: body.icon,
@@ -68,10 +68,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
 
-    await categoriesService.remove(userId, id);
+    await categoriesService.remove(workspaceId, id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

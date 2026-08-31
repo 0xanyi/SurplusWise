@@ -37,7 +37,7 @@ function toBudget(budget: Record<string, unknown>) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
 
     const period = request.nextUrl.searchParams.get("period") as
       | "monthly"
@@ -46,7 +46,6 @@ export async function GET(request: NextRequest) {
       | null;
 
     const budgets = await budgetsService.getWithSpending(
-      userId,
       workspaceId,
       period ?? undefined,
     );
@@ -72,7 +71,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
     const startDate = body.startDate ?? body.start_date;
@@ -85,7 +84,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const row = await budgetsService.create(userId, workspaceId, {
+    const row = await budgetsService.create(workspaceId, {
       category: body.category,
       amount: body.amount,
       period: body.period,

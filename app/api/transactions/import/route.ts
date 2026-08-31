@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const formData = await request.formData();
     const file = formData.get("file");
     const accountIdValue = formData.get("accountId");
@@ -80,7 +80,6 @@ export async function POST(request: NextRequest) {
 
     if (action === "preview") {
       const review = await txService.reviewImport(
-        userId,
         workspaceId,
         accountId,
         analysis.validRows,
@@ -97,7 +96,6 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await txService.importRows(
-      userId,
       workspaceId,
       accountId,
       analysis.validRows,

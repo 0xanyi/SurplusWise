@@ -36,17 +36,13 @@ function getCurrentPeriodMonth() {
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
-    const outgoings = await outgoingsService.list(userId, workspaceId, undefined, "expense");
-    const summary = await outgoingsService.getMonthlyTotal(userId, workspaceId);
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
+    const outgoings = await outgoingsService.list(workspaceId, undefined, "expense");
+    const summary = await outgoingsService.getMonthlyTotal(workspaceId);
 
     // Get payment status for current month
     const periodMonth = getCurrentPeriodMonth();
-    const paymentMap = await paymentLogService.getMonthlyStatus(
-      userId,
-      periodMonth,
-      workspaceId,
-    );
+    const paymentMap = await paymentLogService.getMonthlyStatus(workspaceId, periodMonth);
 
     const outgoingsWithStatus = outgoings.map((o) => {
       const mapped = toOutgoing(o);
@@ -81,10 +77,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
-    const row = await outgoingsService.create(userId, workspaceId, {
+    const row = await outgoingsService.create(workspaceId, {
       name: body.name,
       amount: body.amount,
       dayOfMonth: body.dayOfMonth ?? body.day_of_month,

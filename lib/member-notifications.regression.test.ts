@@ -48,7 +48,7 @@ describe(
           userId: memberId,
           role: "viewer",
         });
-        await recurringMoney.create(ownerId, workspace.id, {
+        await recurringMoney.create(workspace.id, {
           name: "Shared rent",
           amount: 900,
           type: "expense",
@@ -56,20 +56,19 @@ describe(
         });
 
         const memberItems = await notifications.listCurrent(
-          ownerId,
           workspace.id,
-          "2028-08-15",
           memberId,
+          "2028-08-15",
         );
         const due = memberItems.find((item) => item.title === "Shared rent")!;
         assert.equal(due.readAt, null);
         await notifications.markRead(memberId, workspace.id, due.id, true);
         assert.ok(
-          (await notifications.listCurrent(ownerId, workspace.id, "2028-08-15", memberId))
+          (await notifications.listCurrent(workspace.id, memberId, "2028-08-15"))
             .find((item) => item.id === due.id)?.readAt,
         );
         assert.equal(
-          (await notifications.listCurrent(ownerId, workspace.id, "2028-08-15", ownerId))
+          (await notifications.listCurrent(workspace.id, ownerId, "2028-08-15"))
             .find((item) => item.id === due.id)?.readAt,
           null,
         );

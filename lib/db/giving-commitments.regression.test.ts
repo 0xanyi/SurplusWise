@@ -40,25 +40,25 @@ describe(
       ]);
 
       try {
-        const recipient = await recipientsService.createRecipient(userId, workspaceId, {
+        const recipient = await recipientsService.createRecipient(workspaceId, {
           name: "Community Church",
         });
-        const designation = await recipientsService.createDesignation(userId, workspaceId, {
+        const designation = await recipientsService.createDesignation(workspaceId, {
           recipientId: recipient.id,
           name: "Building fund",
         });
-        const otherRecipient = await recipientsService.createRecipient(userId, otherWorkspaceId, {
+        const otherRecipient = await recipientsService.createRecipient(otherWorkspaceId, {
           name: "Other recipient",
         });
 
-        const general = await commitmentsService.create(userId, workspaceId, {
+        const general = await commitmentsService.create(workspaceId, {
           recipientId: recipient.id,
           name: "Monthly giving",
           amount: 100,
           frequency: "monthly",
           startDate: "2026-01-31",
         });
-        const fund = await commitmentsService.create(userId, workspaceId, {
+        const fund = await commitmentsService.create(workspaceId, {
           recipientId: recipient.id,
           designationId: designation.id,
           name: "Building pledge",
@@ -68,7 +68,7 @@ describe(
         });
         await assert.rejects(
           () =>
-            commitmentsService.create(userId, workspaceId, {
+            commitmentsService.create(workspaceId, {
               recipientId: recipient.id,
               name: "Duplicate general plan",
               amount: 50,
@@ -79,7 +79,7 @@ describe(
         );
         await assert.rejects(
           () =>
-            commitmentsService.create(userId, workspaceId, {
+            commitmentsService.create(workspaceId, {
               recipientId: otherRecipient.id,
               name: "Cross-workspace plan",
               amount: 50,
@@ -89,21 +89,21 @@ describe(
           /not found or unauthorized/,
         );
 
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 50,
           date: "2026-01-01",
           type: "giving",
           category: "Offering",
           givingRecipientId: recipient.id,
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 175,
           date: "2026-02-01",
           type: "giving",
           category: "Offering",
           givingRecipientId: recipient.id,
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 200,
           date: "2026-02-15",
           type: "giving",
@@ -111,22 +111,20 @@ describe(
           givingRecipientId: recipient.id,
           givingDesignationId: designation.id,
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 4250,
           date: "2026-02-28",
           type: "income",
           category: "Salary",
         });
-        await transactionsService.create(userId, otherWorkspaceId, {
+        await transactionsService.create(otherWorkspaceId, {
           amount: 1000,
           date: "2026-02-28",
           type: "income",
           category: "Other income",
         });
 
-        const progress = await commitmentsService.getProgress(
-          userId,
-          workspaceId,
+        const progress = await commitmentsService.getProgress(workspaceId,
           "2026-01-01",
           "2026-03-31",
         );
@@ -144,13 +142,11 @@ describe(
         );
 
         await assert.rejects(
-          () => commitmentsService.update(userId, otherWorkspaceId, general.id, { amount: 120 }),
+          () => commitmentsService.update(otherWorkspaceId, general.id, { amount: 120 }),
           /not found or unauthorized/,
         );
-        await commitmentsService.update(userId, workspaceId, fund.id, { isActive: false });
-        const activeProgress = await commitmentsService.getProgress(
-          userId,
-          workspaceId,
+        await commitmentsService.update(workspaceId, fund.id, { isActive: false });
+        const activeProgress = await commitmentsService.getProgress(workspaceId,
           "2026-01-01",
           "2026-03-31",
         );
@@ -158,9 +154,7 @@ describe(
         assert.equal(activeProgress.recorded, 175);
         assert.equal(activeProgress.rows.length, 2, "archived plans remain visible");
 
-        const noIncome = await commitmentsService.getProgress(
-          userId,
-          workspaceId,
+        const noIncome = await commitmentsService.getProgress(workspaceId,
           "2026-01-01",
           "2026-01-31",
         );
@@ -168,8 +162,8 @@ describe(
         assert.equal(noIncome.periodIncome, 0);
         assert.equal(noIncome.givingRate, null, "a zero-income period has no meaningful rate");
 
-        await commitmentsService.update(userId, workspaceId, general.id, { isActive: false });
-        const replacement = await commitmentsService.create(userId, workspaceId, {
+        await commitmentsService.update(workspaceId, general.id, { isActive: false });
+        const replacement = await commitmentsService.create(workspaceId, {
           recipientId: recipient.id,
           name: "Replacement monthly giving",
           amount: 125,
@@ -177,7 +171,7 @@ describe(
           startDate: "2026-04-01",
         });
         await assert.rejects(
-          () => commitmentsService.update(userId, workspaceId, general.id, { isActive: true }),
+          () => commitmentsService.update(workspaceId, general.id, { isActive: true }),
           /already covers/,
           "an archived commitment cannot be restored over an active replacement",
         );

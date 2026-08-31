@@ -12,11 +12,9 @@ const updateSchema = z.object({
 
 export async function POST() {
   try {
-    const { userId, actorUserId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { actorUserId, workspaceId } = await requireAuthWithWorkspace("viewer");
     const notifications = await notificationsService.listCurrent(
-      userId,
       workspaceId,
-      undefined,
       actorUserId,
     );
     return NextResponse.json({

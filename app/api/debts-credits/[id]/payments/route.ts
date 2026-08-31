@@ -8,10 +8,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
-    const payments = await statementsService.listPayments(userId, id);
+    const payments = await statementsService.listPayments(workspaceId, id);
 
     return NextResponse.json({
       payments: payments.map((row) => ({
@@ -33,11 +33,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
-    const payment = await statementsService.createPayment(userId, id, {
+    const payment = await statementsService.createPayment(workspaceId, id, {
       amount: body.amount,
       paidAt: body.paidAt ?? body.paid_at,
       notes: body.notes,

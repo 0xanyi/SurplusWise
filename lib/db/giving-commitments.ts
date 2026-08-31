@@ -14,9 +14,9 @@ import {
   givingCommitmentCreateSchema,
   givingCommitmentUpdateSchema,
   idSchema,
-  userIdSchema,
   workspaceIdSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 export type CreateInput = z.input<typeof givingCommitmentCreateSchema>;
 export type UpdateInput = z.input<typeof givingCommitmentUpdateSchema>;
@@ -27,7 +27,6 @@ function roundCurrency(value: number) {
 }
 
 async function assertNoActiveTarget(
-  userId: string,
   workspaceId: string,
   recipientId: string,
   designationId: string | null,
@@ -38,7 +37,6 @@ async function assertNoActiveTarget(
     .from(givingCommitments)
     .where(
       and(
-        eq(givingCommitments.userId, userId),
         eq(givingCommitments.workspaceId, workspaceId),
         eq(givingCommitments.recipientId, recipientId),
         eq(givingCommitments.isActive, true),
@@ -51,8 +49,7 @@ async function assertNoActiveTarget(
   }
 }
 
-export async function list(userId: string, workspaceId: string) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string) {
   workspaceIdSchema.parse(workspaceId);
   return db
     .select({
@@ -72,30 +69,23 @@ export async function list(userId: string, workspaceId: string) {
     .from(givingCommitments)
     .innerJoin(givingRecipients, eq(givingCommitments.recipientId, givingRecipients.id))
     .leftJoin(givingDesignations, eq(givingCommitments.designationId, givingDesignations.id))
-    .where(
-      and(
-        eq(givingCommitments.userId, userId),
-        eq(givingCommitments.workspaceId, workspaceId),
-      ),
-    )
+    .where(eq(givingCommitments.workspaceId, workspaceId))
     .orderBy(asc(givingRecipients.name), asc(givingCommitments.name));
 }
 
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   const valid = givingCommitmentCreateSchema.parse(input);
-  await givingRecipientsService.assertRecipientInWorkspace(userId, workspaceId, valid.recipientId);
+  const userId = await ownerUserId(workspaceId);
+  await givingRecipientsService.assertRecipientInWorkspace(workspaceId, valid.recipientId);
   if (valid.designationId) {
     await givingRecipientsService.assertDesignationInWorkspace(
-      userId,
       workspaceId,
       valid.designationId,
       valid.recipientId,
     );
   }
   await assertNoActiveTarget(
-    userId,
     workspaceId,
     valid.recipientId,
     valid.designationId ?? null,
@@ -123,12 +113,10 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 }
 
 export async function update(
-  userId: string,
   workspaceId: string,
   id: string,
   input: UpdateInput,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const valid = givingCommitmentUpdateSchema.parse(input);
@@ -138,7 +126,6 @@ export async function update(
     .where(
       and(
         eq(givingCommitments.id, id),
-        eq(givingCommitments.userId, userId),
         eq(givingCommitments.workspaceId, workspaceId),
       ),
     )
@@ -149,7 +136,6 @@ export async function update(
     valid.designationId === undefined ? existing.designationId : valid.designationId;
   if (designationId) {
     await givingRecipientsService.assertDesignationInWorkspace(
-      userId,
       workspaceId,
       designationId,
       existing.recipientId,
@@ -167,7 +153,6 @@ export async function update(
   });
   if ((valid.isActive ?? existing.isActive) === true) {
     await assertNoActiveTarget(
-      userId,
       workspaceId,
       existing.recipientId,
       designationId,
@@ -188,13 +173,12 @@ export async function update(
       ...(valid.isActive !== undefined && { isActive: valid.isActive }),
       updatedAt: new Date(),
     })
-    .where(eq(givingCommitments.id, id))
+    .where(and(eq(givingCommitments.id, id), eq(givingCommitments.workspaceId, workspaceId)))
     .returning();
   return row;
 }
 
 export async function getProgress(
-  userId: string,
   workspaceId: string,
   periodStart: string,
   periodEnd: string,
@@ -203,7 +187,7 @@ export async function getProgress(
   dateStringSchema.parse(periodEnd);
   if (periodEnd < periodStart) throw new Error("period end must not be before period start");
   const [commitments, gifts, incomeRows] = await Promise.all([
-    list(userId, workspaceId),
+    list(workspaceId),
     db
       .select({
         recipientId: transactions.givingRecipientId,
@@ -214,7 +198,6 @@ export async function getProgress(
       .from(transactions)
       .where(
         and(
-          eq(transactions.userId, userId),
           eq(transactions.workspaceId, workspaceId),
           eq(transactions.type, "giving"),
           gte(transactions.date, periodStart),
@@ -226,7 +209,6 @@ export async function getProgress(
       .from(transactions)
       .where(
         and(
-          eq(transactions.userId, userId),
           eq(transactions.workspaceId, workspaceId),
           eq(transactions.type, "income"),
           gte(transactions.date, periodStart),

@@ -9,7 +9,7 @@ import {
 } from "@/db/schema";
 import { forecastMinimumPayment, isRevolvingDebt } from "@/lib/debt-interest";
 import * as draftsService from "./recurring-money-drafts";
-import { periodMonthSchema, userIdSchema, workspaceIdSchema } from "./validation";
+import { periodMonthSchema, workspaceIdSchema } from "./validation";
 import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
 
 export type CalendarEventType = "income" | "expense" | "giving" | "debt";
@@ -72,7 +72,7 @@ function settlement(recordedAmount: number, amount: number) {
   };
 }
 
-async function listDebtEvents(userId: string, workspaceId: string, periodMonth: string) {
+async function listDebtEvents(workspaceId: string, periodMonth: string) {
   const endDate = monthEnd(periodMonth);
   const statements = await db
     .select({
@@ -94,7 +94,6 @@ async function listDebtEvents(userId: string, workspaceId: string, periodMonth: 
     .innerJoin(debtsCredits, eq(debtStatements.debtId, debtsCredits.id))
     .where(
       and(
-        eq(debtStatements.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
         gte(debtStatements.dueDate, periodMonth),
         lte(debtStatements.dueDate, endDate),
@@ -117,7 +116,6 @@ async function listDebtEvents(userId: string, workspaceId: string, periodMonth: 
     .from(debtsCredits)
     .where(
       and(
-        eq(debtsCredits.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
         eq(debtsCredits.isActive, true),
       ),
@@ -132,12 +130,7 @@ async function listDebtEvents(userId: string, workspaceId: string, periodMonth: 
     })
     .from(debtStatements)
     .innerJoin(debtsCredits, eq(debtStatements.debtId, debtsCredits.id))
-    .where(
-      and(
-        eq(debtStatements.userId, userId),
-        eq(debtsCredits.workspaceId, workspaceId),
-      ),
-    )
+    .where(eq(debtsCredits.workspaceId, workspaceId))
     .orderBy(desc(debtStatements.debtId), desc(debtStatements.periodEnd));
   const latestByDebt = new Map(latestStatements.map((row) => [row.debtId, row]));
   const paymentStart = [
@@ -154,7 +147,6 @@ async function listDebtEvents(userId: string, workspaceId: string, periodMonth: 
     .innerJoin(debtsCredits, eq(debtPayments.debtId, debtsCredits.id))
     .where(
       and(
-        eq(debtPayments.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
         gte(debtPayments.paidAt, paymentStart),
         lte(debtPayments.paidAt, endDate),
@@ -245,25 +237,23 @@ async function listDebtEvents(userId: string, workspaceId: string, periodMonth: 
 }
 
 /** Return one workspace month without adding expectations to the ledger. */
-export async function getMonth(userId: string, workspaceId: string, periodMonth: string) {
-  userIdSchema.parse(userId);
+export async function getMonth(workspaceId: string, periodMonth: string) {
   workspaceIdSchema.parse(workspaceId);
   periodMonthSchema.parse(periodMonth);
 
   const currentMonth = getPeriodMonthFromDate(getCurrentUtcDate());
   if (periodMonth === currentMonth) {
-    await draftsService.generate(userId, workspaceId, periodMonth);
+    await draftsService.generate(workspaceId, periodMonth);
   }
   const [drafts, debtEvents, schedules, paymentLogs] = await Promise.all([
-    draftsService.list(userId, workspaceId, periodMonth),
-    listDebtEvents(userId, workspaceId, periodMonth),
+    draftsService.list(workspaceId, periodMonth),
+    listDebtEvents(workspaceId, periodMonth),
     periodMonth >= currentMonth
       ? db
           .select()
           .from(recurringOutgoings)
           .where(
             and(
-              eq(recurringOutgoings.userId, userId),
               eq(recurringOutgoings.workspaceId, workspaceId),
               eq(recurringOutgoings.isActive, true),
               eq(recurringOutgoings.frequency, "monthly"),
@@ -282,7 +272,6 @@ export async function getMonth(userId: string, workspaceId: string, periodMonth:
       )
       .where(
         and(
-          eq(outgoingPaymentLogs.userId, userId),
           eq(outgoingPaymentLogs.periodMonth, periodMonth),
           eq(recurringOutgoings.workspaceId, workspaceId),
         ),

@@ -8,10 +8,10 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
-    await accountService.update(userId, workspaceId, id, {
+    await accountService.update(workspaceId, id, {
       name: body.name,
       isActive: body.isActive ?? body.is_active,
     });

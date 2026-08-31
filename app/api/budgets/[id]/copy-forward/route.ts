@@ -8,7 +8,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body: unknown = await request.json().catch(() => ({}));
     const carryRemaining =
@@ -16,7 +16,7 @@ export async function POST(
       body !== null &&
       "carryRemaining" in body &&
       body.carryRemaining === true;
-    const budget = await budgetsService.copyForward(userId, workspaceId, id, {
+    const budget = await budgetsService.copyForward(workspaceId, id, {
       carryRemaining,
     });
 

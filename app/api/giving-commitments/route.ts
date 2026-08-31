@@ -10,12 +10,11 @@ function currentYearRange() {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const defaults = currentYearRange();
     const startDate = request.nextUrl.searchParams.get("startDate") ?? defaults.startDate;
     const endDate = request.nextUrl.searchParams.get("endDate") ?? defaults.endDate;
     const progress = await commitmentsService.getProgress(
-      userId,
       workspaceId,
       startDate,
       endDate,
@@ -55,9 +54,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
-    const row = await commitmentsService.create(userId, workspaceId, {
+    const row = await commitmentsService.create(workspaceId, {
       recipientId: body.recipientId ?? body.recipient_id,
       designationId: body.designationId ?? body.designation_id ?? null,
       name: body.name,

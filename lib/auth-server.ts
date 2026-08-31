@@ -34,15 +34,14 @@ export async function requireAuth(): Promise<string> {
 }
 
 /**
- * Resolve the active workspace and enforce its minimum role.
- * `userId` remains the workspace owner's ledger identity for compatibility
- * with workspace-scoped services; `actorUserId` is the signed-in member.
- * Without an `x-workspace-id` header, use the actor's own default workspace.
+ * Resolve the active Workspace and enforce its minimum role.
+ * `actorUserId` is the signed-in Member. Isolation of the books is the
+ * Workspace, not the Owner — callers must not treat anyone as the Owner's id.
+ * Without an `x-workspace-id` header, use the Member's own default Workspace.
  */
 export async function requireAuthWithWorkspace(
   requiredRole: WorkspaceRole = "editor",
 ): Promise<{
-  userId: string;
   actorUserId: string;
   workspaceId: string;
   role: WorkspaceRole;
@@ -63,7 +62,6 @@ export async function requireAuthWithWorkspace(
         throw new Error("Unauthorized");
       }
       return {
-        userId: access.workspace.userId,
         actorUserId,
         workspaceId: access.workspace.id,
         role: access.role,
@@ -71,10 +69,8 @@ export async function requireAuthWithWorkspace(
     }
   }
 
-  // Fall back to default workspace
   const defaultWs = await workspaceService.getOrCreateDefault(actorUserId);
   return {
-    userId: actorUserId,
     actorUserId,
     workspaceId: defaultWs.id,
     role: "owner",

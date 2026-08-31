@@ -22,9 +22,9 @@ function toAccount(row: Awaited<ReturnType<typeof accountService.list>>[number])
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const includeInactive = request.nextUrl.searchParams.get("includeInactive") === "true";
-    const accounts = await accountService.list(userId, workspaceId, includeInactive);
+    const accounts = await accountService.list(workspaceId, includeInactive);
     return NextResponse.json({ accounts: accounts.map(toAccount) });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
@@ -37,9 +37,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
-    const row = await accountService.create(userId, workspaceId, {
+    const row = await accountService.create(workspaceId, {
       name: body.name,
       accountClass: body.accountClass ?? body.account_class,
       accountType: body.accountType ?? body.account_type,

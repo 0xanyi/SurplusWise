@@ -40,7 +40,7 @@ describe(
       ]);
 
       try {
-        const cardAccount = await accountsService.create(userId, workspaceId, {
+        const cardAccount = await accountsService.create(workspaceId, {
           name: "Card liability",
           accountClass: "liability",
           accountType: "credit_card",
@@ -48,7 +48,7 @@ describe(
           openingBalance: 500,
           openingDate: "2026-01-01",
         });
-        const bankAccount = await accountsService.create(userId, workspaceId, {
+        const bankAccount = await accountsService.create(workspaceId, {
           name: "Current account",
           accountClass: "asset",
           accountType: "checking",
@@ -56,7 +56,7 @@ describe(
           openingBalance: 0,
           openingDate: "2026-01-01",
         });
-        const otherWorkspaceAccount = await accountsService.create(userId, otherWorkspaceId, {
+        const otherWorkspaceAccount = await accountsService.create(otherWorkspaceId, {
           name: "Other workspace card",
           accountClass: "liability",
           accountType: "credit_card",
@@ -66,7 +66,7 @@ describe(
         });
 
         await assert.rejects(
-          debtsService.create(userId, workspaceId, {
+          debtsService.create(workspaceId, {
             name: "Invalid asset link",
             debtType: "overdraft",
             financialAccountId: bankAccount.id,
@@ -75,7 +75,7 @@ describe(
           /Only liability accounts can be linked/,
         );
         await assert.rejects(
-          debtsService.create(userId, workspaceId, {
+          debtsService.create(workspaceId, {
             name: "Invalid workspace link",
             debtType: "credit_card",
             financialAccountId: otherWorkspaceAccount.id,
@@ -84,14 +84,14 @@ describe(
           /Financial account not found in this workspace/,
         );
 
-        await debtsService.create(userId, workspaceId, {
+        await debtsService.create(workspaceId, {
           name: "Linked card",
           debtType: "credit_card",
           financialAccountId: cardAccount.id,
           currentBalance: 500,
         });
         await assert.rejects(
-          debtsService.create(userId, workspaceId, {
+          debtsService.create(workspaceId, {
             name: "Duplicate card link",
             debtType: "credit_card",
             financialAccountId: cardAccount.id,
@@ -99,19 +99,19 @@ describe(
           }),
           /already linked to another debt/,
         );
-        await debtsService.create(userId, workspaceId, {
+        await debtsService.create(workspaceId, {
           name: "Unlinked loan",
           debtType: "loan",
           currentBalance: 200,
         });
 
-        const linked = await getNetWorthSummary(userId, workspaceId);
+        const linked = await getNetWorthSummary(workspaceId);
         assert.equal(linked.accountLiabilities, 500);
         assert.equal(linked.debtsOwed, 200);
         assert.equal(linked.liabilities, 700, "the linked £500 balance must be counted once");
 
-        await accountsService.update(userId, workspaceId, cardAccount.id, { isActive: false });
-        const archived = await getNetWorthSummary(userId, workspaceId);
+        await accountsService.update(workspaceId, cardAccount.id, { isActive: false });
+        const archived = await getNetWorthSummary(workspaceId);
         assert.equal(archived.accountLiabilities, 0);
         assert.equal(archived.debtsOwed, 700);
         assert.equal(

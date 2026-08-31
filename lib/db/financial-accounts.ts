@@ -4,16 +4,16 @@ import {
   accountTransfers,
   financialAccounts,
   transactions,
+  workspaces,
 } from "@/db/schema";
 import { calculateAccountBalance } from "@/lib/account-balance";
-import * as workspaceService from "./workspaces";
+import { ownerUserId } from "./workspaces";
 import {
   accountReconciliationSchema,
   accountTransferCreateSchema,
   financialAccountCreateSchema,
   financialAccountUpdateSchema,
   idSchema,
-  userIdSchema,
   workspaceIdSchema,
 } from "./validation";
 
@@ -53,7 +53,6 @@ function genId() {
 }
 
 export async function assertInWorkspace(
-  userId: string,
   workspaceId: string,
   accountId: string,
 ) {
@@ -63,7 +62,6 @@ export async function assertInWorkspace(
     .where(
       and(
         eq(financialAccounts.id, accountId),
-        eq(financialAccounts.userId, userId),
         eq(financialAccounts.workspaceId, workspaceId),
       ),
     )
@@ -144,14 +142,10 @@ export async function balanceAt(
   );
 }
 
-export async function list(userId: string, workspaceId: string, includeInactive = false) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string, includeInactive = false) {
   workspaceIdSchema.parse(workspaceId);
 
-  const conditions = [
-    eq(financialAccounts.userId, userId),
-    eq(financialAccounts.workspaceId, workspaceId),
-  ];
+  const conditions = [eq(financialAccounts.workspaceId, workspaceId)];
   if (!includeInactive) conditions.push(eq(financialAccounts.isActive, true));
 
   const rows = await db
@@ -169,11 +163,10 @@ export async function list(userId: string, workspaceId: string, includeInactive 
   );
 }
 
-export async function getById(userId: string, workspaceId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function getById(workspaceId: string, id: string) {
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
-  const account = await assertInWorkspace(userId, workspaceId, id);
+  const account = await assertInWorkspace(workspaceId, id);
   return {
     ...account,
     currentBalance: await balanceAt(account),
@@ -181,11 +174,15 @@ export async function getById(userId: string, workspaceId: string, id: string) {
   };
 }
 
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   const validInput = financialAccountCreateSchema.parse(input);
-  const workspace = await workspaceService.getById(userId, workspaceId);
+  const userId = await ownerUserId(workspaceId);
+  const [workspace] = await db
+    .select({ currency: workspaces.currency })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId))
+    .limit(1);
   if (!workspace) throw new Error("Workspace not found or unauthorized");
   if (validInput.currency !== workspace.currency) {
     throw new Error(`Account currency must match the workspace currency (${workspace.currency})`);
@@ -212,23 +209,21 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 }
 
 export async function update(
-  userId: string,
   workspaceId: string,
   id: string,
   input: UpdateInput,
 ) {
   const validInput = financialAccountUpdateSchema.parse(input);
-  await assertInWorkspace(userId, workspaceId, id);
+  await assertInWorkspace(workspaceId, id);
   const [row] = await db
     .update(financialAccounts)
     .set({ ...validInput, updatedAt: new Date() })
-    .where(eq(financialAccounts.id, id))
+    .where(and(eq(financialAccounts.id, id), eq(financialAccounts.workspaceId, workspaceId)))
     .returning();
   return row;
 }
 
-export async function listTransfers(userId: string, workspaceId: string) {
-  userIdSchema.parse(userId);
+export async function listTransfers(workspaceId: string) {
   workspaceIdSchema.parse(workspaceId);
   return db
     .select({
@@ -241,24 +236,19 @@ export async function listTransfers(userId: string, workspaceId: string) {
       createdAt: accountTransfers.createdAt,
     })
     .from(accountTransfers)
-    .where(
-      and(
-        eq(accountTransfers.userId, userId),
-        eq(accountTransfers.workspaceId, workspaceId),
-      ),
-    )
+    .where(eq(accountTransfers.workspaceId, workspaceId))
     .orderBy(desc(accountTransfers.date), desc(accountTransfers.createdAt));
 }
 
 export async function createTransfer(
-  userId: string,
   workspaceId: string,
   input: TransferInput,
 ) {
   const validInput = accountTransferCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   const [fromAccount, toAccount] = await Promise.all([
-    assertInWorkspace(userId, workspaceId, validInput.fromAccountId),
-    assertInWorkspace(userId, workspaceId, validInput.toAccountId),
+    assertInWorkspace(workspaceId, validInput.fromAccountId),
+    assertInWorkspace(workspaceId, validInput.toAccountId),
   ]);
   assertDateIsOpen(fromAccount, validInput.date);
   assertDateIsOpen(toAccount, validInput.date);
@@ -282,8 +272,7 @@ export async function createTransfer(
   return row;
 }
 
-export async function removeTransfer(userId: string, workspaceId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function removeTransfer(workspaceId: string, id: string) {
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const [transfer] = await db
@@ -292,7 +281,6 @@ export async function removeTransfer(userId: string, workspaceId: string, id: st
     .where(
       and(
         eq(accountTransfers.id, id),
-        eq(accountTransfers.userId, userId),
         eq(accountTransfers.workspaceId, workspaceId),
       ),
     )
@@ -300,23 +288,24 @@ export async function removeTransfer(userId: string, workspaceId: string, id: st
   if (!transfer) throw new Error("Transfer not found or unauthorized");
 
   const [fromAccount, toAccount] = await Promise.all([
-    assertInWorkspace(userId, workspaceId, transfer.fromAccountId),
-    assertInWorkspace(userId, workspaceId, transfer.toAccountId),
+    assertInWorkspace(workspaceId, transfer.fromAccountId),
+    assertInWorkspace(workspaceId, transfer.toAccountId),
   ]);
   assertDateIsOpen(fromAccount, transfer.date);
   assertDateIsOpen(toAccount, transfer.date);
 
-  await db.delete(accountTransfers).where(eq(accountTransfers.id, id));
+  await db
+    .delete(accountTransfers)
+    .where(and(eq(accountTransfers.id, id), eq(accountTransfers.workspaceId, workspaceId)));
 }
 
 export async function reconcile(
-  userId: string,
   workspaceId: string,
   id: string,
   input: { statementDate: string; statementBalance: number },
 ) {
   const validInput = accountReconciliationSchema.parse(input);
-  const account = await assertInWorkspace(userId, workspaceId, id);
+  const account = await assertInWorkspace(workspaceId, id);
   if (validInput.statementDate < account.openingDate) {
     throw new Error("Statement date cannot be before the account opening date");
   }
@@ -348,7 +337,7 @@ export async function reconcile(
         reconciledAt: validInput.statementDate,
         updatedAt: new Date(),
       })
-      .where(eq(financialAccounts.id, id));
+      .where(and(eq(financialAccounts.id, id), eq(financialAccounts.workspaceId, workspaceId)));
   });
 
   return { reconciled: true as const, calculatedBalance, difference: 0 };

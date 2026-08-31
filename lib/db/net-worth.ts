@@ -3,12 +3,12 @@ import * as loansService from "./loans-given";
 import * as debtsService from "./debts-credits";
 import * as financialAccountsService from "./financial-accounts";
 
-export async function getNetWorthSummary(userId: string, workspaceId: string) {
+export async function getNetWorthSummary(workspaceId: string) {
   const [investments, loans, debts, accounts] = await Promise.all([
-    investmentsService.getSummary(userId, workspaceId),
-    loansService.getSummary(userId, workspaceId),
-    debtsService.getSummary(userId, workspaceId),
-    financialAccountsService.list(userId, workspaceId),
+    investmentsService.getSummary(workspaceId),
+    loansService.getSummary(workspaceId),
+    debtsService.getSummary(workspaceId),
+    financialAccountsService.list(workspaceId),
   ]);
 
   const accountAssets = accounts

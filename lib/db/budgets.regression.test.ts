@@ -40,7 +40,7 @@ describe(
       ]);
 
       try {
-        const current = await budgetsService.create(userId, workspaceId, {
+        const current = await budgetsService.create(workspaceId, {
           category: "Groceries",
           amount: 425,
           period: "monthly",
@@ -50,29 +50,29 @@ describe(
         });
 
         await assert.rejects(
-          budgetsService.copyForward(userId, otherWorkspaceId, current.id),
+          budgetsService.copyForward(otherWorkspaceId, current.id),
           /not found or unauthorized/,
         );
 
-        const next = await budgetsService.copyForward(userId, workspaceId, current.id);
+        const next = await budgetsService.copyForward(workspaceId, current.id);
         assert.equal(next.category, "Groceries");
         assert.equal(next.amount, "425.00");
         assert.equal(next.startDate, "2028-02-01");
         assert.equal(next.endDate, "2028-02-29");
         assert.equal(next.isActive, true);
 
-        const active = await budgetsService.list(userId, workspaceId, true);
+        const active = await budgetsService.list(workspaceId, true);
         assert.deepEqual(active.map((budget) => budget.id), [next.id]);
 
-        const archived = await budgetsService.list(userId, workspaceId, false);
+        const archived = await budgetsService.list(workspaceId, false);
         assert.deepEqual(archived.map((budget) => budget.id), [current.id]);
 
         await assert.rejects(
-          budgetsService.copyForward(userId, workspaceId, current.id),
+          budgetsService.copyForward(workspaceId, current.id),
           /already been copied forward/,
         );
 
-        const giving = await budgetsService.create(userId, workspaceId, {
+        const giving = await budgetsService.create(workspaceId, {
           category: "Community",
           amount: 500,
           period: "monthly",
@@ -80,25 +80,25 @@ describe(
           endDate: "2028-01-31",
           type: "giving",
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           category: "Community",
           amount: 100,
           date: "2028-01-15",
           type: "giving",
         });
-        await transactionsService.create(userId, otherWorkspaceId, {
+        await transactionsService.create(otherWorkspaceId, {
           category: "Community",
           amount: 300,
           date: "2028-01-15",
           type: "giving",
         });
 
-        const rolled = await budgetsService.copyForward(userId, workspaceId, giving.id, {
+        const rolled = await budgetsService.copyForward(workspaceId, giving.id, {
           carryRemaining: true,
         });
         assert.equal(rolled.amount, "900.00");
 
-        const income = await budgetsService.create(userId, workspaceId, {
+        const income = await budgetsService.create(workspaceId, {
           category: "Salary",
           amount: 2500,
           period: "monthly",
@@ -107,7 +107,7 @@ describe(
           type: "income",
         });
         await assert.rejects(
-          budgetsService.copyForward(userId, workspaceId, income.id, {
+          budgetsService.copyForward(workspaceId, income.id, {
             carryRemaining: true,
           }),
           /only available for expense and giving/,

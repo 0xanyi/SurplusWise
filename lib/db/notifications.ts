@@ -59,17 +59,16 @@ async function readState(userId: string, workspaceId: string, eventKeys: string[
 }
 
 export async function listDue(
-  userId: string,
   workspaceId: string,
+  recipientUserId: string,
   today = getCurrentUtcDate(),
-  recipientUserId = userId,
 ) {
-  userIdSchema.parse(userId);
+  userIdSchema.parse(recipientUserId);
   workspaceIdSchema.parse(workspaceId);
   const periodMonth = getPeriodMonthFromDate(today);
   const [current, next] = await Promise.all([
-    calendarService.getMonth(userId, workspaceId, periodMonth),
-    calendarService.getMonth(userId, workspaceId, shiftMonth(periodMonth)),
+    calendarService.getMonth(workspaceId, periodMonth),
+    calendarService.getMonth(workspaceId, shiftMonth(periodMonth)),
   ]);
   const events = [...current.events, ...next.events]
     .map((event) => ({
@@ -102,13 +101,12 @@ export async function listDue(
 }
 
 export async function listReviewItems(
-  userId: string,
   workspaceId: string,
-  recipientUserId = userId,
+  recipientUserId: string,
 ) {
-  userIdSchema.parse(userId);
+  userIdSchema.parse(recipientUserId);
   workspaceIdSchema.parse(workspaceId);
-  const transactions = await transactionsService.list(userId, workspaceId, { needsReview: true });
+  const transactions = await transactionsService.list(workspaceId, { needsReview: true });
   const eventKeys = transactions.map((transaction) => `transaction-review:${transaction.id}`);
   const readByEvent = await readState(recipientUserId, workspaceId, eventKeys);
 
@@ -131,14 +129,13 @@ export async function listReviewItems(
 }
 
 export async function listBudgetLimits(
-  userId: string,
   workspaceId: string,
+  recipientUserId: string,
   today = getCurrentUtcDate(),
-  recipientUserId = userId,
 ) {
-  userIdSchema.parse(userId);
+  userIdSchema.parse(recipientUserId);
   workspaceIdSchema.parse(workspaceId);
-  const budgets = (await budgetsService.getWithSpending(userId, workspaceId))
+  const budgets = (await budgetsService.getWithSpending(workspaceId))
     .filter((budget) => (
       budget.type !== "income"
       && budget.startDate <= today
@@ -172,20 +169,18 @@ export async function listBudgetLimits(
 }
 
 export async function listBackupAlerts(
-  userId: string,
   workspaceId: string,
+  recipientUserId: string,
   now = new Date(),
-  recipientUserId = userId,
 ) {
-  userIdSchema.parse(userId);
+  userIdSchema.parse(recipientUserId);
   workspaceIdSchema.parse(workspaceId);
-  if (recipientUserId !== userId) return [];
   const [workspace] = await db
-    .select({ isDefault: workspaces.isDefault })
+    .select({ userId: workspaces.userId, isDefault: workspaces.isDefault })
     .from(workspaces)
-    .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
+    .where(eq(workspaces.id, workspaceId))
     .limit(1);
-  if (!workspace?.isDefault) return [];
+  if (!workspace || workspace.userId !== recipientUserId || !workspace.isDefault) return [];
 
   const status = await getBackupStatus();
   if (!status.configured) return [];
@@ -217,16 +212,15 @@ export async function listBackupAlerts(
 
 /** All current attention items; resolved source records disappear automatically. */
 export async function listCurrent(
-  userId: string,
   workspaceId: string,
+  recipientUserId: string,
   today = getCurrentUtcDate(),
-  recipientUserId = userId,
 ) {
   const [due, reviewItems, budgetLimits, backupAlerts] = await Promise.all([
-    listDue(userId, workspaceId, today, recipientUserId),
-    listReviewItems(userId, workspaceId, recipientUserId),
-    listBudgetLimits(userId, workspaceId, today, recipientUserId),
-    listBackupAlerts(userId, workspaceId, undefined, recipientUserId),
+    listDue(workspaceId, recipientUserId, today),
+    listReviewItems(workspaceId, recipientUserId),
+    listBudgetLimits(workspaceId, recipientUserId, today),
+    listBackupAlerts(workspaceId, recipientUserId),
   ]);
   return [...due, ...reviewItems, ...budgetLimits, ...backupAlerts];
 }

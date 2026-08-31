@@ -11,13 +11,13 @@ import {
 import { getCurrentUtcDate } from "@/lib/outgoings-date";
 import type { LoanStatus } from "@/types";
 import {
-  userIdSchema,
   idSchema,
   loanGivenCreateSchema,
   loanGivenUpdateSchema,
   loanRepaymentCreateSchema,
   workspaceIdSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -85,7 +85,7 @@ function toEntries(
  */
 async function recomputeFromLedger(
   tx: Pick<typeof db, "select" | "update">,
-  loan: Pick<LoanRow, "id" | "userId" | "amount" | "loanDate" | "interestRate" | "status" | "accrualStoppedOn">,
+  loan: Pick<LoanRow, "id" | "workspaceId" | "amount" | "loanDate" | "interestRate" | "status" | "accrualStoppedOn">,
   now: Date,
 ) {
   const ledger = await tx
@@ -121,7 +121,7 @@ async function recomputeFromLedger(
       accrualStoppedOn: stillDefaulted ? loan.accrualStoppedOn : null,
       updatedAt: now,
     })
-    .where(and(eq(loansGiven.id, loan.id), eq(loansGiven.userId, loan.userId)));
+    .where(and(eq(loansGiven.id, loan.id), eq(loansGiven.workspaceId, loan.workspaceId)));
 }
 
 // ─── Loans Given Service ─────────────────────────────────────────────────────
@@ -136,13 +136,11 @@ async function recomputeFromLedger(
  * one is quietly stacking up interest.
  */
 export async function list(
-  userId: string,
   workspaceId: string,
   status?: LoanStatus,
 ): Promise<LoanWithInterest[]> {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
-  const conditions = [eq(loansGiven.userId, userId), eq(loansGiven.workspaceId, workspaceId)];
+  const conditions = [eq(loansGiven.workspaceId, workspaceId)];
   if (status !== undefined) conditions.push(eq(loansGiven.status, status));
 
   const rows = await db
@@ -186,14 +184,14 @@ export async function list(
 }
 
 /** One loan with its interest figures and full monthly schedule. */
-export async function getById(userId: string, id: string): Promise<LoanWithInterest> {
-  userIdSchema.parse(userId);
+export async function getById(workspaceId: string, id: string): Promise<LoanWithInterest> {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
 
   const [row] = await db
     .select()
     .from(loansGiven)
-    .where(and(eq(loansGiven.id, id), eq(loansGiven.userId, userId)))
+    .where(and(eq(loansGiven.id, id), eq(loansGiven.workspaceId, workspaceId)))
     .limit(1);
 
   if (!row) throw new Error("Loan not found or unauthorized");
@@ -218,8 +216,7 @@ export async function getById(userId: string, id: string): Promise<LoanWithInter
 }
 
 /** Get summary totals for active loans (receivables). */
-export async function getSummary(userId: string, workspaceId: string) {
-  userIdSchema.parse(userId);
+export async function getSummary(workspaceId: string) {
   workspaceIdSchema.parse(workspaceId);
 
   const [result] = await db
@@ -231,7 +228,6 @@ export async function getSummary(userId: string, workspaceId: string) {
     .from(loansGiven)
     .where(
       and(
-        eq(loansGiven.userId, userId),
         eq(loansGiven.workspaceId, workspaceId),
         inArray(loansGiven.status, ["active", "partially_repaid"]),
       ),
@@ -245,10 +241,10 @@ export async function getSummary(userId: string, workspaceId: string) {
 }
 
 /** Create a new loan given record. */
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   loanGivenCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   const id = genId();
   const now = new Date();
 
@@ -282,8 +278,8 @@ export async function create(userId: string, workspaceId: string, input: CreateI
  * ledger afterwards, because a caller cannot know whether the interest accrued
  * since the last repayment leaves the loan settled.
  */
-export async function update(userId: string, id: string, input: UpdateInput) {
-  userIdSchema.parse(userId);
+export async function update(workspaceId: string, id: string, input: UpdateInput) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   loanGivenUpdateSchema.parse(input);
 
@@ -293,7 +289,7 @@ export async function update(userId: string, id: string, input: UpdateInput) {
     const [existing] = await tx
       .select()
       .from(loansGiven)
-      .where(and(eq(loansGiven.id, id), eq(loansGiven.userId, userId)))
+      .where(and(eq(loansGiven.id, id), eq(loansGiven.workspaceId, workspaceId)))
       .limit(1);
 
     if (!existing) throw new Error("Loan not found or unauthorized");
@@ -323,7 +319,7 @@ export async function update(userId: string, id: string, input: UpdateInput) {
         accrualStoppedOn,
         updatedAt: now,
       })
-      .where(and(eq(loansGiven.id, id), eq(loansGiven.userId, userId)))
+      .where(and(eq(loansGiven.id, id), eq(loansGiven.workspaceId, workspaceId)))
       .returning();
 
     await recomputeFromLedger(tx, row, now);
@@ -331,7 +327,7 @@ export async function update(userId: string, id: string, input: UpdateInput) {
     const [settled] = await tx
       .select()
       .from(loansGiven)
-      .where(and(eq(loansGiven.id, id), eq(loansGiven.userId, userId)))
+      .where(and(eq(loansGiven.id, id), eq(loansGiven.workspaceId, workspaceId)))
       .limit(1);
 
     return settled;
@@ -339,35 +335,34 @@ export async function update(userId: string, id: string, input: UpdateInput) {
 }
 
 /** Delete a loan given record (cascades to repayments). */
-export async function remove(userId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function remove(workspaceId: string, id: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
 
   const [existing] = await db
     .select({ id: loansGiven.id })
     .from(loansGiven)
-    .where(and(eq(loansGiven.id, id), eq(loansGiven.userId, userId)))
+    .where(and(eq(loansGiven.id, id), eq(loansGiven.workspaceId, workspaceId)))
     .limit(1);
 
   if (!existing) throw new Error("Loan not found or unauthorized");
 
   await db
     .delete(loansGiven)
-    .where(and(eq(loansGiven.id, id), eq(loansGiven.userId, userId)));
+    .where(and(eq(loansGiven.id, id), eq(loansGiven.workspaceId, workspaceId)));
 }
 
 // ─── Repayment Service ───────────────────────────────────────────────────────
 
 /** List repayments for a loan, newest first. */
-export async function listRepayments(userId: string, loanId: string) {
-  userIdSchema.parse(userId);
+export async function listRepayments(workspaceId: string, loanId: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(loanId);
 
-  // Verify ownership
   const [loan] = await db
     .select({ id: loansGiven.id })
     .from(loansGiven)
-    .where(and(eq(loansGiven.id, loanId), eq(loansGiven.userId, userId)))
+    .where(and(eq(loansGiven.id, loanId), eq(loansGiven.workspaceId, workspaceId)))
     .limit(1);
 
   if (!loan) throw new Error("Loan not found or unauthorized");
@@ -387,13 +382,14 @@ export async function listRepayments(userId: string, loanId: string) {
  * apart each wrote a balance computed without the other, silently losing one.
  */
 export async function addRepayment(
-  userId: string,
+  workspaceId: string,
   loanId: string,
   input: RepaymentInput,
 ) {
-  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(loanId);
   loanRepaymentCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
 
   const repaymentId = genId();
   const now = new Date();
@@ -402,7 +398,7 @@ export async function addRepayment(
     const [loan] = await tx
       .select()
       .from(loansGiven)
-      .where(and(eq(loansGiven.id, loanId), eq(loansGiven.userId, userId)))
+      .where(and(eq(loansGiven.id, loanId), eq(loansGiven.workspaceId, workspaceId)))
       .limit(1);
 
     if (!loan) throw new Error("Loan not found or unauthorized");
@@ -427,34 +423,28 @@ export async function addRepayment(
 }
 
 /** Delete a repayment, then rederive the balance and status from the ledger. */
-export async function removeRepayment(userId: string, loanId: string, repaymentId: string) {
-  userIdSchema.parse(userId);
+export async function removeRepayment(workspaceId: string, loanId: string, repaymentId: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(loanId);
   idSchema.parse(repaymentId);
 
   const now = new Date();
 
   await db.transaction(async (tx) => {
-    const deleted = await tx
-      .delete(loanRepayments)
-      .where(
-        and(
-          eq(loanRepayments.id, repaymentId),
-          eq(loanRepayments.loanId, loanId),
-          eq(loanRepayments.userId, userId),
-        ),
-      )
-      .returning({ id: loanRepayments.id });
-
-    if (deleted.length === 0) throw new Error("Repayment not found or unauthorized");
-
     const [loan] = await tx
       .select()
       .from(loansGiven)
-      .where(and(eq(loansGiven.id, loanId), eq(loansGiven.userId, userId)))
+      .where(and(eq(loansGiven.id, loanId), eq(loansGiven.workspaceId, workspaceId)))
       .limit(1);
 
     if (!loan) throw new Error("Loan not found or unauthorized");
+
+    const deleted = await tx
+      .delete(loanRepayments)
+      .where(and(eq(loanRepayments.id, repaymentId), eq(loanRepayments.loanId, loanId)))
+      .returning({ id: loanRepayments.id });
+
+    if (deleted.length === 0) throw new Error("Repayment not found or unauthorized");
 
     await recomputeFromLedger(tx, loan, now);
   });

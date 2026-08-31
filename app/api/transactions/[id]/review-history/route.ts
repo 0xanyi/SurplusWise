@@ -7,9 +7,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
-    const events = await listReviewHistory(userId, workspaceId, id);
+    const events = await listReviewHistory(workspaceId, id);
     return NextResponse.json({
       events: events.map((event) => ({
         id: event.id,

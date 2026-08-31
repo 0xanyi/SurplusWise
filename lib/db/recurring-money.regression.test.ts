@@ -28,27 +28,23 @@ describe(
       ]);
 
       try {
-        const client = await clientsService.create(userId, workspaceId, { name: "Example client" });
-        const recipient = await givingRecipientsService.createRecipient(userId, workspaceId, {
+        const client = await clientsService.create(workspaceId, { name: "Example client" });
+        const recipient = await givingRecipientsService.createRecipient(workspaceId, {
           name: "Community Church",
         });
-        const designation = await givingRecipientsService.createDesignation(
-          userId,
-          workspaceId,
+        const designation = await givingRecipientsService.createDesignation(workspaceId,
           { recipientId: recipient.id, name: "Building fund" },
         );
         const otherRecipient = await givingRecipientsService.createRecipient(
-          userId,
           otherWorkspaceId,
           { name: "Other recipient" },
         );
         const secondRecipient = await givingRecipientsService.createRecipient(
-          userId,
           workspaceId,
           { name: "Second recipient" },
         );
 
-        const expense = await recurringMoneyService.create(userId, workspaceId, {
+        const expense = await recurringMoneyService.create(workspaceId, {
           name: "Hosting",
           amount: 20,
           dayOfMonth: 1,
@@ -56,28 +52,27 @@ describe(
           rebillMode: "at_cost",
         });
         assert.equal(expense.type, "expense", "legacy create calls default to expenses");
-        const settledExpense = await recurringMoneyService.create(userId, workspaceId, {
+        const settledExpense = await recurringMoneyService.create(workspaceId, {
           name: "Rent",
           amount: 800,
           dayOfMonth: 1,
         });
         const settlement = await paymentLogsService.create(
-          userId,
+          workspaceId,
           settledExpense.id,
           {
             amount: 800,
             paidAt: "2026-08-01",
             periodMonth: "2026-08-01",
           },
-          workspaceId,
         );
-        const income = await recurringMoneyService.create(userId, workspaceId, {
+        const income = await recurringMoneyService.create(workspaceId, {
           name: "Salary",
           amount: 2000,
           type: "income",
           dayOfMonth: 25,
         });
-        const giving = await recurringMoneyService.create(userId, workspaceId, {
+        const giving = await recurringMoneyService.create(workspaceId, {
           name: "Monthly gift",
           amount: 100,
           type: "giving",
@@ -87,17 +82,16 @@ describe(
         });
 
         assert.deepEqual(
-          (await recurringMoneyService.list(userId, workspaceId, undefined, "expense")).map(
+          (await recurringMoneyService.list(workspaceId, undefined, "expense")).map(
             (row) => row.id,
           ).sort(),
           [expense.id, settledExpense.id].sort(),
         );
         assert.deepEqual(
-          (await recurringMoneyService.list(userId, workspaceId)).map((row) => row.id).sort(),
+          (await recurringMoneyService.list(workspaceId)).map((row) => row.id).sort(),
           [expense.id, settledExpense.id, income.id, giving.id].sort(),
         );
         const givingRow = (await recurringMoneyService.list(
-          userId,
           workspaceId,
           undefined,
           "giving",
@@ -106,16 +100,11 @@ describe(
         assert.equal(givingRow?.givingDesignationName, "Building fund");
 
         await assert.rejects(
-          () => recurringMoneyService.update(
-            userId,
-            settledExpense.id,
-            { type: "income" },
-            workspaceId,
-          ),
+          () => recurringMoneyService.update(workspaceId, settledExpense.id, { type: "income" }),
           /type cannot change after payments have been logged/,
         );
         await assert.rejects(
-          () => recurringMoneyService.create(userId, workspaceId, {
+          () => recurringMoneyService.create(workspaceId, {
             name: "Invalid income",
             amount: 10,
             type: "income",
@@ -125,7 +114,7 @@ describe(
           /Clients can only be assigned to recurring expenses/,
         );
         await assert.rejects(
-          () => recurringMoneyService.create(userId, workspaceId, {
+          () => recurringMoneyService.create(workspaceId, {
             name: "Cross-workspace gift",
             amount: 10,
             type: "giving",
@@ -135,7 +124,7 @@ describe(
           /not found or unauthorized/,
         );
         await assert.rejects(
-          () => recurringMoneyService.create(userId, workspaceId, {
+          () => recurringMoneyService.create(workspaceId, {
             name: "Mismatched fund",
             amount: 10,
             type: "giving",
@@ -146,121 +135,76 @@ describe(
           /Giving designation not found for this recipient/,
         );
         await assert.rejects(
-          () => recurringMoneyService.update(
-            userId,
-            expense.id,
-            { type: "income" },
-            workspaceId,
-          ),
+          () => recurringMoneyService.update(workspaceId, expense.id, { type: "income" }),
           /Only recurring expenses can use client recovery terms/,
         );
-        await recurringMoneyService.update(
-          userId,
-          expense.id,
-          { type: "income", clientId: null, rebillMode: "none", rebillAmount: null },
-          workspaceId,
-        );
+        await recurringMoneyService.update(workspaceId, expense.id, {
+          type: "income",
+          clientId: null,
+          rebillMode: "none",
+          rebillAmount: null,
+        });
         await assert.rejects(
-          () => recurringMoneyService.update(
-            userId,
-            income.id,
-            { amount: 2100 },
-            otherWorkspaceId,
-          ),
+          () => recurringMoneyService.update(otherWorkspaceId, income.id, { amount: 2100 }),
           /not found or unauthorized/,
         );
         await assert.rejects(
-          () => recurringMoneyService.update(
-            userId,
-            income.id,
-            { amount: 2200 },
-            workspaceId,
-            "expense",
-          ),
+          () => recurringMoneyService.update(workspaceId, income.id, { amount: 2200 }, "expense"),
           /not found or unauthorized/,
         );
         await assert.rejects(
-          () => recurringMoneyService.remove(userId, income.id, workspaceId, "expense"),
+          () => recurringMoneyService.remove(workspaceId, income.id, "expense"),
           /not found or unauthorized/,
         );
         await assert.rejects(
-          () => recurringMoneyService.remove(userId, income.id, otherWorkspaceId),
+          () => recurringMoneyService.remove(otherWorkspaceId, income.id),
           /not found or unauthorized/,
         );
         assert.equal(
-          (await paymentLogsService.listForOutgoing(
-            userId,
-            settledExpense.id,
-            workspaceId,
-          )).length,
+          (await paymentLogsService.listForOutgoing(workspaceId, settledExpense.id)).length,
           1,
         );
         assert.equal(
-          (await paymentLogsService.getMonthlyStatus(
-            userId,
-            "2026-08-01",
-            workspaceId,
-          )).get(settledExpense.id)?.id,
+          (await paymentLogsService.getMonthlyStatus(workspaceId, "2026-08-01")).get(
+            settledExpense.id,
+          )?.id,
           settlement.id,
         );
         assert.equal(
-          (await paymentLogsService.getMonthlyStatus(
-            userId,
-            "2026-08-01",
-            otherWorkspaceId,
-          )).size,
+          (await paymentLogsService.getMonthlyStatus(otherWorkspaceId, "2026-08-01")).size,
           0,
         );
         await assert.rejects(
-          () => paymentLogsService.listForOutgoing(
-            userId,
-            settledExpense.id,
-            otherWorkspaceId,
-          ),
+          () => paymentLogsService.listForOutgoing(otherWorkspaceId, settledExpense.id),
           /not found or unauthorized/,
         );
         await assert.rejects(
-          () => paymentLogsService.remove(
-            userId,
-            settledExpense.id,
-            settlement.id,
-            otherWorkspaceId,
-          ),
+          () => paymentLogsService.remove(otherWorkspaceId, settledExpense.id, settlement.id),
           /not found or unauthorized/,
         );
         await assert.rejects(
-          () => paymentLogsService.create(
-            userId,
-            giving.id,
-            {
+          () =>
+            paymentLogsService.create(workspaceId, giving.id, {
               amount: 100,
               paidAt: "2026-08-01",
               periodMonth: "2026-08-01",
-            },
-            workspaceId,
-          ),
+            }),
           /not found or unauthorized/,
         );
         await assert.rejects(
-          () => recurringMoneyService.update(
-            userId,
-            giving.id,
-            { type: "income" },
-            workspaceId,
-          ),
+          () => recurringMoneyService.update(workspaceId, giving.id, { type: "income" }),
           /Giving attribution can only be assigned to recurring giving/,
         );
-        const formerGiving = await recurringMoneyService.update(
-          userId,
-          giving.id,
-          { type: "income", givingRecipientId: null, givingDesignationId: null },
-          workspaceId,
-        );
+        const formerGiving = await recurringMoneyService.update(workspaceId, giving.id, {
+          type: "income",
+          givingRecipientId: null,
+          givingDesignationId: null,
+        });
         assert.equal(formerGiving.type, "income");
         assert.equal(formerGiving.givingRecipientId, null);
         assert.equal(formerGiving.givingDesignationId, null);
 
-        const analytics = await analyticsService.getAnalytics(userId, workspaceId, "custom", {
+        const analytics = await analyticsService.getAnalytics(workspaceId, "custom", {
           startDate: "2026-08-01",
           endDate: "2026-08-31",
         });

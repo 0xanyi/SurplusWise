@@ -74,23 +74,23 @@ describe("categories regression", { skip: process.env.DATABASE_URL ? false : "re
     const user = await createTempUser();
 
     try {
-      const firstSeed = await categoriesService.ensureDefaults(user.id, user.workspaceId);
+      const firstSeed = await categoriesService.ensureDefaults(user.workspaceId);
       assert.ok(firstSeed.inserted > 0, "expected initial default seed");
 
-      const giving = await categoriesService.list(user.id, user.workspaceId, "giving");
+      const giving = await categoriesService.list(user.workspaceId, "giving");
       assert.ok(giving.length > 0, "expected seeded giving categories");
 
       const target = giving.find((c) => c.name === "First Fruits") ?? giving[0];
       const originalName = target.name;
       const renamed = `${originalName} Renamed`;
 
-      await categoriesService.update(user.id, target.id, { name: renamed });
+      await categoriesService.update(user.workspaceId, target.id, { name: renamed });
 
       // Simulate subsequent app bootstrap calls
-      const secondSeed = await categoriesService.ensureDefaults(user.id, user.workspaceId);
+      const secondSeed = await categoriesService.ensureDefaults(user.workspaceId);
       assert.strictEqual(secondSeed.inserted, 0);
 
-      const after = await categoriesService.list(user.id, user.workspaceId, "giving");
+      const after = await categoriesService.list(user.workspaceId, "giving");
       assert.ok(after.some((c) => c.id === target.id && c.name === renamed));
       assert.ok(
         !after.some((c) => c.name === originalName),
@@ -105,19 +105,19 @@ describe("categories regression", { skip: process.env.DATABASE_URL ? false : "re
     const user = await createTempUser();
 
     try {
-      await categoriesService.ensureDefaults(user.id, user.workspaceId);
+      await categoriesService.ensureDefaults(user.workspaceId);
 
-      const giving = await categoriesService.list(user.id, user.workspaceId, "giving");
+      const giving = await categoriesService.list(user.workspaceId, "giving");
       assert.ok(giving.length > 0, "expected seeded giving categories");
 
       const target = giving.find((c) => c.name === "Benevolence") ?? giving[0];
-      await categoriesService.remove(user.id, target.id);
+      await categoriesService.remove(user.workspaceId, target.id);
 
       // Simulate subsequent app bootstrap calls
-      const secondSeed = await categoriesService.ensureDefaults(user.id, user.workspaceId);
+      const secondSeed = await categoriesService.ensureDefaults(user.workspaceId);
       assert.strictEqual(secondSeed.inserted, 0);
 
-      const after = await categoriesService.list(user.id, user.workspaceId, "giving");
+      const after = await categoriesService.list(user.workspaceId, "giving");
       assert.ok(!after.some((c) => c.id === target.id));
       assert.ok(
         !after.some((c) => c.name === target.name),
@@ -132,22 +132,22 @@ describe("categories regression", { skip: process.env.DATABASE_URL ? false : "re
     const user = await createTempUser();
 
     try {
-      await categoriesService.ensureDefaults(user.id, user.workspaceId);
-      const all = await categoriesService.list(user.id, user.workspaceId);
+      await categoriesService.ensureDefaults(user.workspaceId);
+      const all = await categoriesService.list(user.workspaceId);
       assert.ok(all.length > 0, "expected seeded categories");
 
       for (const category of all) {
-        await categoriesService.remove(user.id, category.id);
+        await categoriesService.remove(user.workspaceId, category.id);
       }
 
-      const empty = await categoriesService.list(user.id, user.workspaceId);
+      const empty = await categoriesService.list(user.workspaceId);
       assert.strictEqual(empty.length, 0);
 
       // Simulate subsequent app bootstrap calls
-      const secondSeed = await categoriesService.ensureDefaults(user.id, user.workspaceId);
+      const secondSeed = await categoriesService.ensureDefaults(user.workspaceId);
       assert.strictEqual(secondSeed.inserted, 0);
 
-      const stillEmpty = await categoriesService.list(user.id, user.workspaceId);
+      const stillEmpty = await categoriesService.list(user.workspaceId);
       assert.strictEqual(stillEmpty.length, 0);
     } finally {
       await cleanupUser(user.id);
@@ -158,14 +158,14 @@ describe("categories regression", { skip: process.env.DATABASE_URL ? false : "re
     const user = await createTempUser();
 
     try {
-      await categoriesService.ensureDefaults(user.id, user.workspaceId);
-      const expenses = await categoriesService.list(user.id, user.workspaceId, "expense");
+      await categoriesService.ensureDefaults(user.workspaceId);
+      const expenses = await categoriesService.list(user.workspaceId, "expense");
       assert.ok(expenses.length >= 2, "expected at least two expense defaults");
 
       const [first, second] = expenses;
 
       await assert.rejects(
-        () => categoriesService.update(user.id, second.id, { name: first.name }),
+        () => categoriesService.update(user.workspaceId, second.id, { name: first.name }),
         /already exists/,
       );
     } finally {
@@ -179,8 +179,8 @@ describe("categories regression", { skip: process.env.DATABASE_URL ? false : "re
     try {
       const business = await addWorkspace(user.id, "Business");
 
-      const personalSeed = await categoriesService.ensureDefaults(user.id, user.workspaceId);
-      const businessSeed = await categoriesService.ensureDefaults(user.id, business);
+      const personalSeed = await categoriesService.ensureDefaults(user.workspaceId);
+      const businessSeed = await categoriesService.ensureDefaults(business);
 
       assert.ok(personalSeed.inserted > 0, "expected the first workspace to be seeded");
       assert.strictEqual(
@@ -189,8 +189,8 @@ describe("categories regression", { skip: process.env.DATABASE_URL ? false : "re
         "a second workspace must get its own full set of defaults",
       );
 
-      const personal = await categoriesService.list(user.id, user.workspaceId);
-      const businessCategories = await categoriesService.list(user.id, business);
+      const personal = await categoriesService.list(user.workspaceId);
+      const businessCategories = await categoriesService.list(business);
       assert.strictEqual(businessCategories.length, personal.length);
 
       // Same names, but they are distinct rows owned by distinct workspaces.
@@ -213,21 +213,21 @@ describe("categories regression", { skip: process.env.DATABASE_URL ? false : "re
 
     try {
       const business = await addWorkspace(user.id, "Business");
-      await categoriesService.ensureDefaults(user.id, user.workspaceId);
+      await categoriesService.ensureDefaults(user.workspaceId);
 
       // Emptying one workspace must not make the other look unseeded, and must
       // not resurrect its own defaults.
-      for (const category of await categoriesService.list(user.id, user.workspaceId)) {
-        await categoriesService.remove(user.id, category.id);
+      for (const category of await categoriesService.list(user.workspaceId)) {
+        await categoriesService.remove(user.workspaceId, category.id);
       }
       assert.strictEqual(
-        (await categoriesService.ensureDefaults(user.id, user.workspaceId)).inserted,
+        (await categoriesService.ensureDefaults(user.workspaceId)).inserted,
         0,
       );
-      assert.strictEqual((await categoriesService.list(user.id, user.workspaceId)).length, 0);
+      assert.strictEqual((await categoriesService.list(user.workspaceId)).length, 0);
 
       // The untouched workspace still gets its own seed.
-      assert.ok((await categoriesService.ensureDefaults(user.id, business)).inserted > 0);
+      assert.ok((await categoriesService.ensureDefaults(business)).inserted > 0);
     } finally {
       await cleanupUser(user.id);
     }
@@ -239,7 +239,7 @@ describe("categories regression", { skip: process.env.DATABASE_URL ? false : "re
     try {
       const business = await addWorkspace(user.id, "Business");
 
-      const personal = await categoriesService.create(user.id, user.workspaceId, {
+      const personal = await categoriesService.create(user.workspaceId, {
         name: "Studio Rent",
         type: "expense",
         color: "#123456",
@@ -248,7 +248,7 @@ describe("categories regression", { skip: process.env.DATABASE_URL ? false : "re
 
       // Creating the same name in another workspace used to hit the unique
       // index on (user_id, type, name) and fail.
-      const sibling = await categoriesService.create(user.id, business, {
+      const sibling = await categoriesService.create(business, {
         name: "Studio Rent",
         type: "expense",
         color: "#123456",
@@ -257,19 +257,19 @@ describe("categories regression", { skip: process.env.DATABASE_URL ? false : "re
       assert.notStrictEqual(sibling.id, personal.id);
 
       // Renaming to a name that only exists in the *other* workspace is allowed.
-      const spare = await categoriesService.create(user.id, user.workspaceId, {
+      const spare = await categoriesService.create(user.workspaceId, {
         name: "Equipment",
         type: "expense",
         color: "#654321",
       });
-      const renamed = await categoriesService.update(user.id, spare.id, {
+      const renamed = await categoriesService.update(user.workspaceId, spare.id, {
         name: "Kit Hire",
       });
       assert.strictEqual(renamed?.name, "Kit Hire");
 
       // Renaming to a name taken inside the same workspace is still rejected.
       await assert.rejects(
-        () => categoriesService.update(user.id, spare.id, { name: "Studio Rent" }),
+        () => categoriesService.update(user.workspaceId, spare.id, { name: "Studio Rent" }),
         /already exists/,
       );
     } finally {

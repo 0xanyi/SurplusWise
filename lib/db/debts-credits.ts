@@ -8,13 +8,13 @@ import {
 } from "@/db/schema";
 import * as financialAccountsService from "./financial-accounts";
 import {
-  userIdSchema,
   idSchema,
   debtCreditCreateSchema,
   debtCreditUpdateSchema,
   balanceLogCreateSchema,
   workspaceIdSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -68,12 +68,11 @@ function genId() {
 }
 
 async function assertLinkableAccount(
-  userId: string,
   workspaceId: string,
   accountId: string,
   debtId?: string,
 ) {
-  const account = await financialAccountsService.assertInWorkspace(userId, workspaceId, accountId);
+  const account = await financialAccountsService.assertInWorkspace(workspaceId, accountId);
   if (account.accountClass !== "liability") {
     throw new Error("Only liability accounts can be linked to a debt");
   }
@@ -99,18 +98,18 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  * the better one. Without this, logging a backdated snapshot would silently
  * overwrite a more recent statement.
  */
-export async function syncCurrentBalance(tx: Tx, userId: string, debtId: string) {
+export async function syncCurrentBalance(tx: Tx, workspaceId: string, debtId: string) {
   const [statement] = await tx
     .select({ balance: debtStatements.closingBalance, at: debtStatements.periodEnd })
     .from(debtStatements)
-    .where(and(eq(debtStatements.debtId, debtId), eq(debtStatements.userId, userId)))
+    .where(eq(debtStatements.debtId, debtId))
     .orderBy(desc(debtStatements.periodEnd))
     .limit(1);
 
   const [snapshot] = await tx
     .select({ balance: debtBalanceLogs.balance, at: debtBalanceLogs.loggedAt })
     .from(debtBalanceLogs)
-    .where(and(eq(debtBalanceLogs.debtId, debtId), eq(debtBalanceLogs.userId, userId)))
+    .where(eq(debtBalanceLogs.debtId, debtId))
     .orderBy(desc(debtBalanceLogs.loggedAt), desc(debtBalanceLogs.createdAt))
     .limit(1);
 
@@ -126,16 +125,15 @@ export async function syncCurrentBalance(tx: Tx, userId: string, debtId: string)
   await tx
     .update(debtsCredits)
     .set({ currentBalance: winner.balance, updatedAt: new Date() })
-    .where(and(eq(debtsCredits.id, debtId), eq(debtsCredits.userId, userId)));
+    .where(and(eq(debtsCredits.id, debtId), eq(debtsCredits.workspaceId, workspaceId)));
 }
 
 // ─── Debt / Credit Service ───────────────────────────────────────────────────
 
-/** List all debts/credits for a user, optionally only active ones. */
-export async function list(userId: string, workspaceId: string, isActive?: boolean) {
-  userIdSchema.parse(userId);
+/** List all debts/credits for a workspace, optionally only active ones. */
+export async function list(workspaceId: string, isActive?: boolean) {
   workspaceIdSchema.parse(workspaceId);
-  const conditions = [eq(debtsCredits.userId, userId), eq(debtsCredits.workspaceId, workspaceId)];
+  const conditions = [eq(debtsCredits.workspaceId, workspaceId)];
   if (isActive !== undefined) conditions.push(eq(debtsCredits.isActive, isActive));
 
   return db
@@ -145,22 +143,15 @@ export async function list(userId: string, workspaceId: string, isActive?: boole
     .orderBy(debtsCredits.name);
 }
 
-/** Fetch a single debt. Throws if not found / not the user's. */
-export async function getById(userId: string, workspaceId: string, id: string) {
-  userIdSchema.parse(userId);
+/** Fetch a single debt. Throws if not found / not in this workspace. */
+export async function getById(workspaceId: string, id: string) {
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
 
   const [row] = await db
     .select()
     .from(debtsCredits)
-    .where(
-      and(
-        eq(debtsCredits.id, id),
-        eq(debtsCredits.userId, userId),
-        eq(debtsCredits.workspaceId, workspaceId),
-      ),
-    )
+    .where(and(eq(debtsCredits.id, id), eq(debtsCredits.workspaceId, workspaceId)))
     .limit(1);
 
   if (!row) throw new Error("Debt/credit not found or unauthorized");
@@ -174,8 +165,7 @@ export async function getById(userId: string, workspaceId: string, id: string) {
  * back to the debt's configured estimate, so the total reflects what is really
  * being asked for this month rather than a number typed in once at setup.
  */
-export async function getSummary(userId: string, workspaceId: string) {
-  userIdSchema.parse(userId);
+export async function getSummary(workspaceId: string) {
   workspaceIdSchema.parse(workspaceId);
 
   const latestStatement = db
@@ -184,7 +174,6 @@ export async function getSummary(userId: string, workspaceId: string) {
       minimumPayment: debtStatements.minimumPayment,
     })
     .from(debtStatements)
-    .where(eq(debtStatements.userId, userId))
     .orderBy(desc(debtStatements.debtId), desc(debtStatements.periodEnd))
     .as("latest_statement");
 
@@ -203,13 +192,7 @@ export async function getSummary(userId: string, workspaceId: string) {
     .from(debtsCredits)
     .leftJoin(latestStatement, eq(latestStatement.debtId, debtsCredits.id))
     .leftJoin(financialAccounts, eq(financialAccounts.id, debtsCredits.financialAccountId))
-    .where(
-      and(
-        eq(debtsCredits.userId, userId),
-        eq(debtsCredits.workspaceId, workspaceId),
-        eq(debtsCredits.isActive, true),
-      ),
-    );
+    .where(and(eq(debtsCredits.workspaceId, workspaceId), eq(debtsCredits.isActive, true)));
 
   return {
     totalBalance: Number(result.totalBalance),
@@ -220,12 +203,12 @@ export async function getSummary(userId: string, workspaceId: string) {
 }
 
 /** Create a new debt/credit record. */
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   const validInput = debtCreditCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   if (validInput.financialAccountId) {
-    await assertLinkableAccount(userId, workspaceId, validInput.financialAccountId);
+    await assertLinkableAccount(workspaceId, validInput.financialAccountId);
   }
   const id = genId();
   const now = new Date();
@@ -276,8 +259,7 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 }
 
 /** Partial update. Throws if not found / unauthorized. */
-export async function update(userId: string, workspaceId: string, id: string, input: UpdateInput) {
-  userIdSchema.parse(userId);
+export async function update(workspaceId: string, id: string, input: UpdateInput) {
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const validInput = debtCreditUpdateSchema.parse(input);
@@ -285,18 +267,12 @@ export async function update(userId: string, workspaceId: string, id: string, in
   const [existing] = await db
     .select()
     .from(debtsCredits)
-    .where(
-      and(
-        eq(debtsCredits.id, id),
-        eq(debtsCredits.userId, userId),
-        eq(debtsCredits.workspaceId, workspaceId),
-      ),
-    )
+    .where(and(eq(debtsCredits.id, id), eq(debtsCredits.workspaceId, workspaceId)))
     .limit(1);
 
   if (!existing) throw new Error("Debt/credit not found or unauthorized");
   if (validInput.financialAccountId) {
-    await assertLinkableAccount(userId, workspaceId, validInput.financialAccountId, id);
+    await assertLinkableAccount(workspaceId, validInput.financialAccountId, id);
   }
 
   const [row] = await db
@@ -321,54 +297,40 @@ export async function update(userId: string, workspaceId: string, id: string, in
       ...(input.isActive !== undefined && { isActive: input.isActive }),
       updatedAt: new Date(),
     })
-    .where(and(eq(debtsCredits.id, id), eq(debtsCredits.userId, userId)))
+    .where(and(eq(debtsCredits.id, id), eq(debtsCredits.workspaceId, workspaceId)))
     .returning();
   return row;
 }
 
 /** Delete a debt/credit record (cascades to balance logs). */
-export async function remove(userId: string, workspaceId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function remove(workspaceId: string, id: string) {
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
 
   const [existing] = await db
     .select({ id: debtsCredits.id })
     .from(debtsCredits)
-    .where(
-      and(
-        eq(debtsCredits.id, id),
-        eq(debtsCredits.userId, userId),
-        eq(debtsCredits.workspaceId, workspaceId),
-      ),
-    )
+    .where(and(eq(debtsCredits.id, id), eq(debtsCredits.workspaceId, workspaceId)))
     .limit(1);
 
   if (!existing) throw new Error("Debt/credit not found or unauthorized");
 
   await db
     .delete(debtsCredits)
-    .where(
-      and(
-        eq(debtsCredits.id, id),
-        eq(debtsCredits.userId, userId),
-        eq(debtsCredits.workspaceId, workspaceId),
-      ),
-    );
+    .where(and(eq(debtsCredits.id, id), eq(debtsCredits.workspaceId, workspaceId)));
 }
 
 // ─── Balance Log Service ─────────────────────────────────────────────────────
 
 /** List balance logs for a debt, newest first. */
-export async function listBalanceLogs(userId: string, debtId: string) {
-  userIdSchema.parse(userId);
+export async function listBalanceLogs(workspaceId: string, debtId: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(debtId);
 
-  // Verify ownership
   const [debt] = await db
     .select({ id: debtsCredits.id })
     .from(debtsCredits)
-    .where(and(eq(debtsCredits.id, debtId), eq(debtsCredits.userId, userId)))
+    .where(and(eq(debtsCredits.id, debtId), eq(debtsCredits.workspaceId, workspaceId)))
     .limit(1);
 
   if (!debt) throw new Error("Debt/credit not found or unauthorized");
@@ -382,19 +344,19 @@ export async function listBalanceLogs(userId: string, debtId: string) {
 
 /** Add a balance log and update the current balance on the debt. */
 export async function addBalanceLog(
-  userId: string,
+  workspaceId: string,
   debtId: string,
   input: BalanceLogInput,
 ) {
-  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(debtId);
   balanceLogCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
 
-  // Verify ownership
   const [debt] = await db
     .select({ id: debtsCredits.id })
     .from(debtsCredits)
-    .where(and(eq(debtsCredits.id, debtId), eq(debtsCredits.userId, userId)))
+    .where(and(eq(debtsCredits.id, debtId), eq(debtsCredits.workspaceId, workspaceId)))
     .limit(1);
 
   if (!debt) throw new Error("Debt/credit not found or unauthorized");
@@ -417,7 +379,7 @@ export async function addBalanceLog(
       })
       .returning();
 
-    await syncCurrentBalance(tx, userId, debtId);
+    await syncCurrentBalance(tx, workspaceId, debtId);
 
     return inserted;
   });
@@ -426,21 +388,23 @@ export async function addBalanceLog(
 }
 
 /** Delete a balance log entry and sync debt current balance to latest snapshot. */
-export async function removeBalanceLog(userId: string, debtId: string, logId: string) {
-  userIdSchema.parse(userId);
+export async function removeBalanceLog(workspaceId: string, debtId: string, logId: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(debtId);
   idSchema.parse(logId);
+
+  const [debt] = await db
+    .select({ id: debtsCredits.id })
+    .from(debtsCredits)
+    .where(and(eq(debtsCredits.id, debtId), eq(debtsCredits.workspaceId, workspaceId)))
+    .limit(1);
+
+  if (!debt) throw new Error("Debt/credit not found or unauthorized");
 
   const [existing] = await db
     .select({ id: debtBalanceLogs.id, debtId: debtBalanceLogs.debtId })
     .from(debtBalanceLogs)
-    .where(
-      and(
-        eq(debtBalanceLogs.id, logId),
-        eq(debtBalanceLogs.debtId, debtId),
-        eq(debtBalanceLogs.userId, userId),
-      ),
-    )
+    .where(and(eq(debtBalanceLogs.id, logId), eq(debtBalanceLogs.debtId, debtId)))
     .limit(1);
 
   if (!existing) throw new Error("Balance log not found or unauthorized");
@@ -449,19 +413,12 @@ export async function removeBalanceLog(userId: string, debtId: string, logId: st
     const [logCount] = await tx
       .select({ count: sql<number>`count(*)` })
       .from(debtBalanceLogs)
-      .where(
-        and(
-          eq(debtBalanceLogs.debtId, debtId),
-          eq(debtBalanceLogs.userId, userId),
-        ),
-      );
+      .where(eq(debtBalanceLogs.debtId, debtId));
 
     const [statementCount] = await tx
       .select({ count: sql<number>`count(*)` })
       .from(debtStatements)
-      .where(
-        and(eq(debtStatements.debtId, debtId), eq(debtStatements.userId, userId)),
-      );
+      .where(eq(debtStatements.debtId, debtId));
 
     // Deleting the last snapshot is only a problem when nothing else can tell us
     // the balance. A recorded statement can, so the guard no longer applies.
@@ -471,14 +428,8 @@ export async function removeBalanceLog(userId: string, debtId: string, logId: st
 
     await tx
       .delete(debtBalanceLogs)
-      .where(
-        and(
-          eq(debtBalanceLogs.id, logId),
-          eq(debtBalanceLogs.debtId, debtId),
-          eq(debtBalanceLogs.userId, userId),
-        ),
-      );
+      .where(and(eq(debtBalanceLogs.id, logId), eq(debtBalanceLogs.debtId, debtId)));
 
-    await syncCurrentBalance(tx, userId, debtId);
+    await syncCurrentBalance(tx, workspaceId, debtId);
   });
 }
