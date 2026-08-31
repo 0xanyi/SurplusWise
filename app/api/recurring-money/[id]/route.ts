@@ -7,7 +7,7 @@ type RouteParams = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
     const dayOfMonth = Object.hasOwn(body, "dayOfMonth")
@@ -52,7 +52,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       ...(body.notes !== undefined && { notes: body.notes }),
       ...(isActive !== undefined && { isActive }),
     };
-    const row = await recurringMoneyService.update(userId, id, input, workspaceId);
+    const row = await recurringMoneyService.update(workspaceId, id, input);
     return NextResponse.json({ id: row.id });
   } catch (error) {
     if (error instanceof recurringMoneyService.RecurringMoneyShapeError) {
@@ -64,9 +64,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
 export async function DELETE(_request: NextRequest, { params }: RouteParams) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
-    await recurringMoneyService.remove(userId, id, workspaceId);
+    await recurringMoneyService.remove(workspaceId, id);
     return NextResponse.json({ success: true });
   } catch (error) {
     return errorResponse(error, "Failed to delete recurring money");

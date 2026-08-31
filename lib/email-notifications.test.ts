@@ -111,23 +111,22 @@ describe(
       ]);
 
       try {
-        const dueSchedule = await recurringMoneyService.create(userId, workspaceId, {
+        const dueSchedule = await recurringMoneyService.create(workspaceId, {
           name: "Rent <urgent>",
           amount: 900,
           type: "expense",
           dayOfMonth: dueDay,
         });
-        const settled = await recurringMoneyService.create(userId, workspaceId, {
+        const settled = await recurringMoneyService.create(workspaceId, {
           name: "Already settled",
           amount: 40,
           type: "expense",
           dayOfMonth: dueDay,
         });
         await paymentLogService.create(
-          userId,
+          workspaceId,
           settled.id,
           { amount: 40, paidAt: today, periodMonth: `${today.slice(0, 7)}-01` },
-          workspaceId,
         );
 
         assert.deepEqual(await getEmailNotificationStatus(userId, workspaceId), {
@@ -163,7 +162,7 @@ describe(
         assert.equal(repeat.skipped, 1);
         assert.equal(messages.length, 1);
 
-        const dueNotification = (await notificationsService.listDue(userId, workspaceId, today))
+        const dueNotification = (await notificationsService.listDue(workspaceId, userId, today))
           .find((notification) => notification.title === dueSchedule.name)!;
         await notificationsService.markRead(userId, workspaceId, dueNotification.id, true);
         assert.equal((await dispatchEmailNotifications({ today, send })).notifications, 0);
@@ -187,14 +186,14 @@ describe(
         const retried = await dispatchEmailNotifications({ today: retryMonth, send });
         assert.equal(retried.sent, 2, "failed SMTP sends release occurrence claims for retry");
 
-        const reviewable = await transactionsService.create(userId, workspaceId, {
+        const reviewable = await transactionsService.create(workspaceId, {
           amount: 23,
           date: retryMonth,
           type: "expense",
           category: "Uncategorized",
           payee: "Review this import",
         });
-        const secondReviewable = await transactionsService.create(userId, workspaceId, {
+        const secondReviewable = await transactionsService.create(workspaceId, {
           amount: 19,
           date: retryMonth,
           type: "expense",

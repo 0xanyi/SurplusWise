@@ -2,7 +2,6 @@ import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { budgets, transactions } from "@/db/schema";
 import {
-  userIdSchema,
   idSchema,
   budgetCreateSchema,
   budgetUpdateSchema,
@@ -11,6 +10,7 @@ import {
 } from "./validation";
 import { computeBudgetUsage } from "./helpers";
 import { getNextBudgetRange, getRolledBudgetAmount } from "@/lib/budget-periods";
+import { ownerUserId } from "./workspaces";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -45,10 +45,9 @@ function genId() {
 // ─── Service functions ───────────────────────────────────────────────────────
 
 /** List budgets, optionally only active ones. */
-export async function list(userId: string, workspaceId: string, isActive?: boolean) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string, isActive?: boolean) {
   workspaceIdSchema.parse(workspaceId);
-  const conditions = [eq(budgets.userId, userId), eq(budgets.workspaceId, workspaceId)];
+  const conditions = [eq(budgets.workspaceId, workspaceId)];
   if (isActive !== undefined) conditions.push(eq(budgets.isActive, isActive));
 
   return db
@@ -58,10 +57,10 @@ export async function list(userId: string, workspaceId: string, isActive?: boole
 }
 
 /** Create a new budget. */
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   budgetCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   const id = genId();
   const now = new Date();
   const [row] = await db
@@ -86,14 +85,13 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 
 /** Create the same budget for its next calendar period and archive this occurrence. */
 export async function copyForward(
-  userId: string,
   workspaceId: string,
   id: string,
   options: { carryRemaining?: boolean } = {},
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
+  const userId = await ownerUserId(workspaceId);
 
   return db.transaction(async (tx) => {
     const [existing] = await tx
@@ -102,7 +100,6 @@ export async function copyForward(
       .where(
         and(
           eq(budgets.id, id),
-          eq(budgets.userId, userId),
           eq(budgets.workspaceId, workspaceId),
         ),
       )
@@ -121,7 +118,6 @@ export async function copyForward(
       .from(budgets)
       .where(
         and(
-          eq(budgets.userId, userId),
           eq(budgets.workspaceId, workspaceId),
           eq(budgets.category, existing.category),
           eq(budgets.type, existing.type),
@@ -140,7 +136,6 @@ export async function copyForward(
         .from(transactions)
         .where(
           and(
-            eq(transactions.userId, userId),
             eq(transactions.workspaceId, workspaceId),
             eq(transactions.category, existing.category),
             eq(transactions.type, existing.type),
@@ -173,21 +168,21 @@ export async function copyForward(
     await tx
       .update(budgets)
       .set({ isActive: false, updatedAt: now })
-      .where(eq(budgets.id, existing.id));
+      .where(and(eq(budgets.id, existing.id), eq(budgets.workspaceId, workspaceId)));
 
     return nextBudget;
   });
 }
 
 /** Partial update. Throws if not found / unauthorized. */
-export async function update(userId: string, id: string, input: UpdateInput) {
-  userIdSchema.parse(userId);
+export async function update(workspaceId: string, id: string, input: UpdateInput) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   budgetUpdateSchema.parse(input);
   const [existing] = await db
     .select()
     .from(budgets)
-    .where(and(eq(budgets.id, id), eq(budgets.userId, userId)))
+    .where(and(eq(budgets.id, id), eq(budgets.workspaceId, workspaceId)))
     .limit(1);
 
   if (!existing) throw new Error("Budget not found or unauthorized");
@@ -211,26 +206,26 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       ...(input.isActive !== undefined && { isActive: input.isActive }),
       updatedAt: new Date(),
     })
-    .where(and(eq(budgets.id, id), eq(budgets.userId, userId)))
+    .where(and(eq(budgets.id, id), eq(budgets.workspaceId, workspaceId)))
     .returning();
   return row;
 }
 
 /** Delete a budget. Throws if not found / unauthorized. */
-export async function remove(userId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function remove(workspaceId: string, id: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const [existing] = await db
     .select({ id: budgets.id })
     .from(budgets)
-    .where(and(eq(budgets.id, id), eq(budgets.userId, userId)))
+    .where(and(eq(budgets.id, id), eq(budgets.workspaceId, workspaceId)))
     .limit(1);
 
   if (!existing) throw new Error("Budget not found or unauthorized");
 
   await db
     .delete(budgets)
-    .where(and(eq(budgets.id, id), eq(budgets.userId, userId)));
+    .where(and(eq(budgets.id, id), eq(budgets.workspaceId, workspaceId)));
 }
 
 /**
@@ -238,17 +233,14 @@ export async function remove(userId: string, id: string) {
  * Matches the existing Convex `getWithSpending` shape.
  */
 export async function getWithSpending(
-  userId: string,
   workspaceId: string,
   period?: BudgetPeriod,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   if (period) budgetPeriodSchema.parse(period);
 
   // 1. Fetch active budgets
   const conditions = [
-    eq(budgets.userId, userId),
     eq(budgets.workspaceId, workspaceId),
     eq(budgets.isActive, true),
   ];
@@ -271,7 +263,6 @@ export async function getWithSpending(
         .from(transactions)
         .where(
           and(
-            eq(transactions.userId, userId),
             eq(transactions.workspaceId, workspaceId),
             eq(transactions.category, budget.category),
             eq(transactions.type, budget.type),

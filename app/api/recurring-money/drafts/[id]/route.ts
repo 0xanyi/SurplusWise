@@ -8,14 +8,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
     const expectedAmount = Object.hasOwn(body, "expectedAmount")
       ? body.expectedAmount
       : body.expected_amount;
     const row = await draftsService.updateExpectedAmount(
-      userId,
       workspaceId,
       id,
       expectedAmount,

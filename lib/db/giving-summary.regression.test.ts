@@ -26,11 +26,10 @@ describe(
       ]);
 
       try {
-        const recipient = await givingRecipientsService.createRecipient(userId, workspaceId, {
+        const recipient = await givingRecipientsService.createRecipient(workspaceId, {
           name: "Community Church",
         });
         const designation = await givingRecipientsService.createDesignation(
-          userId,
           workspaceId,
           { recipientId: recipient.id, name: "Building fund" },
         );
@@ -40,32 +39,32 @@ describe(
           { amount: 25, date: "2026-03-15", givingRecipientId: recipient.id },
           { amount: 10, date: "2026-04-15" },
         ]) {
-          await transactionsService.create(userId, workspaceId, {
+          await transactionsService.create(workspaceId, {
             ...input,
             type: "giving",
             category: "Offering",
           });
         }
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 500,
           date: "2025-12-31",
           type: "giving",
           category: "Offering",
         });
-        await transactionsService.create(userId, otherWorkspaceId, {
+        await transactionsService.create(otherWorkspaceId, {
           amount: 600,
           date: "2026-06-01",
           type: "giving",
           category: "Offering",
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 700,
           date: "2026-07-01",
           type: "expense",
           category: "Food",
         });
 
-        const summary = await getAnnualSummary(userId, workspaceId, 2026);
+        const summary = await getAnnualSummary(workspaceId, 2026);
         assert.equal(summary.giftCount, 4);
         assert.equal(summary.amount, 185);
         const attributed = summary.recipients.find((row) => row.recipientId === recipient.id);
@@ -81,8 +80,8 @@ describe(
         const unassigned = summary.recipients.find((row) => row.recipientId === null);
         assert.equal(unassigned?.recipientName, "Unassigned recipient");
         assert.equal(unassigned?.amount, 10);
-        assert.equal((await getAnnualSummary(userId, workspaceId, 2024)).giftCount, 0);
-        await assert.rejects(() => getAnnualSummary(userId, workspaceId, 1899), /between 1900 and 9999/);
+        assert.equal((await getAnnualSummary(workspaceId, 2024)).giftCount, 0);
+        await assert.rejects(() => getAnnualSummary(workspaceId, 1899), /between 1900 and 9999/);
       } finally {
         await db.delete(users).where(eq(users.id, userId));
       }

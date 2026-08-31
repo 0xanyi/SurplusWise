@@ -8,10 +8,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
-    const result = await accountService.reconcile(userId, workspaceId, id, {
+    const result = await accountService.reconcile(workspaceId, id, {
       statementDate: body.statementDate ?? body.statement_date,
       statementBalance: body.statementBalance ?? body.statement_balance,
     });

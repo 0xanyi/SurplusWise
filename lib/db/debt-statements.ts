@@ -2,13 +2,13 @@ import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { debtsCredits, debtStatements, debtPayments } from "@/db/schema";
 import {
-  userIdSchema,
   idSchema,
   workspaceIdSchema,
   debtStatementCreateSchema,
   debtStatementUpdateSchema,
   debtPaymentCreateSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 import {
   deriveRate,
   deriveBucketRate,
@@ -68,8 +68,8 @@ function num(value: string | null): number | null {
   return value == null ? null : Number(value);
 }
 
-/** Verify the debt belongs to the user, returning the fields callers need. */
-async function assertOwnership(userId: string, debtId: string) {
+/** Verify the debt belongs to this workspace, returning the fields callers need. */
+async function assertInWorkspace(workspaceId: string, debtId: string) {
   const [debt] = await db
     .select({
       id: debtsCredits.id,
@@ -78,7 +78,7 @@ async function assertOwnership(userId: string, debtId: string) {
       minPaymentFloor: debtsCredits.minPaymentFloor,
     })
     .from(debtsCredits)
-    .where(and(eq(debtsCredits.id, debtId), eq(debtsCredits.userId, userId)))
+    .where(and(eq(debtsCredits.id, debtId), eq(debtsCredits.workspaceId, workspaceId)))
     .limit(1);
 
   if (!debt) throw new Error("Debt/credit not found or unauthorized");
@@ -91,21 +91,21 @@ async function assertOwnership(userId: string, debtId: string) {
  * List statements newest-first, each enriched with its derived rate and the
  * residual between its recorded figures and its closing balance.
  */
-export async function listStatements(userId: string, debtId: string) {
-  userIdSchema.parse(userId);
+export async function listStatements(workspaceId: string, debtId: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(debtId);
-  const debt = await assertOwnership(userId, debtId);
+  const debt = await assertInWorkspace(workspaceId, debtId);
 
   const rows = await db
     .select()
     .from(debtStatements)
-    .where(and(eq(debtStatements.debtId, debtId), eq(debtStatements.userId, userId)))
+    .where(eq(debtStatements.debtId, debtId))
     .orderBy(desc(debtStatements.periodEnd));
 
   const payments = await db
     .select({ amount: debtPayments.amount, paidAt: debtPayments.paidAt })
     .from(debtPayments)
-    .where(and(eq(debtPayments.debtId, debtId), eq(debtPayments.userId, userId)));
+    .where(eq(debtPayments.debtId, debtId));
 
   return rows.map((row) => {
     const openingBalance = Number(row.openingBalance);
@@ -172,15 +172,15 @@ export async function listStatements(userId: string, debtId: string) {
  * Values to prefill a new statement from the previous one, so closing a cycle
  * asks for three numbers rather than ten.
  */
-export async function getStatementDraft(userId: string, debtId: string) {
-  userIdSchema.parse(userId);
+export async function getStatementDraft(workspaceId: string, debtId: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(debtId);
-  const debt = await assertOwnership(userId, debtId);
+  const debt = await assertInWorkspace(workspaceId, debtId);
 
   const [previous] = await db
     .select()
     .from(debtStatements)
-    .where(and(eq(debtStatements.debtId, debtId), eq(debtStatements.userId, userId)))
+    .where(eq(debtStatements.debtId, debtId))
     .orderBy(desc(debtStatements.periodEnd))
     .limit(1);
 
@@ -219,11 +219,12 @@ export async function getStatementDraft(userId: string, debtId: string) {
   };
 }
 
-export async function createStatement(userId: string, debtId: string, input: StatementInput) {
-  userIdSchema.parse(userId);
+export async function createStatement(workspaceId: string, debtId: string, input: StatementInput) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(debtId);
   const parsed = debtStatementCreateSchema.parse(input);
-  await assertOwnership(userId, debtId);
+  await assertInWorkspace(workspaceId, debtId);
+  const userId = await ownerUserId(workspaceId);
 
   // When a split is supplied the buckets are the source of truth: statement
   // totals are their sums, whatever the client sent.
@@ -263,22 +264,22 @@ export async function createStatement(userId: string, debtId: string, input: Sta
       })
       .returning();
 
-    await syncCurrentBalance(tx, userId, debtId);
+    await syncCurrentBalance(tx, workspaceId, debtId);
     return inserted;
   });
 }
 
 export async function updateStatement(
-  userId: string,
+  workspaceId: string,
   debtId: string,
   statementId: string,
   input: StatementUpdateInput,
 ) {
-  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(debtId);
   idSchema.parse(statementId);
   const parsed = debtStatementUpdateSchema.parse(input);
-  await assertOwnership(userId, debtId);
+  await assertInWorkspace(workspaceId, debtId);
 
   const [existing] = await db
     .select({
@@ -288,13 +289,7 @@ export async function updateStatement(
       interestBreakdown: debtStatements.interestBreakdown,
     })
     .from(debtStatements)
-    .where(
-      and(
-        eq(debtStatements.id, statementId),
-        eq(debtStatements.debtId, debtId),
-        eq(debtStatements.userId, userId),
-      ),
-    )
+    .where(and(eq(debtStatements.id, statementId), eq(debtStatements.debtId, debtId)))
     .limit(1);
 
   if (!existing) throw new Error("Statement not found or unauthorized");
@@ -358,65 +353,54 @@ export async function updateStatement(
         ...(parsed.notes !== undefined && { notes: parsed.notes ?? null }),
         updatedAt: new Date(),
       })
-      .where(
-        and(
-          eq(debtStatements.id, statementId),
-          eq(debtStatements.debtId, debtId),
-          eq(debtStatements.userId, userId),
-        ),
-      )
+      .where(and(eq(debtStatements.id, statementId), eq(debtStatements.debtId, debtId)))
       .returning();
 
-    await syncCurrentBalance(tx, userId, debtId);
+    await syncCurrentBalance(tx, workspaceId, debtId);
     return row;
   });
 }
 
-export async function removeStatement(userId: string, debtId: string, statementId: string) {
-  userIdSchema.parse(userId);
+export async function removeStatement(workspaceId: string, debtId: string, statementId: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(debtId);
   idSchema.parse(statementId);
-  await assertOwnership(userId, debtId);
+  await assertInWorkspace(workspaceId, debtId);
 
   await db.transaction(async (tx) => {
     const deleted = await tx
       .delete(debtStatements)
-      .where(
-        and(
-          eq(debtStatements.id, statementId),
-          eq(debtStatements.debtId, debtId),
-          eq(debtStatements.userId, userId),
-        ),
-      )
+      .where(and(eq(debtStatements.id, statementId), eq(debtStatements.debtId, debtId)))
       .returning({ id: debtStatements.id });
 
     if (deleted.length === 0) throw new Error("Statement not found or unauthorized");
 
-    await syncCurrentBalance(tx, userId, debtId);
+    await syncCurrentBalance(tx, workspaceId, debtId);
   });
 }
 
 // ─── Payments ────────────────────────────────────────────────────────────────
 
-export async function listPayments(userId: string, debtId: string) {
-  userIdSchema.parse(userId);
+export async function listPayments(workspaceId: string, debtId: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(debtId);
-  await assertOwnership(userId, debtId);
+  await assertInWorkspace(workspaceId, debtId);
 
   const rows = await db
     .select()
     .from(debtPayments)
-    .where(and(eq(debtPayments.debtId, debtId), eq(debtPayments.userId, userId)))
+    .where(eq(debtPayments.debtId, debtId))
     .orderBy(desc(debtPayments.paidAt), desc(debtPayments.createdAt));
 
   return rows.map((row) => ({ ...row, amount: Number(row.amount) }));
 }
 
-export async function createPayment(userId: string, debtId: string, input: PaymentInput) {
-  userIdSchema.parse(userId);
+export async function createPayment(workspaceId: string, debtId: string, input: PaymentInput) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(debtId);
   const parsed = debtPaymentCreateSchema.parse(input);
-  await assertOwnership(userId, debtId);
+  await assertInWorkspace(workspaceId, debtId);
+  const userId = await ownerUserId(workspaceId);
 
   const [row] = await db
     .insert(debtPayments)
@@ -434,21 +418,15 @@ export async function createPayment(userId: string, debtId: string, input: Payme
   return row;
 }
 
-export async function removePayment(userId: string, debtId: string, paymentId: string) {
-  userIdSchema.parse(userId);
+export async function removePayment(workspaceId: string, debtId: string, paymentId: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(debtId);
   idSchema.parse(paymentId);
-  await assertOwnership(userId, debtId);
+  await assertInWorkspace(workspaceId, debtId);
 
   const deleted = await db
     .delete(debtPayments)
-    .where(
-      and(
-        eq(debtPayments.id, paymentId),
-        eq(debtPayments.debtId, debtId),
-        eq(debtPayments.userId, userId),
-      ),
-    )
+    .where(and(eq(debtPayments.id, paymentId), eq(debtPayments.debtId, debtId)))
     .returning({ id: debtPayments.id });
 
   if (deleted.length === 0) throw new Error("Payment not found or unauthorized");
@@ -465,11 +443,10 @@ export async function removePayment(userId: string, debtId: string, paymentId: s
  * it. It is a cost-of-borrowing metric, reported on its own.
  */
 export async function getCostOfBorrowing(
-  userId: string,
   workspaceId: string,
   range: { startDate: string; endDate: string },
 ) {
-  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
 
   const [result] = await db
     .select({
@@ -481,7 +458,6 @@ export async function getCostOfBorrowing(
     .innerJoin(debtsCredits, eq(debtStatements.debtId, debtsCredits.id))
     .where(
       and(
-        eq(debtStatements.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
         gte(debtStatements.periodEnd, range.startDate),
         lte(debtStatements.periodEnd, range.endDate),
@@ -509,11 +485,9 @@ export async function getCostOfBorrowing(
  * this reason.
  */
 export async function listUpcomingDebtPayments(
-  userId: string,
   workspaceId: string,
   reference: Date = new Date(),
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
 
   const debts = await db
@@ -528,13 +502,7 @@ export async function listUpcomingDebtPayments(
       paymentDayOfMonth: debtsCredits.paymentDayOfMonth,
     })
     .from(debtsCredits)
-    .where(
-      and(
-        eq(debtsCredits.userId, userId),
-        eq(debtsCredits.workspaceId, workspaceId),
-        eq(debtsCredits.isActive, true),
-      ),
-    )
+    .where(and(eq(debtsCredits.workspaceId, workspaceId), eq(debtsCredits.isActive, true)))
     .orderBy(asc(debtsCredits.name));
 
   if (debts.length === 0) return [];
@@ -550,7 +518,8 @@ export async function listUpcomingDebtPayments(
       feesCharged: debtStatements.feesCharged,
     })
     .from(debtStatements)
-    .where(eq(debtStatements.userId, userId))
+    .innerJoin(debtsCredits, eq(debtStatements.debtId, debtsCredits.id))
+    .where(eq(debtsCredits.workspaceId, workspaceId))
     .orderBy(desc(debtStatements.debtId), desc(debtStatements.periodEnd));
 
   const byDebt = new Map(latestStatements.map((s) => [s.debtId, s]));
@@ -571,7 +540,6 @@ export async function listUpcomingDebtPayments(
     .innerJoin(debtsCredits, eq(debtPayments.debtId, debtsCredits.id))
     .where(
       and(
-        eq(debtPayments.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
         gte(debtPayments.paidAt, earliestWindow),
       ),

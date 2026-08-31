@@ -30,8 +30,8 @@ function toRecurringMoney(row: Awaited<ReturnType<typeof recurringMoneyService.l
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
-    const rows = await recurringMoneyService.list(userId, workspaceId);
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
+    const rows = await recurringMoneyService.list(workspaceId);
     const active = rows.filter((row) => row.isActive);
     return NextResponse.json({
       items: rows.map(toRecurringMoney),
@@ -54,9 +54,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
-    const row = await recurringMoneyService.create(userId, workspaceId, {
+    const row = await recurringMoneyService.create(workspaceId, {
       name: body.name,
       amount: body.amount,
       type: body.type,

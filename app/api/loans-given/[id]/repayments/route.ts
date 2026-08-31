@@ -19,10 +19,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
-    const repayments = await loansService.listRepayments(userId, id);
+    const repayments = await loansService.listRepayments(workspaceId, id);
 
     return NextResponse.json({ repayments: repayments.map(toRepayment) });
   } catch (error) {
@@ -48,11 +48,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
-    const repayment = await loansService.addRepayment(userId, id, {
+    const repayment = await loansService.addRepayment(workspaceId, id, {
       amount: body.amount,
       repaymentDate: body.repaymentDate ?? body.repayment_date,
       notes: body.notes,

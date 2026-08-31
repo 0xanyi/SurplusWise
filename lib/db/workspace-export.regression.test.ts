@@ -128,7 +128,7 @@ describe(
           lastSuccessfulAt: generatedAt,
         });
 
-        const exported = await createWorkspaceExport(userId, workspaceId, generatedAt);
+        const exported = await createWorkspaceExport(workspaceId, generatedAt);
         assert.equal(exported.format, WORKSPACE_EXPORT_FORMAT);
         assert.equal(exported.version, 3);
         assert.equal(exported.generatedAt, generatedAt.toISOString());
@@ -147,7 +147,6 @@ describe(
         assert.doesNotMatch(serialized, /encrypted-private-ai-key/);
 
         const archiveSource = await createWorkspaceArchiveSource(
-          userId,
           workspaceId,
           generatedAt,
         );
@@ -161,7 +160,7 @@ describe(
         );
 
         await assert.rejects(
-          createWorkspaceExport(crypto.randomUUID(), workspaceId),
+          createWorkspaceExport(crypto.randomUUID()),
           /not found or unauthorized/i,
         );
 

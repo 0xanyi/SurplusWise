@@ -43,7 +43,7 @@ function toTransaction(row: Awaited<ReturnType<typeof txService.list>>[number]) 
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, actorUserId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { actorUserId, workspaceId } = await requireAuthWithWorkspace("viewer");
 
     const sp = request.nextUrl.searchParams;
 
@@ -105,7 +105,6 @@ export async function GET(request: NextRequest) {
       : DEFAULT_PAGE_SIZE;
 
     const result = await txService.listPaginated(
-      userId,
       workspaceId,
       filters,
       page,
@@ -147,12 +146,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
     const receiptStorageId = body.receiptStorageId ?? body.receipt_url ?? null;
 
-    const row = await txService.create(userId, workspaceId, {
+    const row = await txService.create(workspaceId, {
       amount: body.amount,
       date: body.date,
       type: body.type,

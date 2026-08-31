@@ -101,7 +101,7 @@ describe(
       ];
 
       try {
-        const manual = await transactionsService.create(userId, workspaceId, {
+        const manual = await transactionsService.create(workspaceId, {
           amount: 8.75,
           date: "2026-02-28",
           type: "expense",
@@ -109,19 +109,19 @@ describe(
           payee: "Corner Shop",
         });
         assert.equal(manual.payee, "Corner Shop");
-        const searchResult = await transactionsService.list(userId, workspaceId, {
+        const searchResult = await transactionsService.list(workspaceId, {
           search: "corner shop",
         });
         assert.deepEqual(searchResult.map((row) => row.id), [manual.id]);
 
-        const broadRule = await transactionRulesService.create(userId, workspaceId, {
+        const broadRule = await transactionRulesService.create(workspaceId, {
           name: "Broad cafe rule",
           matchField: "payee",
           matchValue: "cafe",
           category: "Broad match",
           priority: 20,
         });
-        const preferredRule = await transactionRulesService.create(userId, workspaceId, {
+        const preferredRule = await transactionRulesService.create(workspaceId, {
           name: "Preferred cafe rule",
           matchField: "payee",
           matchValue: "CAFE",
@@ -131,14 +131,14 @@ describe(
           markReviewed: true,
           priority: 10,
         });
-        await transactionRulesService.create(userId, workspaceId, {
+        await transactionRulesService.create(workspaceId, {
           name: "Disabled employer rule",
           matchField: "payee",
           matchValue: "Employer",
           category: "Salary",
           isActive: false,
         });
-        await transactionRulesService.create(userId, workspaceId, {
+        await transactionRulesService.create(workspaceId, {
           name: "Expense-only pay-note rule",
           matchField: "notes",
           matchValue: "pay",
@@ -146,21 +146,20 @@ describe(
           category: "Salary",
         });
         assert.equal(
-          (await transactionRulesService.list(userId, workspaceId))[0]?.id,
+          (await transactionRulesService.list(workspaceId))[0]?.id,
           preferredRule.id,
         );
         await assert.rejects(
-          () => transactionRulesService.update(userId, otherWorkspaceId, broadRule.id, {
+          () => transactionRulesService.update(otherWorkspaceId, broadRule.id, {
             name: "Cross-workspace update",
           }),
           /not found or unauthorized/,
         );
         await assert.rejects(
-          () => transactionRulesService.remove(userId, otherWorkspaceId, broadRule.id),
+          () => transactionRulesService.remove(otherWorkspaceId, broadRule.id),
           /not found or unauthorized/,
         );
         const updatedBroadRule = await transactionRulesService.update(
-          userId,
           workspaceId,
           broadRule.id,
           { name: "Updated broad cafe rule" },
@@ -168,7 +167,7 @@ describe(
         assert.equal(updatedBroadRule?.name, "Updated broad cafe rule");
         await assert.rejects(
           () =>
-            transactionRulesService.create(userId, workspaceId, {
+            transactionRulesService.create(workspaceId, {
               name: "Updated broad cafe rule",
               matchField: "payee",
               matchValue: "Duplicate",
@@ -177,12 +176,12 @@ describe(
           /already exists/,
         );
 
-        const otherClient = await clientsService.create(userId, otherWorkspaceId, {
+        const otherClient = await clientsService.create(otherWorkspaceId, {
           name: "Other workspace client",
         });
         await assert.rejects(
           () =>
-            transactionRulesService.create(userId, workspaceId, {
+            transactionRulesService.create(workspaceId, {
               name: "Invalid client rule",
               matchField: "payee",
               matchValue: "Client",
@@ -190,25 +189,25 @@ describe(
             }),
           /not found or unauthorized/,
         );
-        const localClient = await clientsService.create(userId, workspaceId, {
+        const localClient = await clientsService.create(workspaceId, {
           name: "Local client",
         });
-        const clientRule = await transactionRulesService.create(userId, workspaceId, {
+        const clientRule = await transactionRulesService.create(workspaceId, {
           name: "Local client rule",
           matchField: "payee",
           matchValue: "Local",
           clientId: localClient.id,
         });
-        await clientsService.remove(userId, localClient.id);
-        const disabledClientRule = (await transactionRulesService.list(userId, workspaceId)).find(
+        await clientsService.remove(workspaceId, localClient.id);
+        const disabledClientRule = (await transactionRulesService.list(workspaceId)).find(
           (rule) => rule.id === clientRule.id,
         );
         assert.equal(disabledClientRule?.clientId, null);
         assert.equal(disabledClientRule?.isActive, false);
-        const importClient = await clientsService.create(userId, workspaceId, {
+        const importClient = await clientsService.create(workspaceId, {
           name: "Import client",
         });
-        await transactionRulesService.create(userId, workspaceId, {
+        await transactionRulesService.create(workspaceId, {
           name: "Employer client rule",
           matchField: "payee",
           matchValue: "employer",
@@ -217,7 +216,6 @@ describe(
         });
 
         const initialReview = await transactionsService.reviewImport(
-          userId,
           workspaceId,
           null,
           rows,
@@ -228,7 +226,6 @@ describe(
         });
 
         const firstImport = await transactionsService.importRows(
-          userId,
           workspaceId,
           null,
           rows,
@@ -266,7 +263,7 @@ describe(
           { category: "Uncategorized", clientId: importClient.id, needsReview: true },
         );
         assert.deepEqual(
-          (await transactionsService.list(userId, workspaceId, { needsReview: true }))
+          (await transactionsService.list(workspaceId, { needsReview: true }))
             .map((row) => row.id)
             .sort(),
           [employer?.id],
@@ -274,24 +271,24 @@ describe(
 
         await assert.rejects(
           () =>
-            transactionsService.bulkUpdateMetadata(userId, workspaceId, {
+            transactionsService.bulkUpdateMetadata(workspaceId, {
               ids: [manual.id, crypto.randomUUID()],
               category: "Changed",
             }),
           /not found in this workspace/,
         );
-        assert.equal((await transactionsService.getById(userId, manual.id))?.category, "Food");
+        assert.equal((await transactionsService.getById(workspaceId, manual.id))?.category, "Food");
 
-        await transactionsService.bulkUpdateMetadata(userId, workspaceId, {
+        await transactionsService.bulkUpdateMetadata(workspaceId, {
           ids: employer ? [employer.id] : [],
           category: "Reviewed import",
           needsReview: false,
         });
         assert.deepEqual(
-          await transactionsService.list(userId, workspaceId, { needsReview: true }),
+          await transactionsService.list(workspaceId, { needsReview: true }),
           [],
         );
-        const reviewedRows = await transactionsService.list(userId, workspaceId, {
+        const reviewedRows = await transactionsService.list(workspaceId, {
           needsReview: false,
           category: "Reviewed import",
         });
@@ -301,7 +298,6 @@ describe(
         );
 
         const repeatReview = await transactionsService.reviewImport(
-          userId,
           workspaceId,
           null,
           rows.map((row) =>
@@ -312,7 +308,6 @@ describe(
         assert.deepEqual(repeatReview.duplicateLineNumbers, [2, 3, 4]);
 
         const repeatedImport = await transactionsService.importRows(
-          userId,
           workspaceId,
           null,
           rows,
@@ -320,9 +315,9 @@ describe(
         assert.equal(repeatedImport.importedIds.length, 0);
         assert.deepEqual(repeatedImport.duplicateLineNumbers, [2, 3, 4]);
 
-        await transactionRulesService.remove(userId, workspaceId, broadRule.id);
+        await transactionRulesService.remove(workspaceId, broadRule.id);
         assert.equal(
-          (await transactionRulesService.list(userId, workspaceId)).some(
+          (await transactionRulesService.list(workspaceId)).some(
             (rule) => rule.id === broadRule.id,
           ),
           false,

@@ -7,10 +7,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; logId: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id: outgoingId, logId } = await params;
 
-    await paymentLogService.remove(userId, outgoingId, logId, workspaceId);
+    await paymentLogService.remove(workspaceId, outgoingId, logId);
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

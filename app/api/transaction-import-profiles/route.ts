@@ -15,9 +15,9 @@ function toProfile(row: Awaited<ReturnType<typeof profileService.list>>[number])
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const accountId = request.nextUrl.searchParams.get("accountId") ?? undefined;
-    const profiles = await profileService.list(userId, workspaceId, accountId);
+    const profiles = await profileService.list(workspaceId, accountId);
     return NextResponse.json({ profiles: profiles.map(toProfile) });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
@@ -36,9 +36,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
-    const row = await profileService.save(userId, workspaceId, {
+    const row = await profileService.save(workspaceId, {
       name: body.name,
       accountId: body.accountId ?? body.account_id,
       mapping: body.mapping,

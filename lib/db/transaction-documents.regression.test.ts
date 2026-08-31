@@ -25,14 +25,14 @@ describe(
       ]);
 
       try {
-        const gift = await transactionsService.create(userId, workspaceId, {
+        const gift = await transactionsService.create(workspaceId, {
           amount: 100,
           date: "2026-08-01",
           type: "giving",
           category: "Offering",
           receiptStorageId: "receipts/legacy.jpg",
         });
-        const expense = await transactionsService.create(userId, workspaceId, {
+        const expense = await transactionsService.create(workspaceId, {
           amount: 20,
           date: "2026-08-01",
           type: "expense",
@@ -40,7 +40,7 @@ describe(
         });
 
         await assert.rejects(
-          () => documentsService.create(userId, workspaceId, expense.id, {
+          () => documentsService.create(workspaceId, expense.id, {
             storageKey: "supporting-documents/expense.pdf",
             fileName: "expense.pdf",
             mimeType: "application/pdf",
@@ -49,31 +49,31 @@ describe(
           /only be added to giving/,
         );
         await assert.rejects(
-          () => documentsService.list(userId, workspaceId, expense.id),
+          () => documentsService.list(workspaceId, expense.id),
           /only available for giving/,
         );
 
-        const legacy = await documentsService.create(userId, workspaceId, gift.id, {
+        const legacy = await documentsService.create(workspaceId, gift.id, {
           storageKey: "receipts/legacy.jpg",
           fileName: "  Receipt\u0000.jpg  ",
           mimeType: "image/jpeg",
           sizeBytes: 100,
         });
-        const rows = await documentsService.list(userId, workspaceId, gift.id);
+        const rows = await documentsService.list(workspaceId, gift.id);
         assert.equal(rows.length, 1);
         assert.equal(rows[0]?.fileName, "Receipt.jpg");
         await assert.rejects(
-          () => documentsService.list(userId, otherWorkspaceId, gift.id),
+          () => documentsService.list(otherWorkspaceId, gift.id),
           /not found or unauthorized/,
         );
 
-        const otherDocument = await documentsService.create(userId, workspaceId, gift.id, {
+        const otherDocument = await documentsService.create(workspaceId, gift.id, {
           storageKey: "supporting-documents/other.pdf",
           fileName: "other.pdf",
           mimeType: "application/pdf",
           sizeBytes: 100,
         });
-        await documentsService.remove(userId, workspaceId, gift.id, otherDocument.id);
+        await documentsService.remove(workspaceId, gift.id, otherDocument.id);
         const [giftWithLegacyReceipt] = await db
           .select({ receiptStorageId: transactions.receiptStorageId })
           .from(transactions)
@@ -84,7 +84,7 @@ describe(
           "removing another document preserves the legacy receipt field",
         );
 
-        await documentsService.remove(userId, workspaceId, gift.id, legacy.id);
+        await documentsService.remove(workspaceId, gift.id, legacy.id);
         const [updatedGift] = await db
           .select({ receiptStorageId: transactions.receiptStorageId })
           .from(transactions)
@@ -92,7 +92,7 @@ describe(
         assert.equal(updatedGift?.receiptStorageId, null, "removing a backfilled receipt clears the legacy field");
 
         for (let index = 0; index < 9; index += 1) {
-          await documentsService.create(userId, workspaceId, gift.id, {
+          await documentsService.create(workspaceId, gift.id, {
             storageKey: `supporting-documents/${index}.pdf`,
             fileName: `${index}.pdf`,
             mimeType: "application/pdf",
@@ -100,13 +100,13 @@ describe(
           });
         }
         const concurrentUploads = await Promise.allSettled([
-          documentsService.create(userId, workspaceId, gift.id, {
+          documentsService.create(workspaceId, gift.id, {
             storageKey: "supporting-documents/concurrent-a.pdf",
             fileName: "concurrent-a.pdf",
             mimeType: "application/pdf",
             sizeBytes: 100,
           }),
-          documentsService.create(userId, workspaceId, gift.id, {
+          documentsService.create(workspaceId, gift.id, {
             storageKey: "supporting-documents/concurrent-b.pdf",
             fileName: "concurrent-b.pdf",
             mimeType: "application/pdf",
@@ -115,21 +115,21 @@ describe(
         ]);
         assert.equal(concurrentUploads.filter((result) => result.status === "fulfilled").length, 1);
         assert.equal(concurrentUploads.filter((result) => result.status === "rejected").length, 1);
-        assert.equal((await documentsService.list(userId, workspaceId, gift.id)).length, 10);
+        assert.equal((await documentsService.list(workspaceId, gift.id)).length, 10);
         await assert.rejects(
-          () => transactionsService.update(userId, gift.id, { type: "expense" }),
+          () => transactionsService.update(workspaceId, gift.id, { type: "expense" }),
           /Remove this gift's supporting documents/,
         );
 
-        const concurrentGift = await transactionsService.create(userId, workspaceId, {
+        const concurrentGift = await transactionsService.create(workspaceId, {
           amount: 50,
           date: "2026-08-02",
           type: "giving",
           category: "Offering",
         });
         const typeChangeAndUpload = await Promise.allSettled([
-          transactionsService.update(userId, concurrentGift.id, { type: "expense" }),
-          documentsService.create(userId, workspaceId, concurrentGift.id, {
+          transactionsService.update(workspaceId, concurrentGift.id, { type: "expense" }),
+          documentsService.create(workspaceId, concurrentGift.id, {
             storageKey: "supporting-documents/type-race.pdf",
             fileName: "type-race.pdf",
             mimeType: "application/pdf",
@@ -142,7 +142,6 @@ describe(
           .from(transactions)
           .where(eq(transactions.id, concurrentGift.id));
         const concurrentDocuments = await documentsService.listForTransactionDeletion(
-          userId,
           workspaceId,
           concurrentGift.id,
         );
@@ -171,50 +170,50 @@ describe(
       ]);
 
       try {
-        const olderMissing = await transactionsService.create(userId, workspaceId, {
+        const olderMissing = await transactionsService.create(workspaceId, {
           amount: 25,
           date: "2026-03-01",
           type: "giving",
           category: "Offering",
         });
-        const newerMissing = await transactionsService.create(userId, workspaceId, {
+        const newerMissing = await transactionsService.create(workspaceId, {
           amount: 50,
           date: "2026-05-01",
           type: "giving",
           category: "Offering",
         });
-        const documented = await transactionsService.create(userId, workspaceId, {
+        const documented = await transactionsService.create(workspaceId, {
           amount: 75,
           date: "2026-04-01",
           type: "giving",
           category: "Offering",
         });
-        await documentsService.create(userId, workspaceId, documented.id, {
+        await documentsService.create(workspaceId, documented.id, {
           storageKey: "supporting-documents/evidence.pdf",
           fileName: "evidence.pdf",
           mimeType: "application/pdf",
           sizeBytes: 100,
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 100,
           date: "2026-06-01",
           type: "giving",
           category: "Offering",
           receiptStorageId: "receipts/legacy.pdf",
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 20,
           date: "2025-12-31",
           type: "giving",
           category: "Offering",
         });
-        await transactionsService.create(userId, otherWorkspaceId, {
+        await transactionsService.create(otherWorkspaceId, {
           amount: 30,
           date: "2026-02-01",
           type: "giving",
           category: "Offering",
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 10,
           date: "2026-01-01",
           type: "expense",
@@ -222,7 +221,6 @@ describe(
         });
 
         const firstPage = await documentsService.listMissingForGiving(
-          userId,
           workspaceId,
           "2026-01-01",
           "2026-12-31",
@@ -233,7 +231,6 @@ describe(
         assert.equal(firstPage.hasMore, true);
         assert.deepEqual(firstPage.rows.map((row) => row.id), [newerMissing.id]);
         const secondPage = await documentsService.listMissingForGiving(
-          userId,
           workspaceId,
           "2026-01-01",
           "2026-12-31",
@@ -244,7 +241,6 @@ describe(
         assert.deepEqual(secondPage.rows.map((row) => row.id), [olderMissing.id]);
         await assert.rejects(
           () => documentsService.listMissingForGiving(
-            userId,
             workspaceId,
             "2026-12-31",
             "2026-01-01",

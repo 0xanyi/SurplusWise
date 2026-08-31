@@ -1,7 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db/client";
 import { goals } from "@/db/schema";
-import { goalCreateSchema, goalUpdateSchema, idSchema, userIdSchema, workspaceIdSchema } from "./validation";
+import { goalCreateSchema, goalUpdateSchema, idSchema, workspaceIdSchema } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 export type GoalCategory =
   | "emergency_fund"
@@ -37,20 +38,19 @@ function genId() {
   return crypto.randomUUID();
 }
 
-export async function list(userId: string, workspaceId: string) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string) {
   workspaceIdSchema.parse(workspaceId);
 
   return db
     .select()
     .from(goals)
-    .where(and(eq(goals.userId, userId), eq(goals.workspaceId, workspaceId)));
+    .where(eq(goals.workspaceId, workspaceId));
 }
 
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   const validInput = goalCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   const now = new Date();
 
   const [row] = await db
@@ -74,15 +74,15 @@ export async function create(userId: string, workspaceId: string, input: CreateI
   return row;
 }
 
-export async function update(userId: string, id: string, input: UpdateInput) {
-  userIdSchema.parse(userId);
+export async function update(workspaceId: string, id: string, input: UpdateInput) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const validInput = goalUpdateSchema.parse(input);
 
   const [existing] = await db
     .select()
     .from(goals)
-    .where(and(eq(goals.id, id), eq(goals.userId, userId)))
+    .where(and(eq(goals.id, id), eq(goals.workspaceId, workspaceId)))
     .limit(1);
 
   if (!existing) throw new Error("Goal not found or unauthorized");
@@ -99,23 +99,23 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       ...(validInput.isActive !== undefined && { isActive: validInput.isActive }),
       updatedAt: new Date(),
     })
-    .where(and(eq(goals.id, id), eq(goals.userId, userId)))
+    .where(and(eq(goals.id, id), eq(goals.workspaceId, workspaceId)))
     .returning();
 
   return row;
 }
 
-export async function remove(userId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function remove(workspaceId: string, id: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
 
   const [existing] = await db
     .select({ id: goals.id })
     .from(goals)
-    .where(and(eq(goals.id, id), eq(goals.userId, userId)))
+    .where(and(eq(goals.id, id), eq(goals.workspaceId, workspaceId)))
     .limit(1);
 
   if (!existing) throw new Error("Goal not found or unauthorized");
 
-  await db.delete(goals).where(and(eq(goals.id, id), eq(goals.userId, userId)));
+  await db.delete(goals).where(and(eq(goals.id, id), eq(goals.workspaceId, workspaceId)));
 }

@@ -12,12 +12,11 @@ import {
   idSchema,
   pageSchema,
   pageSizeSchema,
-  userIdSchema,
   workspaceIdSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 async function getOwnedTransaction(
-  userId: string,
   workspaceId: string,
   transactionId: string,
   requireGiving = true,
@@ -28,7 +27,6 @@ async function getOwnedTransaction(
     .where(
       and(
         eq(transactions.id, transactionId),
-        eq(transactions.userId, userId),
         eq(transactions.workspaceId, workspaceId),
       ),
     )
@@ -40,17 +38,15 @@ async function getOwnedTransaction(
   return row;
 }
 
-export async function list(userId: string, workspaceId: string, transactionId: string) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string, transactionId: string) {
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(transactionId);
-  await getOwnedTransaction(userId, workspaceId, transactionId);
+  await getOwnedTransaction(workspaceId, transactionId);
   return db
     .select()
     .from(transactionDocuments)
     .where(
       and(
-        eq(transactionDocuments.userId, userId),
         eq(transactionDocuments.workspaceId, workspaceId),
         eq(transactionDocuments.transactionId, transactionId),
       ),
@@ -59,14 +55,12 @@ export async function list(userId: string, workspaceId: string, transactionId: s
 }
 
 export async function listMissingForGiving(
-  userId: string,
   workspaceId: string,
   startDate: string,
   endDate: string,
   page = 0,
   pageSize = 10,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   dateStringSchema.parse(startDate);
   dateStringSchema.parse(endDate);
@@ -75,7 +69,6 @@ export async function listMissingForGiving(
   if (endDate < startDate) throw new Error("period end must not be before period start");
 
   const conditions = and(
-    eq(transactions.userId, userId),
     eq(transactions.workspaceId, workspaceId),
     eq(transactions.type, "giving"),
     gte(transactions.date, startDate),
@@ -85,7 +78,6 @@ export async function listMissingForGiving(
   );
   const documentJoin = and(
     eq(transactionDocuments.transactionId, transactions.id),
-    eq(transactionDocuments.userId, userId),
     eq(transactionDocuments.workspaceId, workspaceId),
   );
   const [totalResult] = await db
@@ -117,14 +109,12 @@ export async function listMissingForGiving(
 }
 
 export async function assertCanUpload(
-  userId: string,
   workspaceId: string,
   transactionId: string,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(transactionId);
-  const transaction = await getOwnedTransaction(userId, workspaceId, transactionId);
+  const transaction = await getOwnedTransaction(workspaceId, transactionId);
   if (transaction.type !== "giving") {
     throw new Error("Supporting documents can only be added to giving transactions");
   }
@@ -138,14 +128,13 @@ export async function assertCanUpload(
 }
 
 export async function create(
-  userId: string,
   workspaceId: string,
   transactionId: string,
   input: { storageKey: string; fileName: string; mimeType: string; sizeBytes: number },
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(transactionId);
+  const userId = await ownerUserId(workspaceId);
   return db.transaction(async (tx) => {
     const [transaction] = await tx
       .select({ id: transactions.id, type: transactions.type })
@@ -153,7 +142,6 @@ export async function create(
       .where(
         and(
           eq(transactions.id, transactionId),
-          eq(transactions.userId, userId),
           eq(transactions.workspaceId, workspaceId),
         ),
       )
@@ -190,20 +178,17 @@ export async function create(
 }
 
 export async function listForTransactionDeletion(
-  userId: string,
   workspaceId: string,
   transactionId: string,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(transactionId);
-  await getOwnedTransaction(userId, workspaceId, transactionId, false);
+  await getOwnedTransaction(workspaceId, transactionId, false);
   return db
     .select({ storageKey: transactionDocuments.storageKey })
     .from(transactionDocuments)
     .where(
       and(
-        eq(transactionDocuments.userId, userId),
         eq(transactionDocuments.workspaceId, workspaceId),
         eq(transactionDocuments.transactionId, transactionId),
       ),
@@ -211,20 +196,20 @@ export async function listForTransactionDeletion(
 }
 
 export async function get(
-  userId: string,
   workspaceId: string,
   transactionId: string,
   documentId: string,
 ) {
+  workspaceIdSchema.parse(workspaceId);
+  idSchema.parse(transactionId);
   idSchema.parse(documentId);
-  await getOwnedTransaction(userId, workspaceId, transactionId);
+  await getOwnedTransaction(workspaceId, transactionId);
   const [row] = await db
     .select()
     .from(transactionDocuments)
     .where(
       and(
         eq(transactionDocuments.id, documentId),
-        eq(transactionDocuments.userId, userId),
         eq(transactionDocuments.workspaceId, workspaceId),
         eq(transactionDocuments.transactionId, transactionId),
       ),
@@ -235,19 +220,17 @@ export async function get(
 }
 
 export async function remove(
-  userId: string,
   workspaceId: string,
   transactionId: string,
   documentId: string,
 ) {
-  const existing = await get(userId, workspaceId, transactionId, documentId);
+  const existing = await get(workspaceId, transactionId, documentId);
   await db.transaction(async (tx) => {
     await tx
       .delete(transactionDocuments)
       .where(
         and(
           eq(transactionDocuments.id, documentId),
-          eq(transactionDocuments.userId, userId),
           eq(transactionDocuments.workspaceId, workspaceId),
           eq(transactionDocuments.transactionId, transactionId),
         ),
@@ -258,7 +241,6 @@ export async function remove(
       .where(
         and(
           eq(transactions.id, transactionId),
-          eq(transactions.userId, userId),
           eq(transactions.workspaceId, workspaceId),
           eq(transactions.receiptStorageId, existing.storageKey),
         ),

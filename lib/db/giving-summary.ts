@@ -1,10 +1,9 @@
 import { and, asc, count, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { givingDesignations, givingRecipients, transactions } from "@/db/schema";
-import { userIdSchema, workspaceIdSchema } from "./validation";
+import { workspaceIdSchema } from "./validation";
 
-export async function getAnnualSummary(userId: string, workspaceId: string, year: number) {
-  userIdSchema.parse(userId);
+export async function getAnnualSummary(workspaceId: string, year: number) {
   workspaceIdSchema.parse(workspaceId);
   if (!Number.isInteger(year) || year < 1900 || year > 9999) {
     throw new Error("Year must be a whole number between 1900 and 9999");
@@ -24,7 +23,6 @@ export async function getAnnualSummary(userId: string, workspaceId: string, year
     .leftJoin(givingDesignations, eq(transactions.givingDesignationId, givingDesignations.id))
     .where(
       and(
-        eq(transactions.userId, userId),
         eq(transactions.workspaceId, workspaceId),
         eq(transactions.type, "giving"),
         gte(transactions.date, `${year}-01-01`),

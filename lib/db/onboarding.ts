@@ -28,8 +28,8 @@ export interface CompleteOnboardingInput {
   } | null;
 }
 
-export async function getStatus(userId: string, workspaceId: string) {
-  userIdSchema.parse(userId);
+export async function getStatus(actorUserId: string, workspaceId: string) {
+  userIdSchema.parse(actorUserId);
   workspaceIdSchema.parse(workspaceId);
 
   const [status] = await db
@@ -37,7 +37,7 @@ export async function getStatus(userId: string, workspaceId: string) {
     .from(onboardingStatus)
     .where(
       and(
-        eq(onboardingStatus.userId, userId),
+        eq(onboardingStatus.userId, actorUserId),
         eq(onboardingStatus.workspaceId, workspaceId),
       ),
     )
@@ -46,19 +46,19 @@ export async function getStatus(userId: string, workspaceId: string) {
   return status ?? null;
 }
 
-export async function complete(userId: string, workspaceId: string, input: CompleteOnboardingInput) {
-  userIdSchema.parse(userId);
+export async function complete(actorUserId: string, workspaceId: string, input: CompleteOnboardingInput) {
+  userIdSchema.parse(actorUserId);
   workspaceIdSchema.parse(workspaceId);
   currencySchema.parse(input.currency);
 
-  await workspaceService.update(userId, workspaceId, { currency: input.currency });
+  await workspaceService.update(actorUserId, workspaceId, { currency: input.currency });
 
   if (input.budget) {
-    await budgetsService.create(userId, workspaceId, input.budget);
+    await budgetsService.create(workspaceId, input.budget);
   }
 
   if (input.transaction) {
-    await transactionsService.create(userId, workspaceId, input.transaction);
+    await transactionsService.create(workspaceId, input.transaction);
   }
 
   const now = new Date();
@@ -66,7 +66,7 @@ export async function complete(userId: string, workspaceId: string, input: Compl
   await db
     .insert(onboardingStatus)
     .values({
-      userId,
+      userId: actorUserId,
       workspaceId,
       hasCompleted: true,
       createdAt: now,
@@ -83,5 +83,5 @@ export async function complete(userId: string, workspaceId: string, input: Compl
   await db
     .update(users)
     .set({ onboardingCompleted: true, updatedAt: now })
-    .where(eq(users.id, userId));
+    .where(eq(users.id, actorUserId));
 }

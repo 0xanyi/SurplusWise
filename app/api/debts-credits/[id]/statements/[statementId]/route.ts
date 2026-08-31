@@ -7,13 +7,13 @@ type Params = { params: Promise<{ id: string; statementId: string }> };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id, statementId } = await params;
     const body = await request.json();
 
     const pick = <T>(camel: T, snake: T) => (camel !== undefined ? camel : snake);
 
-    await statementsService.updateStatement(userId, id, statementId, {
+    await statementsService.updateStatement(workspaceId, id, statementId, {
       ...(pick(body.periodStart, body.period_start) !== undefined && {
         periodStart: pick(body.periodStart, body.period_start),
       }),
@@ -73,10 +73,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id, statementId } = await params;
 
-    await statementsService.removeStatement(userId, id, statementId);
+    await statementsService.removeStatement(workspaceId, id, statementId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

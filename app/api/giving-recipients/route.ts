@@ -19,9 +19,9 @@ function toRecipient(row: Awaited<ReturnType<typeof givingService.list>>[number]
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const activeOnly = request.nextUrl.searchParams.get("active") === "true";
-    const rows = await givingService.list(userId, workspaceId, activeOnly);
+    const rows = await givingService.list(workspaceId, activeOnly);
     return NextResponse.json({ recipients: rows.map(toRecipient) });
   } catch (error) {
     return errorResponse(error, "Failed to fetch giving recipients");
@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
-    const row = await givingService.createRecipient(userId, workspaceId, body);
+    const row = await givingService.createRecipient(workspaceId, body);
     return NextResponse.json({ id: row.id }, { status: 201 });
   } catch (error) {
     return errorResponse(

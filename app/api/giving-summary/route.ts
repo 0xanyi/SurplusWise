@@ -5,7 +5,7 @@ import { getAnnualSummary } from "@/lib/db/giving-summary";
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const rawYear = request.nextUrl.searchParams.get("year") ?? String(new Date().getFullYear());
     if (!/^\d{4}$/.test(rawYear) || Number(rawYear) < 1900) {
       return NextResponse.json(
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
-    const summary = await getAnnualSummary(userId, workspaceId, Number(rawYear));
+    const summary = await getAnnualSummary(workspaceId, Number(rawYear));
     return NextResponse.json({
       year: summary.year,
       gift_count: summary.giftCount,

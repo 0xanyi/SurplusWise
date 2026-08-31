@@ -5,9 +5,9 @@ import * as txService from "@/lib/db/transactions";
 
 export async function PATCH(request: NextRequest) {
   try {
-    const { userId, actorUserId, workspaceId } = await requireAuthWithWorkspace();
+    const { actorUserId, workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
-    const ids = await txService.bulkUpdateMetadata(userId, workspaceId, {
+    const ids = await txService.bulkUpdateMetadata(workspaceId, {
       ids: body.ids,
       ...(body.needsReview !== undefined && { needsReview: body.needsReview }),
       ...("assignedToUserId" in body && { assignedToUserId: body.assignedToUserId }),

@@ -5,9 +5,9 @@ import * as givingService from "@/lib/db/giving-recipients";
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
-    const row = await givingService.createDesignation(userId, workspaceId, {
+    const row = await givingService.createDesignation(workspaceId, {
       recipientId: body.recipientId ?? body.recipient_id,
       name: body.name,
     });

@@ -8,10 +8,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; paymentId: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id, paymentId } = await params;
 
-    await statementsService.removePayment(userId, id, paymentId);
+    await statementsService.removePayment(workspaceId, id, paymentId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -17,12 +17,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
-    const client = await clientsService.getWithRollup(userId, workspaceId, id);
-    const outgoings = await outgoingsService.list(userId, workspaceId, undefined, "expense");
-    const activity = await transactionsService.list(userId, workspaceId, { clientId: id });
+    const client = await clientsService.getWithRollup(workspaceId, id);
+    const outgoings = await outgoingsService.list(workspaceId, undefined, "expense");
+    const activity = await transactionsService.list(workspaceId, { clientId: id });
 
     const services = outgoings
       .filter((row) => row.clientId === id)
@@ -75,7 +75,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
@@ -87,7 +87,7 @@ export async function PATCH(
     const contactEmail = pick("contactEmail", "contact_email");
     const isActive = pick("isActive", "is_active");
 
-    await clientsService.update(userId, id, {
+    await clientsService.update(workspaceId, id, {
       ...(body.name !== undefined && { name: body.name }),
       ...(contactEmail !== undefined && { contactEmail }),
       ...(body.notes !== undefined && { notes: body.notes }),
@@ -105,10 +105,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
 
-    await clientsService.remove(userId, id);
+    await clientsService.remove(workspaceId, id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -9,10 +9,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
-    const row = await debtsService.getById(userId, workspaceId, id);
+    const row = await debtsService.getById(workspaceId, id);
 
     return NextResponse.json({
       debt: {
@@ -47,7 +47,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
     const financialAccountId = body.financialAccountId !== undefined
@@ -95,7 +95,7 @@ export async function PATCH(
       ...(body.is_active !== undefined && { isActive: body.is_active }),
     };
 
-    await debtsService.update(userId, workspaceId, id, input);
+    await debtsService.update(workspaceId, id, input);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -127,10 +127,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
 
-    await debtsService.remove(userId, workspaceId, id);
+    await debtsService.remove(workspaceId, id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

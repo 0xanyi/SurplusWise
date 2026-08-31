@@ -62,7 +62,7 @@ describe(
     it("balances assets, liabilities, pending money, transfers, and reconciliation", async () => {
       const { userId, workspaceId } = await createTempWorkspace();
       try {
-        const bank = await accountsService.create(userId, workspaceId, {
+        const bank = await accountsService.create(workspaceId, {
           name: "Main bank",
           accountClass: "asset",
           accountType: "checking",
@@ -70,7 +70,7 @@ describe(
           openingBalance: 1000,
           openingDate: "2026-01-01",
         });
-        const card = await accountsService.create(userId, workspaceId, {
+        const card = await accountsService.create(workspaceId, {
           name: "Card",
           accountClass: "liability",
           accountType: "credit_card",
@@ -79,21 +79,21 @@ describe(
           openingDate: "2026-01-01",
         });
 
-        const bankExpense = await transactionsService.create(userId, workspaceId, {
+        const bankExpense = await transactionsService.create(workspaceId, {
           accountId: bank.id,
           amount: 100,
           date: "2026-01-05",
           type: "expense",
           category: "Food",
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           accountId: bank.id,
           amount: 200,
           date: "2026-01-06",
           type: "income",
           category: "Salary",
         });
-        const pending = await transactionsService.create(userId, workspaceId, {
+        const pending = await transactionsService.create(workspaceId, {
           accountId: bank.id,
           status: "pending",
           amount: 50,
@@ -101,28 +101,28 @@ describe(
           type: "giving",
           category: "Tithe",
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           accountId: card.id,
           amount: 100,
           date: "2026-01-08",
           type: "expense",
           category: "Travel",
         });
-        const transfer = await accountsService.createTransfer(userId, workspaceId, {
+        const transfer = await accountsService.createTransfer(workspaceId, {
           fromAccountId: bank.id,
           toAccountId: card.id,
           amount: 200,
           date: "2026-01-09",
         });
 
-        const rows = await accountsService.list(userId, workspaceId);
+        const rows = await accountsService.list(workspaceId);
         const bankBalance = rows.find((row) => row.id === bank.id);
         const cardBalance = rows.find((row) => row.id === card.id);
         assert.equal(bankBalance?.currentBalance, 900);
         assert.equal(bankBalance?.projectedBalance, 850);
         assert.equal(cardBalance?.currentBalance, 400);
 
-        const mismatch = await accountsService.reconcile(userId, workspaceId, bank.id, {
+        const mismatch = await accountsService.reconcile(workspaceId, bank.id, {
           statementDate: "2026-01-31",
           statementBalance: 899,
         });
@@ -132,7 +132,7 @@ describe(
           difference: -1,
         });
 
-        const matched = await accountsService.reconcile(userId, workspaceId, bank.id, {
+        const matched = await accountsService.reconcile(workspaceId, bank.id, {
           statementDate: "2026-01-31",
           statementBalance: 900,
         });
@@ -149,20 +149,20 @@ describe(
         assert.equal(lockedRow.status, "reconciled");
         assert.equal(pendingRow.status, "pending");
         await assert.rejects(
-          () => transactionsService.update(userId, bankExpense.id, { status: "cleared" }),
+          () => transactionsService.update(workspaceId, bankExpense.id, { status: "cleared" }),
           /Reconciled transaction ledger fields cannot be changed/,
         );
         await assert.rejects(
-          () => transactionsService.update(userId, pending.id, { status: "cleared" }),
+          () => transactionsService.update(workspaceId, pending.id, { status: "cleared" }),
           /locked by reconciliation/,
         );
         await assert.rejects(
-          () => transactionsService.remove(userId, bankExpense.id),
+          () => transactionsService.remove(workspaceId, bankExpense.id),
           /Reconciled transactions cannot be deleted/,
         );
         await assert.rejects(
           () =>
-            transactionsService.create(userId, workspaceId, {
+            transactionsService.create(workspaceId, {
               accountId: bank.id,
               status: "reconciled",
               amount: 10,
@@ -174,7 +174,7 @@ describe(
         );
         await assert.rejects(
           () =>
-            transactionsService.create(userId, workspaceId, {
+            transactionsService.create(workspaceId, {
               accountId: bank.id,
               amount: 10,
               date: "2026-01-15",
@@ -184,12 +184,12 @@ describe(
           /locked by reconciliation/,
         );
         await assert.rejects(
-          () => accountsService.removeTransfer(userId, workspaceId, transfer.id),
+          () => accountsService.removeTransfer(workspaceId, transfer.id),
           /locked by reconciliation/,
         );
         await assert.rejects(
           () =>
-            accountsService.createTransfer(userId, workspaceId, {
+            accountsService.createTransfer(workspaceId, {
               fromAccountId: bank.id,
               toAccountId: card.id,
               amount: 10,
@@ -199,7 +199,7 @@ describe(
         );
         await assert.rejects(
           () =>
-            accountsService.reconcile(userId, workspaceId, bank.id, {
+            accountsService.reconcile(workspaceId, bank.id, {
               statementDate: "2026-01-15",
               statementBalance: 900,
             }),

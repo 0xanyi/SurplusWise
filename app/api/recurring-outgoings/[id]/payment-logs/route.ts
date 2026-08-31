@@ -21,10 +21,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id: outgoingId } = await params;
 
-    const logs = await paymentLogService.listForOutgoing(userId, outgoingId, workspaceId);
+    const logs = await paymentLogService.listForOutgoing(workspaceId, outgoingId);
     return NextResponse.json({ logs: logs.map(toPaymentLog) });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
@@ -46,7 +46,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id: outgoingId } = await params;
     const body = await request.json();
 
@@ -60,18 +60,13 @@ export async function POST(
       );
     }
 
-    const row = await paymentLogService.create(
-      userId,
-      outgoingId,
-      {
-        amount: body.amount,
-        paidAt,
-        // Canonical period month is derived server-side from paidAt
-        periodMonth: getPeriodMonthFromDate(paidAt),
-        notes: body.notes,
-      },
-      workspaceId,
-    );
+    const row = await paymentLogService.create(workspaceId, outgoingId, {
+      amount: body.amount,
+      paidAt,
+      // Canonical period month is derived server-side from paidAt
+      periodMonth: getPeriodMonthFromDate(paidAt),
+      notes: body.notes,
+    });
 
     return NextResponse.json(toPaymentLog(row));
   } catch (error) {

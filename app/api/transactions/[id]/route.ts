@@ -36,10 +36,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
-    const row = await txService.getById(userId, id);
+    const row = await txService.getById(workspaceId, id);
     if (!row) {
       return NextResponse.json(
         { error: "Transaction not found" },
@@ -65,7 +65,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, actorUserId } = await requireAuthWithWorkspace();
+    const { actorUserId, workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
@@ -75,7 +75,7 @@ export async function PATCH(
         ? body.receipt_url
         : undefined;
 
-    const row = await txService.update(userId, id, {
+    const row = await txService.update(workspaceId, id, {
       ...(body.amount !== undefined && { amount: body.amount }),
       ...(body.date !== undefined && { date: body.date }),
       ...(body.type !== undefined && { type: body.type }),
@@ -146,11 +146,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
 
-    const documents = await documentsService.listForTransactionDeletion(userId, workspaceId, id);
-    await txService.remove(userId, id);
+    const documents = await documentsService.listForTransactionDeletion(workspaceId, id);
+    await txService.remove(workspaceId, id);
     if (isStorageConfigured()) {
       await Promise.all(
         documents.map(async (document) => {

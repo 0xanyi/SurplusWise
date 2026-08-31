@@ -19,7 +19,7 @@ function toCategory(row: Awaited<ReturnType<typeof categoriesService.list>>[numb
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
 
     const searchParams = request.nextUrl.searchParams;
     const rawType = searchParams.get("type");
@@ -30,7 +30,6 @@ export async function GET(request: NextRequest) {
       : undefined;
 
     const categories = await categoriesService.list(
-      userId,
       workspaceId,
       type,
     );
@@ -56,10 +55,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
-    const row = await categoriesService.create(userId, workspaceId, {
+    const row = await categoriesService.create(workspaceId, {
       name: body.name,
       type: body.type,
       color: body.color,

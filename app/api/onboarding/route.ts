@@ -5,8 +5,8 @@ import { ZodError } from "zod";
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
-    const status = await onboardingService.getStatus(userId, workspaceId);
+    const { actorUserId, workspaceId } = await requireAuthWithWorkspace("owner");
+    const status = await onboardingService.getStatus(actorUserId, workspaceId);
     return NextResponse.json({ completed: status?.hasCompleted ?? false });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
@@ -18,10 +18,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("owner");
+    const { actorUserId, workspaceId } = await requireAuthWithWorkspace("owner");
     const body = await request.json();
 
-    await onboardingService.complete(userId, workspaceId, {
+    await onboardingService.complete(actorUserId, workspaceId, {
       currency: body.currency,
       budget: body.budget ?? null,
       transaction: body.transaction ?? null,

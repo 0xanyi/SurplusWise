@@ -30,9 +30,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
-    const rows = await documentsService.list(userId, workspaceId, id);
+    const rows = await documentsService.list(workspaceId, id);
     return NextResponse.json({
       documents: rows.map((row) => toDocument(id, row)),
       storage_configured: isStorageConfigured(),
@@ -50,16 +50,16 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { actorUserId, workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
-    const rateLimit = checkRateLimit(`${userId}:supporting-documents`, {
+    const rateLimit = checkRateLimit(`${actorUserId}:supporting-documents`, {
       limit: 20,
       windowMs: 60_000,
     });
     if (!rateLimit.success) {
       return NextResponse.json({ error: "Too many uploads. Please wait a minute." }, { status: 429 });
     }
-    await documentsService.assertCanUpload(userId, workspaceId, id);
+    await documentsService.assertCanUpload(workspaceId, id);
     if (!isStorageConfigured()) {
       return NextResponse.json(
         { error: "File storage is not configured on this Sika instance" },
@@ -90,7 +90,7 @@ export async function POST(
 
     const uploaded = await uploadSupportingDocument(buffer, detectedMime);
     try {
-      const row = await documentsService.create(userId, workspaceId, id, {
+      const row = await documentsService.create(workspaceId, id, {
         storageKey: uploaded.key,
         fileName: file.name,
         mimeType: detectedMime,

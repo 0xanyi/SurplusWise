@@ -21,8 +21,8 @@ function toRule(row: Awaited<ReturnType<typeof rulesService.list>>[number]) {
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
-    const rules = await rulesService.list(userId, workspaceId);
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
+    const rules = await rulesService.list(workspaceId);
     return NextResponse.json({ rules: rules.map(toRule) });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
@@ -34,9 +34,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
-    const row = await rulesService.create(userId, workspaceId, {
+    const row = await rulesService.create(workspaceId, {
       name: body.name,
       matchField: body.matchField ?? body.match_field,
       matchValue: body.matchValue ?? body.match_value,

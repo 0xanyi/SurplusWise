@@ -8,9 +8,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
-    await givingService.updateRecipient(userId, workspaceId, id, await request.json());
+    await givingService.updateRecipient(workspaceId, id, await request.json());
     return NextResponse.json({ success: true });
   } catch (error) {
     return errorResponse(

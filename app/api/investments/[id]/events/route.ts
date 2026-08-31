@@ -20,10 +20,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
-    const events = await investmentsService.listEvents(userId, id);
+    const events = await investmentsService.listEvents(workspaceId, id);
 
     return NextResponse.json({ events: events.map(toEvent) });
   } catch (error) {
@@ -49,11 +49,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
-    const event = await investmentsService.addEvent(userId, id, {
+    const event = await investmentsService.addEvent(workspaceId, id, {
       eventType: body.eventType ?? body.event_type,
       amount: body.amount,
       eventDate: body.eventDate ?? body.event_date,

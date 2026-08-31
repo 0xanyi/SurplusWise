@@ -4,8 +4,8 @@ import * as categoriesService from "@/lib/db/categories";
 
 export async function POST() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
-    const result = await categoriesService.ensureDefaults(userId, workspaceId);
+    const { workspaceId } = await requireAuthWithWorkspace();
+    const result = await categoriesService.ensureDefaults(workspaceId);
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

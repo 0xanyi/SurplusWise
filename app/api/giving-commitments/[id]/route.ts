@@ -8,14 +8,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
     const designationId =
       body.designationId !== undefined ? body.designationId : body.designation_id;
     const startDate = body.startDate !== undefined ? body.startDate : body.start_date;
     const endDate = body.endDate !== undefined ? body.endDate : body.end_date;
-    await commitmentsService.update(userId, workspaceId, id, {
+    await commitmentsService.update(workspaceId, id, {
       ...(body.name !== undefined && { name: body.name }),
       ...(body.amount !== undefined && { amount: body.amount }),
       ...(body.frequency !== undefined && { frequency: body.frequency }),

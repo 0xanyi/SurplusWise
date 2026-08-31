@@ -121,11 +121,10 @@ export async function buildWorkspaceArchive(
 }
 
 export async function createWorkspaceArchive(
-  userId: string,
   workspaceId: string,
   loadStoredFile?: LoadStoredFile,
 ): Promise<{ bytes: Uint8Array; workspaceName: string; generatedAt: string }> {
-  const source = await createWorkspaceArchiveSource(userId, workspaceId);
+  const source = await createWorkspaceArchiveSource(workspaceId);
   const externalFile = source.files.find((file) => /^https?:\/\//i.test(file.storageKey));
   if (externalFile) {
     throw new WorkspaceArchiveError(

@@ -7,10 +7,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; logId: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id, logId } = await params;
 
-    await debtsService.removeBalanceLog(userId, id, logId);
+    await debtsService.removeBalanceLog(workspaceId, id, logId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -6,7 +6,6 @@ import {
   pushNotificationPreferences,
   pushSubscriptions,
   workspaceMemberships,
-  workspaces,
 } from "@/db/schema";
 import * as notificationsService from "@/lib/db/notifications";
 import { userIdSchema, workspaceIdSchema } from "@/lib/db/validation";
@@ -229,7 +228,6 @@ export async function dispatchPushNotifications(options: { today?: string; send?
       id: pushSubscriptions.id,
       userId: pushSubscriptions.userId,
       workspaceId: pushSubscriptions.workspaceId,
-      sourceUserId: workspaces.userId,
       endpoint: pushSubscriptions.endpoint,
       p256dh: pushSubscriptions.p256dh,
       auth: pushSubscriptions.auth,
@@ -243,7 +241,6 @@ export async function dispatchPushNotifications(options: { today?: string; send?
         eq(pushNotificationPreferences.enabled, true),
       ),
     )
-    .innerJoin(workspaces, eq(workspaces.id, pushSubscriptions.workspaceId))
     .innerJoin(
       workspaceMemberships,
       and(
@@ -271,10 +268,9 @@ export async function dispatchPushNotifications(options: { today?: string; send?
     let notifications = notificationsByWorkspace.get(workspaceKey);
     if (!notifications) {
       notifications = (await notificationsService.listCurrent(
-        subscription.sourceUserId,
         subscription.workspaceId,
-        options.today,
         subscription.userId,
+        options.today,
       )).filter((notification) => !notification.readAt);
       notificationsByWorkspace.set(workspaceKey, notifications);
       summary.notifications += notifications.length;

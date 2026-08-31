@@ -1,7 +1,7 @@
 import { and, eq, isNotNull, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { workspaceMemberships, workspaces } from "@/db/schema";
-import { userIdSchema, idSchema, workspaceCreateSchema, workspaceUpdateSchema } from "./validation";
+import { userIdSchema, idSchema, workspaceCreateSchema, workspaceIdSchema, workspaceUpdateSchema } from "./validation";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -107,6 +107,18 @@ export async function getAccess(userId: string, id: string) {
     workspace: row.workspace,
     role: row.workspace.userId === userId ? "owner" : row.membershipRole!,
   };
+}
+
+/** Owner id stored on leftover books `user_id` columns. Not an isolation key. */
+export async function ownerUserId(workspaceId: string) {
+  workspaceIdSchema.parse(workspaceId);
+  const [row] = await db
+    .select({ userId: workspaces.userId })
+    .from(workspaces)
+    .where(eq(workspaces.id, workspaceId))
+    .limit(1);
+  if (!row) throw new Error("Workspace not found");
+  return row.userId;
 }
 
 /** Get a single workspace by ID (null if not found or wrong user). */

@@ -10,9 +10,9 @@ import {
   amountSchema,
   idSchema,
   periodMonthSchema,
-  userIdSchema,
   workspaceIdSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 type TransactionType = "income" | "expense" | "giving";
 
@@ -72,17 +72,16 @@ function payeesMatch(expected: string | null, actual: string | null) {
   );
 }
 
-export async function generate(userId: string, workspaceId: string, periodMonth: string) {
-  userIdSchema.parse(userId);
+export async function generate(workspaceId: string, periodMonth: string) {
   workspaceIdSchema.parse(workspaceId);
   periodMonthSchema.parse(periodMonth);
+  const userId = await ownerUserId(workspaceId);
 
   const schedules = await db
     .select()
     .from(recurringOutgoings)
     .where(
       and(
-        eq(recurringOutgoings.userId, userId),
         eq(recurringOutgoings.workspaceId, workspaceId),
         eq(recurringOutgoings.isActive, true),
         eq(recurringOutgoings.frequency, "monthly"),
@@ -119,8 +118,7 @@ export async function generate(userId: string, workspaceId: string, periodMonth:
     .returning();
 }
 
-export async function list(userId: string, workspaceId: string, periodMonth: string) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string, periodMonth: string) {
   workspaceIdSchema.parse(workspaceId);
   periodMonthSchema.parse(periodMonth);
   const drafts = await db
@@ -147,7 +145,6 @@ export async function list(userId: string, workspaceId: string, periodMonth: str
     )
     .where(
       and(
-        eq(recurringMoneyDrafts.userId, userId),
         eq(recurringMoneyDrafts.workspaceId, workspaceId),
         eq(recurringMoneyDrafts.periodMonth, periodMonth),
       ),
@@ -169,7 +166,6 @@ export async function list(userId: string, workspaceId: string, periodMonth: str
     .innerJoin(transactions, eq(recurringMoneyDraftSettlements.transactionId, transactions.id))
     .where(
       and(
-        eq(recurringMoneyDraftSettlements.userId, userId),
         eq(recurringMoneyDraftSettlements.workspaceId, workspaceId),
         inArray(recurringMoneyDraftSettlements.draftId, drafts.map((draft) => draft.id)),
       ),
@@ -217,11 +213,9 @@ async function recordedByDraft(draftIds: string[]) {
 
 /** Match high-confidence imports up to the remaining expected amount. */
 export async function findImportMatches(
-  userId: string,
   workspaceId: string,
   candidates: ImportMatchCandidate[],
 ): Promise<DraftImportMatch[]> {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   if (candidates.length === 0) return [];
   const dates = candidates.map((candidate) => candidate.date).sort();
@@ -230,7 +224,6 @@ export async function findImportMatches(
     .from(recurringMoneyDrafts)
     .where(
       and(
-        eq(recurringMoneyDrafts.userId, userId),
         eq(recurringMoneyDrafts.workspaceId, workspaceId),
         gte(recurringMoneyDrafts.dueDate, shiftDate(dates[0], -7)),
         lte(recurringMoneyDrafts.dueDate, shiftDate(dates.at(-1)!, 7)),
@@ -285,12 +278,10 @@ export async function findImportMatches(
 }
 
 export async function updateExpectedAmount(
-  userId: string,
   workspaceId: string,
   draftId: string,
   expectedAmount: number,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(draftId);
   amountSchema.parse(expectedAmount);
@@ -300,7 +291,6 @@ export async function updateExpectedAmount(
     .where(
       and(
         eq(recurringMoneyDrafts.id, draftId),
-        eq(recurringMoneyDrafts.userId, userId),
         eq(recurringMoneyDrafts.workspaceId, workspaceId),
       ),
     )
@@ -310,15 +300,14 @@ export async function updateExpectedAmount(
 }
 
 export async function matchTransaction(
-  userId: string,
   workspaceId: string,
   draftId: string,
   transactionId: string,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(draftId);
   idSchema.parse(transactionId);
+  const userId = await ownerUserId(workspaceId);
   return db.transaction(async (tx) => {
     const [draft] = await tx
       .select({ id: recurringMoneyDrafts.id, type: recurringMoneyDrafts.type })
@@ -326,7 +315,6 @@ export async function matchTransaction(
       .where(
         and(
           eq(recurringMoneyDrafts.id, draftId),
-          eq(recurringMoneyDrafts.userId, userId),
           eq(recurringMoneyDrafts.workspaceId, workspaceId),
         ),
       )
@@ -339,7 +327,6 @@ export async function matchTransaction(
       .where(
         and(
           eq(transactions.id, transactionId),
-          eq(transactions.userId, userId),
           eq(transactions.workspaceId, workspaceId),
         ),
       )
@@ -365,12 +352,10 @@ export async function matchTransaction(
 }
 
 export async function unmatch(
-  userId: string,
   workspaceId: string,
   draftId: string,
   transactionId: string,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(draftId);
   idSchema.parse(transactionId);
@@ -380,7 +365,6 @@ export async function unmatch(
       and(
         eq(recurringMoneyDraftSettlements.draftId, draftId),
         eq(recurringMoneyDraftSettlements.transactionId, transactionId),
-        eq(recurringMoneyDraftSettlements.userId, userId),
         eq(recurringMoneyDraftSettlements.workspaceId, workspaceId),
       ),
     )

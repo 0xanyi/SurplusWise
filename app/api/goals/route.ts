@@ -46,10 +46,10 @@ function toGoal(
 
 export async function GET() {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const [rows, spentByGoal] = await Promise.all([
-      goalsService.list(userId, workspaceId),
-      goalActivitiesService.getSpentByGoal(userId, workspaceId),
+      goalsService.list(workspaceId),
+      goalActivitiesService.getSpentByGoal(workspaceId),
     ]);
     const today = new Date().toISOString().slice(0, 10);
     const apiGoals = rows.map((row) => toGoal(row, spentByGoal.get(row.id) ?? 0, today));
@@ -76,10 +76,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const body = await request.json();
 
-    const row = await goalsService.create(userId, workspaceId, {
+    const row = await goalsService.create(workspaceId, {
       name: body.name,
       category: body.category,
       targetAmount: body.targetAmount ?? body.target_amount,

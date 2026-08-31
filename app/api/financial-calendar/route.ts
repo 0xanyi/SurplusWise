@@ -7,7 +7,7 @@ import { periodMonthSchema } from "@/lib/db/validation";
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const parsedBody: unknown = await request.json().catch(() => ({}));
     const body =
       parsedBody && typeof parsedBody === "object"
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
         body.period_month ??
         getPeriodMonthFromDate(getCurrentUtcDate()),
     );
-    const calendar = await calendarService.getMonth(userId, workspaceId, periodMonth);
+    const calendar = await calendarService.getMonth(workspaceId, periodMonth);
     return NextResponse.json({
       period_month: calendar.periodMonth,
       events: calendar.events.map((event) => ({

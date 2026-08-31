@@ -40,7 +40,7 @@ describe(
       ]);
 
       try {
-        const goal = await goalsService.create(userId, workspaceId, {
+        const goal = await goalsService.create(workspaceId, {
           name: "Annual insurance",
           category: "savings",
           targetAmount: 600,
@@ -49,7 +49,7 @@ describe(
         });
 
         await assert.rejects(
-          goalActivitiesService.create(userId, otherWorkspaceId, goal.id, {
+          goalActivitiesService.create(otherWorkspaceId, goal.id, {
             type: "contribution",
             amount: 50,
             occurredOn: "2028-01-01",
@@ -57,23 +57,23 @@ describe(
           /not found or unauthorized/,
         );
 
-        await goalActivitiesService.create(userId, workspaceId, goal.id, {
+        await goalActivitiesService.create(workspaceId, goal.id, {
           type: "contribution",
           amount: 50,
           occurredOn: "2028-01-01",
           notes: "January funding",
         });
-        await goalActivitiesService.create(userId, workspaceId, goal.id, {
+        await goalActivitiesService.create(workspaceId, goal.id, {
           type: "spending",
           amount: 40,
           occurredOn: "2028-02-01",
           notes: "Deposit paid",
         });
 
-        const [updated] = await goalsService.list(userId, workspaceId);
+        const [updated] = await goalsService.list(workspaceId);
         assert.equal(updated.currentAmount, "110.00");
 
-        const activities = await goalActivitiesService.list(userId, workspaceId, goal.id);
+        const activities = await goalActivitiesService.list(workspaceId, goal.id);
         assert.deepEqual(
           activities.map((activity) => [activity.type, activity.amount]),
           [
@@ -81,19 +81,19 @@ describe(
             ["contribution", "50.00"],
           ],
         );
-        assert.equal((await goalActivitiesService.getSpentByGoal(userId, workspaceId)).get(goal.id), 40);
+        assert.equal((await goalActivitiesService.getSpentByGoal(workspaceId)).get(goal.id), 40);
 
         await assert.rejects(
-          goalActivitiesService.create(userId, workspaceId, goal.id, {
+          goalActivitiesService.create(workspaceId, goal.id, {
             type: "spending",
             amount: 111,
             occurredOn: "2028-02-02",
           }),
           /cannot exceed the fund's available amount/,
         );
-        const [unchanged] = await goalsService.list(userId, workspaceId);
+        const [unchanged] = await goalsService.list(workspaceId);
         assert.equal(unchanged.currentAmount, "110.00");
-        assert.equal((await goalActivitiesService.list(userId, workspaceId, goal.id)).length, 2);
+        assert.equal((await goalActivitiesService.list(workspaceId, goal.id)).length, 2);
       } finally {
         await db.delete(users).where(eq(users.id, userId));
       }

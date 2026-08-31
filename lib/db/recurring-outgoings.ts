@@ -15,12 +15,12 @@ import {
 import * as clientsService from "./clients";
 import * as givingRecipientsService from "./giving-recipients";
 import {
-  userIdSchema,
   idSchema,
   recurringOutgoingCreateSchema,
   recurringOutgoingUpdateSchema,
   workspaceIdSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -69,7 +69,6 @@ function genId() {
 }
 
 async function assertRecurringMoneyShape(
-  userId: string,
   workspaceId: string,
   input: {
     type: RecurringMoneyType;
@@ -94,16 +93,16 @@ async function assertRecurringMoneyShape(
   if (input.givingDesignationId && !input.givingRecipientId) {
     throw new RecurringMoneyShapeError("A giving fund requires a recipient");
   }
-  if (input.clientId) await clientsService.assertInWorkspace(userId, workspaceId, input.clientId);
+  if (input.clientId) {
+    await clientsService.assertInWorkspace(workspaceId, input.clientId);
+  }
   if (input.givingRecipientId) {
     await givingRecipientsService.assertRecipientInWorkspace(
-      userId,
       workspaceId,
       input.givingRecipientId,
     );
     if (input.givingDesignationId) {
       await givingRecipientsService.assertDesignationInWorkspace(
-        userId,
         workspaceId,
         input.givingDesignationId,
         input.givingRecipientId,
@@ -121,14 +120,12 @@ async function assertRecurringMoneyShape(
  * caller making a second round trip per row.
  */
 export async function list(
-  userId: string,
   workspaceId: string,
   isActive?: boolean,
   type?: RecurringMoneyType,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
-  const conditions = [eq(recurringOutgoings.userId, userId), eq(recurringOutgoings.workspaceId, workspaceId)];
+  const conditions = [eq(recurringOutgoings.workspaceId, workspaceId)];
   if (isActive !== undefined) conditions.push(eq(recurringOutgoings.isActive, isActive));
   if (type !== undefined) conditions.push(eq(recurringOutgoings.type, type));
 
@@ -170,8 +167,7 @@ export async function list(
  * fronts for someone else. `total` remains their sum, because the ledger never
  * nets a recovered cost away — see `lib/rebill.ts`.
  */
-export async function getMonthlyTotal(userId: string, workspaceId: string) {
-  userIdSchema.parse(userId);
+export async function getMonthlyTotal(workspaceId: string) {
   workspaceIdSchema.parse(workspaceId);
 
   const [result] = await db
@@ -184,7 +180,6 @@ export async function getMonthlyTotal(userId: string, workspaceId: string) {
     .from(recurringOutgoings)
     .where(
       and(
-        eq(recurringOutgoings.userId, userId),
         eq(recurringOutgoings.workspaceId, workspaceId),
         eq(recurringOutgoings.type, "expense"),
         eq(recurringOutgoings.isActive, true),
@@ -201,10 +196,10 @@ export async function getMonthlyTotal(userId: string, workspaceId: string) {
 }
 
 /** Create a new recurring outgoing. */
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   recurringOutgoingCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   const id = genId();
   const now = new Date();
 
@@ -215,7 +210,7 @@ export async function create(userId: string, workspaceId: string, input: CreateI
   const givingDesignationId = input.givingDesignationId ?? null;
   const rebillAmount = normaliseRebillAmount(rebillMode, input.rebillAmount);
   assertRebillShape({ rebillMode, clientId, rebillAmount });
-  await assertRecurringMoneyShape(userId, workspaceId, {
+  await assertRecurringMoneyShape(workspaceId, {
     type,
     clientId,
     givingRecipientId,
@@ -253,22 +248,19 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 
 /** Partial update. Throws if not found / unauthorized. */
 export async function update(
-  userId: string,
+  workspaceId: string,
   id: string,
   input: UpdateInput,
-  workspaceId?: string,
   expectedType?: RecurringMoneyType,
 ) {
-  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
-  if (workspaceId) workspaceIdSchema.parse(workspaceId);
   recurringOutgoingUpdateSchema.parse(input);
 
   const ownership = [
     eq(recurringOutgoings.id, id),
-    eq(recurringOutgoings.userId, userId),
+    eq(recurringOutgoings.workspaceId, workspaceId),
   ];
-  if (workspaceId) ownership.push(eq(recurringOutgoings.workspaceId, workspaceId));
   if (expectedType) ownership.push(eq(recurringOutgoings.type, expectedType));
 
   return db.transaction(async (tx) => {
@@ -319,7 +311,7 @@ export async function update(
     if (!existing.workspaceId) {
       throw new Error("This recurring item has no workspace, so it cannot be updated");
     }
-    await assertRecurringMoneyShape(userId, existing.workspaceId, {
+    await assertRecurringMoneyShape(existing.workspaceId, {
       type,
       clientId,
       givingRecipientId,
@@ -362,20 +354,17 @@ export async function update(
 
 /** Delete a recurring outgoing. Throws if not found / unauthorized. */
 export async function remove(
-  userId: string,
+  workspaceId: string,
   id: string,
-  workspaceId?: string,
   expectedType?: RecurringMoneyType,
 ) {
-  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
-  if (workspaceId) workspaceIdSchema.parse(workspaceId);
 
   const ownership = [
     eq(recurringOutgoings.id, id),
-    eq(recurringOutgoings.userId, userId),
+    eq(recurringOutgoings.workspaceId, workspaceId),
   ];
-  if (workspaceId) ownership.push(eq(recurringOutgoings.workspaceId, workspaceId));
   if (expectedType) ownership.push(eq(recurringOutgoings.type, expectedType));
   const [existing] = await db
     .select({ id: recurringOutgoings.id })

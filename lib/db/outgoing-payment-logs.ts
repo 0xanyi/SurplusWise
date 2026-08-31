@@ -2,11 +2,11 @@ import { and, eq, desc } from "drizzle-orm";
 import { db } from "@/db/client";
 import { outgoingPaymentLogs, recurringOutgoings } from "@/db/schema";
 import {
-  userIdSchema,
   idSchema,
   outgoingPaymentLogCreateSchema,
   workspaceIdSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -23,32 +23,31 @@ function genId() {
   return crypto.randomUUID();
 }
 
-// ─── Service functions ───────────────────────────────────────────────────────
-
-/** List payment logs for a specific outgoing, newest first. */
-export async function listForOutgoing(
-  userId: string,
-  outgoingId: string,
-  workspaceId?: string,
-) {
-  userIdSchema.parse(userId);
-  idSchema.parse(outgoingId);
-  if (workspaceId) workspaceIdSchema.parse(workspaceId);
-
-  // Verify ownership
-  const ownership = [
-    eq(recurringOutgoings.id, outgoingId),
-    eq(recurringOutgoings.userId, userId),
-    eq(recurringOutgoings.type, "expense"),
-  ];
-  if (workspaceId) ownership.push(eq(recurringOutgoings.workspaceId, workspaceId));
+async function assertOutgoingInWorkspace(workspaceId: string, outgoingId: string) {
   const [outgoing] = await db
     .select({ id: recurringOutgoings.id })
     .from(recurringOutgoings)
-    .where(and(...ownership))
+    .where(
+      and(
+        eq(recurringOutgoings.id, outgoingId),
+        eq(recurringOutgoings.workspaceId, workspaceId),
+        eq(recurringOutgoings.type, "expense"),
+      ),
+    )
     .limit(1);
 
   if (!outgoing) throw new Error("Recurring outgoing not found or unauthorized");
+  return outgoing;
+}
+
+// ─── Service functions ───────────────────────────────────────────────────────
+
+/** List payment logs for a specific outgoing, newest first. */
+export async function listForOutgoing(workspaceId: string, outgoingId: string) {
+  workspaceIdSchema.parse(workspaceId);
+  idSchema.parse(outgoingId);
+
+  await assertOutgoingInWorkspace(workspaceId, outgoingId);
 
   return db
     .select()
@@ -61,20 +60,8 @@ export async function listForOutgoing(
  * Get payment status for all active outgoings for a specific month.
  * Returns which outgoings have been paid and which are still pending.
  */
-export async function getMonthlyStatus(
-  userId: string,
-  periodMonth: string,
-  workspaceId?: string,
-) {
-  userIdSchema.parse(userId);
-  if (workspaceId) workspaceIdSchema.parse(workspaceId);
-
-  const conditions = [
-    eq(outgoingPaymentLogs.userId, userId),
-    eq(outgoingPaymentLogs.periodMonth, periodMonth),
-    eq(recurringOutgoings.type, "expense"),
-  ];
-  if (workspaceId) conditions.push(eq(recurringOutgoings.workspaceId, workspaceId));
+export async function getMonthlyStatus(workspaceId: string, periodMonth: string) {
+  workspaceIdSchema.parse(workspaceId);
 
   const payments = await db
     .select({
@@ -85,7 +72,13 @@ export async function getMonthlyStatus(
     })
     .from(outgoingPaymentLogs)
     .innerJoin(recurringOutgoings, eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id))
-    .where(and(...conditions));
+    .where(
+      and(
+        eq(recurringOutgoings.workspaceId, workspaceId),
+        eq(outgoingPaymentLogs.periodMonth, periodMonth),
+        eq(recurringOutgoings.type, "expense"),
+      ),
+    );
 
   // Map outgoingId -> payment info
   const paymentMap = new Map<string, { id: string; amount: number; paidAt: string }>();
@@ -102,22 +95,20 @@ export async function getMonthlyStatus(
 
 /** Log a payment for a recurring outgoing. */
 export async function create(
-  userId: string,
+  workspaceId: string,
   outgoingId: string,
   input: CreateInput,
-  workspaceId?: string,
 ) {
-  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(outgoingId);
-  if (workspaceId) workspaceIdSchema.parse(workspaceId);
   outgoingPaymentLogCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
 
   const ownership = [
     eq(recurringOutgoings.id, outgoingId),
-    eq(recurringOutgoings.userId, userId),
+    eq(recurringOutgoings.workspaceId, workspaceId),
     eq(recurringOutgoings.type, "expense"),
   ];
-  if (workspaceId) ownership.push(eq(recurringOutgoings.workspaceId, workspaceId));
 
   return db.transaction(async (tx) => {
     const [outgoing] = await tx
@@ -148,33 +139,19 @@ export async function create(
 
 /** Delete a payment log. */
 export async function remove(
-  userId: string,
+  workspaceId: string,
   outgoingId: string,
   logId: string,
-  workspaceId?: string,
 ) {
-  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(outgoingId);
   idSchema.parse(logId);
-  if (workspaceId) workspaceIdSchema.parse(workspaceId);
 
-  const ownership = [
-    eq(recurringOutgoings.id, outgoingId),
-    eq(recurringOutgoings.userId, userId),
-    eq(recurringOutgoings.type, "expense"),
-  ];
-  if (workspaceId) ownership.push(eq(recurringOutgoings.workspaceId, workspaceId));
-  const [outgoing] = await db
-    .select({ id: recurringOutgoings.id })
-    .from(recurringOutgoings)
-    .where(and(...ownership))
-    .limit(1);
-  if (!outgoing) throw new Error("Recurring outgoing not found or unauthorized");
+  await assertOutgoingInWorkspace(workspaceId, outgoingId);
 
   const deletion = and(
     eq(outgoingPaymentLogs.id, logId),
     eq(outgoingPaymentLogs.outgoingId, outgoingId),
-    eq(outgoingPaymentLogs.userId, userId),
   );
   const [existing] = await db
     .select({ id: outgoingPaymentLogs.id })

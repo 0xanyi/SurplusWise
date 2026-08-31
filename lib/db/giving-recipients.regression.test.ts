@@ -41,31 +41,29 @@ describe(
       ]);
 
       try {
-        const recipient = await givingService.createRecipient(userId, workspaceId, {
+        const recipient = await givingService.createRecipient(workspaceId, {
           name: "Community Church",
           notes: "Local recipient",
         });
-        const designation = await givingService.createDesignation(userId, workspaceId, {
+        const designation = await givingService.createDesignation(workspaceId, {
           recipientId: recipient.id,
           name: "Building fund",
         });
-        const otherRecipient = await givingService.createRecipient(userId, otherWorkspaceId, {
+        const otherRecipient = await givingService.createRecipient(otherWorkspaceId, {
           name: "Other recipient",
         });
-        const otherDesignation = await givingService.createDesignation(
-          userId,
-          otherWorkspaceId,
+        const otherDesignation = await givingService.createDesignation(otherWorkspaceId,
           { recipientId: otherRecipient.id, name: "Other fund" },
         );
-        const client = await clientsService.create(userId, workspaceId, { name: "Not a recipient" });
-        await transactionRulesService.create(userId, workspaceId, {
+        const client = await clientsService.create(workspaceId, { name: "Not a recipient" });
+        await transactionRulesService.create(workspaceId, {
           name: "Client-only rule",
           matchField: "payee",
           matchValue: "community",
           clientId: client.id,
           priority: 10,
         });
-        await transactionRulesService.create(userId, workspaceId, {
+        await transactionRulesService.create(workspaceId, {
           name: "Giving category rule",
           matchField: "payee",
           matchValue: "community",
@@ -74,7 +72,6 @@ describe(
           priority: 20,
         });
         const [classifiedGift] = await transactionRulesService.applyToImportRows(
-          userId,
           workspaceId,
           [{
             type: "giving" as const,
@@ -88,19 +85,19 @@ describe(
         assert.equal("clientId" in classifiedGift, false);
 
         assert.deepEqual(
-          (await givingService.list(userId, workspaceId)).map((row) => row.id),
+          (await givingService.list(workspaceId)).map((row) => row.id),
           [recipient.id],
         );
         await assert.rejects(
           () =>
-            givingService.createDesignation(userId, workspaceId, {
+            givingService.createDesignation(workspaceId, {
               recipientId: otherRecipient.id,
               name: "Cross-workspace fund",
             }),
           /not found or unauthorized/,
         );
 
-        const gift = await transactionsService.create(userId, workspaceId, {
+        const gift = await transactionsService.create(workspaceId, {
           amount: 100,
           date: "2026-08-12",
           type: "giving",
@@ -113,7 +110,7 @@ describe(
 
         await assert.rejects(
           () =>
-            transactionsService.create(userId, workspaceId, {
+            transactionsService.create(workspaceId, {
               amount: 10,
               date: "2026-08-12",
               type: "expense",
@@ -124,7 +121,7 @@ describe(
         );
         await assert.rejects(
           () =>
-            transactionsService.create(userId, workspaceId, {
+            transactionsService.create(workspaceId, {
               amount: 10,
               date: "2026-08-12",
               type: "giving",
@@ -135,7 +132,7 @@ describe(
         );
         await assert.rejects(
           () =>
-            transactionsService.create(userId, workspaceId, {
+            transactionsService.create(workspaceId, {
               amount: 10,
               date: "2026-08-12",
               type: "giving",
@@ -146,22 +143,22 @@ describe(
           /not found for this recipient/,
         );
         await assert.rejects(
-          () => transactionsService.update(userId, gift.id, { type: "expense" }),
+          () => transactionsService.update(workspaceId, gift.id, { type: "expense" }),
           /only be assigned to giving/,
         );
 
         await assert.rejects(
-          () => givingService.updateRecipient(userId, otherWorkspaceId, recipient.id, { isActive: false }),
+          () => givingService.updateRecipient(otherWorkspaceId, recipient.id, { isActive: false }),
           /not found or unauthorized/,
         );
-        await givingService.updateRecipient(userId, workspaceId, recipient.id, { isActive: false });
-        await givingService.updateDesignation(userId, workspaceId, designation.id, { isActive: false });
-        assert.deepEqual(await givingService.list(userId, workspaceId, true), []);
-        const preserved = await transactionsService.getById(userId, gift.id);
+        await givingService.updateRecipient(workspaceId, recipient.id, { isActive: false });
+        await givingService.updateDesignation(workspaceId, designation.id, { isActive: false });
+        assert.deepEqual(await givingService.list(workspaceId, true), []);
+        const preserved = await transactionsService.getById(workspaceId, gift.id);
         assert.equal(preserved?.givingRecipientId, recipient.id);
         assert.equal(preserved?.givingDesignationId, designation.id);
 
-        const cleared = await transactionsService.update(userId, gift.id, {
+        const cleared = await transactionsService.update(workspaceId, gift.id, {
           givingRecipientId: null,
           givingDesignationId: null,
           type: "expense",

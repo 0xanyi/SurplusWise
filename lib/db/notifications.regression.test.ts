@@ -43,25 +43,25 @@ describe(
       ]);
 
       try {
-        await recurringMoneyService.create(userId, workspaceId, {
+        await recurringMoneyService.create(workspaceId, {
           name: "Salary",
           amount: 1000,
           type: "income",
           dayOfMonth: 10,
         });
-        await recurringMoneyService.create(userId, workspaceId, {
+        await recurringMoneyService.create(workspaceId, {
           name: "Rent",
           amount: 600,
           type: "expense",
           dayOfMonth: 12,
         });
-        await recurringMoneyService.create(userId, workspaceId, {
+        await recurringMoneyService.create(workspaceId, {
           name: "Later bill",
           amount: 30,
           type: "expense",
           dayOfMonth: 18,
         });
-        await recurringMoneyService.create(userId, otherWorkspaceId, {
+        await recurringMoneyService.create(otherWorkspaceId, {
           name: "Other workspace bill",
           amount: 20,
           type: "expense",
@@ -69,8 +69,8 @@ describe(
         });
 
         let notifications = await notificationsService.listDue(
-          userId,
           workspaceId,
+          userId,
           "2028-02-10",
         );
         assert.deepEqual(
@@ -88,15 +88,15 @@ describe(
           true,
         );
         notifications = await notificationsService.listDue(
-          userId,
           workspaceId,
+          userId,
           "2028-02-10",
         );
         assert.ok(notifications[0].readAt instanceof Date);
         assert.equal(
           (await notificationsService.listDue(
-            userId,
             otherWorkspaceId,
+            userId,
             "2028-02-10",
           ))[0].readAt,
           null,
@@ -109,28 +109,28 @@ describe(
           false,
         );
         notifications = await notificationsService.listDue(
-          userId,
           workspaceId,
+          userId,
           "2028-02-10",
         );
         assert.equal(notifications[0].readAt, null);
 
-        await recurringMoneyService.create(userId, workspaceId, {
+        await recurringMoneyService.create(workspaceId, {
           name: "Month boundary bill",
           amount: 45,
           type: "expense",
           dayOfMonth: 2,
         });
         const projected = (await notificationsService.listDue(
-          userId,
           workspaceId,
+          userId,
           "2028-02-26",
         )).find((notification) => notification.date === "2028-03-02")!;
         await notificationsService.markRead(userId, workspaceId, projected.id, true);
-        await draftsService.generate(userId, workspaceId, "2028-03-01");
+        await draftsService.generate(workspaceId, "2028-03-01");
         const materialized = (await notificationsService.listDue(
-          userId,
           workspaceId,
+          userId,
           "2028-03-01",
         )).find((notification) => notification.date === "2028-03-02")!;
         assert.equal(materialized.id, projected.id);
@@ -172,14 +172,14 @@ describe(
       ]);
 
       try {
-        const reviewable = await transactionsService.create(userId, workspaceId, {
+        const reviewable = await transactionsService.create(workspaceId, {
           amount: 27.5,
           date: "2028-02-10",
           type: "expense",
           category: "Uncategorized",
           payee: "Corner Shop",
         });
-        const other = await transactionsService.create(userId, otherWorkspaceId, {
+        const other = await transactionsService.create(otherWorkspaceId, {
           amount: 50,
           date: "2028-02-10",
           type: "expense",
@@ -191,7 +191,7 @@ describe(
           .set({ needsReview: true })
           .where(inArray(transactions.id, [reviewable.id, other.id]));
 
-        let reviewItems = await notificationsService.listReviewItems(userId, workspaceId);
+        let reviewItems = await notificationsService.listReviewItems(workspaceId, userId);
         assert.equal(reviewItems.length, 1);
         assert.deepEqual(reviewItems[0], {
           id: `transaction-review:${reviewable.id}`,
@@ -207,20 +207,20 @@ describe(
         });
 
         await notificationsService.markRead(userId, workspaceId, reviewItems[0].id, true);
-        reviewItems = await notificationsService.listReviewItems(userId, workspaceId);
+        reviewItems = await notificationsService.listReviewItems(workspaceId, userId);
         assert.ok(reviewItems[0].readAt instanceof Date);
         assert.equal(
-          (await notificationsService.listReviewItems(userId, otherWorkspaceId))[0].readAt,
+          (await notificationsService.listReviewItems(otherWorkspaceId, userId))[0].readAt,
           null,
           "read state must not cross workspace boundaries",
         );
 
-        await transactionsService.bulkUpdateMetadata(userId, workspaceId, {
+        await transactionsService.bulkUpdateMetadata(workspaceId, {
           ids: [reviewable.id],
           needsReview: false,
         });
         assert.equal(
-          (await notificationsService.listReviewItems(userId, workspaceId)).length,
+          (await notificationsService.listReviewItems(workspaceId, userId)).length,
           0,
           "reviewed transactions disappear without separate notification cleanup",
         );
@@ -258,7 +258,7 @@ describe(
       ]);
 
       try {
-        const budget = await budgetsService.create(userId, workspaceId, {
+        const budget = await budgetsService.create(workspaceId, {
           category: "Food",
           amount: 100,
           period: "monthly",
@@ -266,13 +266,13 @@ describe(
           endDate: "2028-02-29",
           type: "expense",
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 85,
           date: "2028-02-05",
           type: "expense",
           category: "Food",
         });
-        await transactionsService.create(userId, otherWorkspaceId, {
+        await transactionsService.create(otherWorkspaceId, {
           amount: 1000,
           date: "2028-02-05",
           type: "expense",
@@ -280,8 +280,8 @@ describe(
         });
 
         let limits = await notificationsService.listBudgetLimits(
-          userId,
           workspaceId,
+          userId,
           "2028-02-10",
         );
         assert.deepEqual(limits, [{
@@ -298,25 +298,37 @@ describe(
         }]);
 
         await notificationsService.markRead(userId, workspaceId, limits[0].id, true);
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 20,
           date: "2028-02-06",
           type: "expense",
           category: "Food",
         });
-        limits = await notificationsService.listBudgetLimits(userId, workspaceId, "2028-02-10");
+        limits = await notificationsService.listBudgetLimits(
+          workspaceId,
+          userId,
+          "2028-02-10",
+        );
         assert.equal(limits[0].id, `budget-limit:${budget.id}:exceeded`);
         assert.equal(limits[0].description, "105% of budget used");
         assert.equal(limits[0].readAt, null, "exceeding is a new alert after a read warning");
         assert.equal(
-          (await notificationsService.listBudgetLimits(userId, workspaceId, "2028-03-01")).length,
+          (await notificationsService.listBudgetLimits(
+            workspaceId,
+            userId,
+            "2028-03-01",
+          )).length,
           0,
           "expired budget periods are not current alerts",
         );
 
-        await budgetsService.update(userId, budget.id, { isActive: false });
+        await budgetsService.update(workspaceId, budget.id, { isActive: false });
         assert.equal(
-          (await notificationsService.listBudgetLimits(userId, workspaceId, "2028-02-10")).length,
+          (await notificationsService.listBudgetLimits(
+            workspaceId,
+            userId,
+            "2028-02-10",
+          )).length,
           0,
           "inactive budgets disappear without separate notification cleanup",
         );
@@ -343,7 +355,7 @@ describe(
       });
 
       try {
-        await budgetsService.create(userId, workspaceId, {
+        await budgetsService.create(workspaceId, {
           category: "Salary",
           amount: 1000,
           period: "monthly",
@@ -351,7 +363,7 @@ describe(
           endDate: "2028-02-29",
           type: "income",
         });
-        await transactionsService.create(userId, workspaceId, {
+        await transactionsService.create(workspaceId, {
           amount: 1000,
           date: "2028-02-05",
           type: "income",
@@ -359,7 +371,11 @@ describe(
         });
 
         assert.equal(
-          (await notificationsService.listBudgetLimits(userId, workspaceId, "2028-02-10")).length,
+          (await notificationsService.listBudgetLimits(
+            workspaceId,
+            userId,
+            "2028-02-10",
+          )).length,
           0,
           "meeting an income projection is not a budget-limit alert",
         );
@@ -402,8 +418,8 @@ describe(
         delete process.env.BACKUP_REPORT_TOKEN;
         assert.equal(
           (await notificationsService.listBackupAlerts(
-            userId,
             workspaceId,
+            userId,
             new Date("2028-02-04T13:00:00Z"),
           )).length,
           0,
@@ -412,8 +428,8 @@ describe(
 
         process.env.BACKUP_REPORT_TOKEN = "backup-alert-secret";
         let alerts = await notificationsService.listBackupAlerts(
-          userId,
           workspaceId,
+          userId,
           new Date("2028-02-04T13:00:00Z"),
         );
         assert.deepEqual(alerts, [{
@@ -430,8 +446,8 @@ describe(
         }]);
         assert.equal(
           (await notificationsService.listBackupAlerts(
-            userId,
             otherWorkspaceId,
+            userId,
             new Date("2028-02-04T13:00:00Z"),
           )).length,
           0,
@@ -442,8 +458,8 @@ describe(
         const oldSuccess = new Date("2028-02-01T12:00:00Z");
         await reportBackupSuccess(oldSuccess);
         alerts = await notificationsService.listBackupAlerts(
-          userId,
           workspaceId,
+          userId,
           new Date("2028-02-04T13:00:00Z"),
         );
         assert.equal(alerts[0].id, `backup-stale:${oldSuccess.toISOString()}`);
@@ -453,8 +469,8 @@ describe(
         await reportBackupSuccess(new Date("2028-02-04T12:00:00Z"));
         assert.equal(
           (await notificationsService.listBackupAlerts(
-            userId,
             workspaceId,
+            userId,
             new Date("2028-02-04T13:00:00Z"),
           )).length,
           0,

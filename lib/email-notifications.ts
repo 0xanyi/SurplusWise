@@ -161,7 +161,6 @@ export async function dispatchEmailNotifications(options: { today?: string; send
     .select({
       userId: emailNotificationPreferences.userId,
       workspaceId: emailNotificationPreferences.workspaceId,
-      sourceUserId: workspaces.userId,
       email: users.email,
       workspaceName: workspaces.name,
       currency: workspaces.currency,
@@ -189,10 +188,9 @@ export async function dispatchEmailNotifications(options: { today?: string; send
 
   for (const preference of preferences) {
     const notifications = (await notificationsService.listCurrent(
-      preference.sourceUserId,
       preference.workspaceId,
-      options.today,
       preference.userId,
+      options.today,
     )).filter((notification) => !notification.readAt);
     summary.notifications += notifications.length;
     const claimed: Array<{

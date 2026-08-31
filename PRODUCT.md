@@ -74,10 +74,11 @@ today; it is a position, not a measured market finding.)*
   piece of state, and being wrong about which one is active corrupts the record.
 - Reporting has real deadlines behind it: tax year, financial year-end, annual giving
   summaries. CSV export exists so the numbers can leave the app.
-- The instance is a **single-account deployment**. One Sika instance supports one
-  account; that account may own many personal and business workspaces. Multi-user
-  (isolated accounts on one server) and household sharing (several people on one
-  ledger) are roadmap and are deliberately distinct — neither is present.
+- The instance bootstraps with one operator account via `SIKA_SETUP_TOKEN`. That
+  account may own many personal and business workspaces, and may invite other
+  people onto a workspace as members (household sharing). Isolated multi-user
+  (several private accounts on one server, each with their own unshared books)
+  is still not the same thing and is not offered as a separate product mode.
 - Security posture (shipped in v1.0.0): public self-registration is not open. An
   empty instance is claimed once via a server-side setup token
   (`SIKA_SETUP_TOKEN`); after the first account exists, signup is closed at the
@@ -91,11 +92,12 @@ today; it is a position, not a measured market finding.)*
 
 **Present:**
 
-- Email/password auth (Better Auth); single user per instance; no admin tier — the
-  first account is an ordinary user. Creating it requires the operator's server-only
-  `SIKA_SETUP_TOKEN`; registration closes after that account exists.
+- Email/password auth (Better Auth); no admin tier — the first account is an
+  ordinary user. Creating it requires the operator's server-only
+  `SIKA_SETUP_TOKEN`. Further people join a workspace by invitation, as members.
 - Workspaces: `personal` and `business` types, multiple allowed, per-workspace
-  currency, hard data isolation across every feature.
+  currency. Isolation of the books is the workspace, not the owner. Members act
+  as themselves on those books.
 - Transactions: `income`, `expense`, `giving`; CRUD, search, type/category/date-range
   filtering at the database level. Transactions can optionally belong to a
   financial account and carry pending, cleared, or reconciled status.
@@ -172,26 +174,26 @@ today; it is a position, not a measured market finding.)*
 - MIT licensed and public at `github.com/tickideasintl/sika`. Anything shipped is
   readable by self-hosters and contributors.
 
-**Decided — registration and multi-person access (2026-08-09, shipped in v1.0.0):**
+**Decided — registration and multi-person access:**
 
-- **v1 contract:** exactly one account per instance. Not “open until you flip a
-  switch,” and not household sharing.
-- **Bootstrap:** operator sets `SIKA_SETUP_TOKEN` at deploy; first visitor who
-  knows the token creates the only account. Empty-DB open signup is rejected
+- **Bootstrap (v1.0.0):** operator sets `SIKA_SETUP_TOKEN` at deploy; first visitor
+  who knows the token creates the first account. Empty-DB open signup is rejected
   because a public instance could be claimed by a bot before the operator arrives.
-- **Subsequent users in v1:** none. No invite UI, no registration toggle, no
-  user-admin screen, no SMTP requirement.
-- **Vocabulary for later work (do not conflate):**
+  The setup token is bootstrap authority, not a product role.
+- **Household sharing (shipped):** several identities on one workspace via
+  memberships and roles (owner / editor / viewer), provisioned by invitation.
+  A workspace is the books; members act as themselves on those books. Isolation
+  of money records is the workspace, not the owner.
+- **Vocabulary (do not conflate):**
   - *Isolated multi-user* = several private accounts on one server, each with their
-    own workspaces (Firefly-style). Still not shared books.
+    own workspaces (Firefly-style). Still not shared books. Not offered.
   - *Household sharing* = several identities on one workspace via memberships and
-    roles. Requires a real sharing model; must not be faked by extra accounts.
-- Workspaces remain one person’s personal/business isolation, not multi-person access.
+    roles. This is present.
 
 **Undecided:**
 
-- When (if ever) isolated multi-user is offered before household sharing, and what
-  the mail-free provisioning path is (likely operator CLI, not open registration).
+- Whether isolated multi-user is ever offered, and what the mail-free provisioning
+  path would be (likely operator CLI, not open registration).
 - Whether bank integration, when it arrives, is allowed to break the zero-third-party
   default (it would need to be opt-in to comply).
 

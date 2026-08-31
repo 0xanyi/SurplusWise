@@ -3,7 +3,6 @@ import { db } from "@/db/client";
 import { transactions, outgoingPaymentLogs, debtPayments, debtStatements, recurringOutgoings, debtsCredits, goals } from "@/db/schema";
 import { getCostOfBorrowing } from "./debt-statements";
 import {
-  userIdSchema,
   analyticsQuerySchema,
   workspaceIdSchema,
 } from "./validation";
@@ -103,12 +102,10 @@ interface TotalsSummary {
 }
 
 async function getTotalsForRange(
-  userId: string,
   workspaceId: string,
   range: DateRange,
 ): Promise<TotalsSummary> {
   const where = and(
-    eq(transactions.userId, userId),
     eq(transactions.workspaceId, workspaceId),
     gte(transactions.date, range.startDate),
     lte(transactions.date, range.endDate),
@@ -148,7 +145,6 @@ async function getTotalsForRange(
     )
     .where(
       and(
-        eq(outgoingPaymentLogs.userId, userId),
         eq(recurringOutgoings.workspaceId, workspaceId),
         eq(recurringOutgoings.type, "expense"),
         gte(outgoingPaymentLogs.paidAt, range.startDate),
@@ -169,7 +165,6 @@ async function getTotalsForRange(
     .innerJoin(debtsCredits, eq(debtPayments.debtId, debtsCredits.id))
     .where(
       and(
-        eq(debtPayments.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
         gte(debtPayments.paidAt, range.startDate),
         lte(debtPayments.paidAt, range.endDate),
@@ -200,7 +195,6 @@ function getPercentChange(current: number, previous: number) {
 // ─── Prediction helpers ─────────────────────────────────────────────────────
 
 async function getHistoricalMonthlyAverages(
-  userId: string,
   workspaceId: string,
   monthsBack: number = 3,
 ): Promise<{ avgIncome: number; avgExpenses: number }> {
@@ -214,7 +208,6 @@ async function getHistoricalMonthlyAverages(
   };
 
   const where = and(
-    eq(transactions.userId, userId),
     eq(transactions.workspaceId, workspaceId),
     gte(transactions.date, range.startDate),
     lte(transactions.date, range.endDate),
@@ -247,7 +240,6 @@ async function getHistoricalMonthlyAverages(
     .innerJoin(recurringOutgoings, eq(outgoingPaymentLogs.outgoingId, recurringOutgoings.id))
     .where(
       and(
-        eq(outgoingPaymentLogs.userId, userId),
         eq(recurringOutgoings.workspaceId, workspaceId),
         eq(recurringOutgoings.type, "expense"),
         gte(outgoingPaymentLogs.paidAt, range.startDate),
@@ -263,7 +255,6 @@ async function getHistoricalMonthlyAverages(
     .innerJoin(debtsCredits, eq(debtPayments.debtId, debtsCredits.id))
     .where(
       and(
-        eq(debtPayments.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
         gte(debtPayments.paidAt, range.startDate),
         lte(debtPayments.paidAt, range.endDate),
@@ -337,7 +328,6 @@ function calculateSpendingPrediction(
 }
 
 async function getActiveGoalsAllocation(
-  userId: string,
   workspaceId: string,
 ): Promise<number> {
   const activeGoals = await db
@@ -348,7 +338,6 @@ async function getActiveGoalsAllocation(
     .from(goals)
     .where(
       and(
-        eq(goals.userId, userId),
         eq(goals.workspaceId, workspaceId),
         eq(goals.isActive, true),
       ),
@@ -362,7 +351,6 @@ async function getActiveGoalsAllocation(
 }
 
 async function getCommittedMonthlyExpenses(
-  userId: string,
   workspaceId: string,
 ): Promise<number> {
   // Get active recurring outgoings
@@ -373,7 +361,6 @@ async function getCommittedMonthlyExpenses(
     .from(recurringOutgoings)
     .where(
       and(
-        eq(recurringOutgoings.userId, userId),
         eq(recurringOutgoings.workspaceId, workspaceId),
         eq(recurringOutgoings.type, "expense"),
         eq(recurringOutgoings.isActive, true),
@@ -391,7 +378,6 @@ async function getCommittedMonthlyExpenses(
       minimumPayment: debtStatements.minimumPayment,
     })
     .from(debtStatements)
-    .where(eq(debtStatements.userId, userId))
     .orderBy(desc(debtStatements.debtId), desc(debtStatements.periodEnd))
     .as("latest_statement");
 
@@ -403,7 +389,6 @@ async function getCommittedMonthlyExpenses(
     .leftJoin(latestStatement, eq(latestStatement.debtId, debtsCredits.id))
     .where(
       and(
-        eq(debtsCredits.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
         eq(debtsCredits.isActive, true),
       ),
@@ -429,13 +414,11 @@ async function getCommittedMonthlyExpenses(
  * - Cost of borrowing (statement interest + fees), reported beside expenses, never inside them
  */
 export async function getAnalytics(
-  userId: string,
   workspaceId: string,
   period: Period,
   custom?: Partial<DateRange>,
   comparisonMode: ComparisonMode = "previous-period",
 ): Promise<AnalyticsResult> {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   analyticsQuerySchema.parse({
     period,
@@ -447,7 +430,6 @@ export async function getAnalytics(
   const previousRange = getComparisonDateRange(range, comparisonMode);
 
   const where = and(
-    eq(transactions.userId, userId),
     eq(transactions.workspaceId, workspaceId),
     gte(transactions.date, range.startDate),
     lte(transactions.date, range.endDate),
@@ -513,7 +495,6 @@ export async function getAnalytics(
     )
     .where(
       and(
-        eq(outgoingPaymentLogs.userId, userId),
         eq(recurringOutgoings.workspaceId, workspaceId),
         eq(recurringOutgoings.type, "expense"),
         gte(outgoingPaymentLogs.paidAt, range.startDate),
@@ -556,7 +537,6 @@ export async function getAnalytics(
     .innerJoin(debtsCredits, eq(debtPayments.debtId, debtsCredits.id))
     .where(
       and(
-        eq(debtPayments.userId, userId),
         eq(debtsCredits.workspaceId, workspaceId),
         gte(debtPayments.paidAt, range.startDate),
         lte(debtPayments.paidAt, range.endDate),
@@ -651,14 +631,14 @@ export async function getAnalytics(
     a.month.localeCompare(b.month),
   );
 
-  const previousTotals = await getTotalsForRange(userId, workspaceId, previousRange);
+  const previousTotals = await getTotalsForRange(workspaceId, previousRange);
   const netBalance = totalIncome - totalExpenses - totalGivings;
   const previousNetBalance =
     previousTotals.totalIncome - previousTotals.totalExpenses - previousTotals.totalGivings;
 
   // Calculate spending prediction
   const { avgIncome: historicalAvgIncome, avgExpenses: historicalAvgExpenses } =
-    await getHistoricalMonthlyAverages(userId, workspaceId);
+    await getHistoricalMonthlyAverages(workspaceId);
   const daysInPeriod = Math.max(1, Math.round(
     (new Date(range.endDate).getTime() - new Date(range.startDate).getTime()) / (1000 * 60 * 60 * 24)
   ));
@@ -670,11 +650,11 @@ export async function getAnalytics(
     daysInPeriod,
   );
 
-  const costOfBorrowing = await getCostOfBorrowing(userId, workspaceId, range);
+  const costOfBorrowing = await getCostOfBorrowing(workspaceId, range);
 
   // Calculate safe-to-spend breakdown
-  const committedExpenses = await getCommittedMonthlyExpenses(userId, workspaceId);
-  const activeGoalsAllocation = await getActiveGoalsAllocation(userId, workspaceId);
+  const committedExpenses = await getCommittedMonthlyExpenses(workspaceId);
+  const activeGoalsAllocation = await getActiveGoalsAllocation(workspaceId);
   const safeToSpend = totalIncome - totalExpenses - totalGivings;
   const safeToSpendBreakdown: SafeToSpendBreakdown = {
     available: safeToSpend,

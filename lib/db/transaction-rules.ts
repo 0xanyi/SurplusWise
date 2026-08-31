@@ -3,11 +3,11 @@ import type { z } from "zod";
 import { db } from "@/db/client";
 import { transactionRules } from "@/db/schema";
 import * as clientsService from "./clients";
+import { ownerUserId } from "./workspaces";
 import {
   idSchema,
   transactionRuleCreateSchema,
   transactionRuleUpdateSchema,
-  userIdSchema,
   workspaceIdSchema,
 } from "./validation";
 
@@ -20,11 +20,9 @@ function isUniqueViolation(error: unknown): boolean {
   return "cause" in error && isUniqueViolation(error.cause);
 }
 
-export async function list(userId: string, workspaceId: string, activeOnly = false) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string, activeOnly = false) {
   workspaceIdSchema.parse(workspaceId);
   const conditions = [
-    eq(transactionRules.userId, userId),
     eq(transactionRules.workspaceId, workspaceId),
   ];
   if (activeOnly) conditions.push(eq(transactionRules.isActive, true));
@@ -39,12 +37,12 @@ export async function list(userId: string, workspaceId: string, activeOnly = fal
     );
 }
 
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   const valid = transactionRuleCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   if (valid.clientId) {
-    await clientsService.assertInWorkspace(userId, workspaceId, valid.clientId);
+    await clientsService.assertInWorkspace(workspaceId, valid.clientId);
   }
   const now = new Date();
   try {
@@ -72,17 +70,15 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 }
 
 export async function update(
-  userId: string,
   workspaceId: string,
   id: string,
   input: UpdateInput,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const valid = transactionRuleUpdateSchema.parse(input);
   if (valid.clientId) {
-    await clientsService.assertInWorkspace(userId, workspaceId, valid.clientId);
+    await clientsService.assertInWorkspace(workspaceId, valid.clientId);
   }
   const [existing] = await db
     .select()
@@ -90,7 +86,6 @@ export async function update(
     .where(
       and(
         eq(transactionRules.id, id),
-        eq(transactionRules.userId, userId),
         eq(transactionRules.workspaceId, workspaceId),
       ),
     )
@@ -116,7 +111,6 @@ export async function update(
       .where(
         and(
           eq(transactionRules.id, id),
-          eq(transactionRules.userId, userId),
           eq(transactionRules.workspaceId, workspaceId),
         ),
       )
@@ -130,8 +124,7 @@ export async function update(
   }
 }
 
-export async function remove(userId: string, workspaceId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function remove(workspaceId: string, id: string) {
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const [row] = await db
@@ -139,7 +132,6 @@ export async function remove(userId: string, workspaceId: string, id: string) {
     .where(
       and(
         eq(transactionRules.id, id),
-        eq(transactionRules.userId, userId),
         eq(transactionRules.workspaceId, workspaceId),
       ),
     )
@@ -157,8 +149,8 @@ export async function applyToImportRows<
     clientId?: string | null;
     needsReview?: boolean;
   },
->(userId: string, workspaceId: string, rows: T[]) {
-  const rules = await list(userId, workspaceId, true);
+>(workspaceId: string, rows: T[]) {
+  const rules = await list(workspaceId, true);
   return rows.map((row) => {
     const rule = rules.find((candidate) => {
       if (candidate.transactionType && candidate.transactionType !== row.type) return false;

@@ -8,11 +8,11 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
-    await goalsService.update(userId, id, {
+    await goalsService.update(workspaceId, id, {
       ...(body.name !== undefined && { name: body.name }),
       ...(body.category !== undefined && { category: body.category }),
       ...((body.targetAmount ?? body.target_amount) !== undefined && {
@@ -52,9 +52,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
-    await goalsService.remove(userId, id);
+    await goalsService.remove(workspaceId, id);
     return NextResponse.json({ success: true });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {

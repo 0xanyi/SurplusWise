@@ -6,7 +6,7 @@ import { ZodError } from "zod";
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
 
     const searchParams = request.nextUrl.searchParams;
     const period = (searchParams.get("period") || "month") as Period;
@@ -16,7 +16,6 @@ export async function GET(request: NextRequest) {
       "previous-period") as ComparisonMode;
 
     const result = await getAnalytics(
-      userId,
       workspaceId,
       period,
       startDate || endDate ? { startDate, endDate } : undefined,

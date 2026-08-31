@@ -17,9 +17,9 @@ import {
   clientCreateSchema,
   clientUpdateSchema,
   idSchema,
-  userIdSchema,
   workspaceIdSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -60,11 +60,10 @@ function genId() {
 // ─── Service functions ───────────────────────────────────────────────────────
 
 /** List clients in a workspace, optionally only active ones. */
-export async function list(userId: string, workspaceId: string, isActive?: boolean) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string, isActive?: boolean) {
   workspaceIdSchema.parse(workspaceId);
 
-  const conditions = [eq(clients.userId, userId), eq(clients.workspaceId, workspaceId)];
+  const conditions = [eq(clients.workspaceId, workspaceId)];
   if (isActive !== undefined) conditions.push(eq(clients.isActive, isActive));
 
   return db
@@ -74,14 +73,14 @@ export async function list(userId: string, workspaceId: string, isActive?: boole
     .orderBy(clients.name);
 }
 
-/** Fetch a single client (null if not found or wrong user). */
-export async function getById(userId: string, id: string) {
-  userIdSchema.parse(userId);
+/** Fetch a single client (null if not found or wrong workspace). */
+export async function getById(workspaceId: string, id: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const [row] = await db
     .select()
     .from(clients)
-    .where(and(eq(clients.id, id), eq(clients.userId, userId)))
+    .where(and(eq(clients.id, id), eq(clients.workspaceId, workspaceId)))
     .limit(1);
   return row ?? null;
 }
@@ -95,11 +94,10 @@ export async function getById(userId: string, id: string) {
  * also where the arithmetic is unit-tested (`lib/rebill.ts`).
  */
 export async function listWithRollups(
-  userId: string,
   workspaceId: string,
   isActive?: boolean,
 ): Promise<ClientWithRollup[]> {
-  const rows = await list(userId, workspaceId, isActive);
+  const rows = await list(workspaceId, isActive);
   if (rows.length === 0) return [];
 
   const ids = rows.map((row) => row.id);
@@ -120,7 +118,7 @@ export async function listWithRollups(
       )
       .where(
         and(
-          eq(outgoingPaymentLogs.userId, userId),
+          eq(recurringOutgoings.workspaceId, workspaceId),
           inArray(recurringOutgoings.clientId, ids),
         ),
       ),
@@ -138,7 +136,7 @@ export async function listWithRollups(
       .from(recurringOutgoings)
       .where(
         and(
-          eq(recurringOutgoings.userId, userId),
+          eq(recurringOutgoings.workspaceId, workspaceId),
           eq(recurringOutgoings.isActive, true),
           inArray(recurringOutgoings.clientId, ids),
         ),
@@ -152,7 +150,7 @@ export async function listWithRollups(
         amount: transactions.amount,
       })
       .from(transactions)
-      .where(and(eq(transactions.userId, userId), inArray(transactions.clientId, ids))),
+      .where(and(eq(transactions.workspaceId, workspaceId), inArray(transactions.clientId, ids))),
   ]);
 
   const payments = new Map<string, FrontedPayment[]>();
@@ -210,22 +208,21 @@ export async function listWithRollups(
 
 /** One client with its recovery position. Throws if not found / unauthorized. */
 export async function getWithRollup(
-  userId: string,
   workspaceId: string,
   id: string,
 ): Promise<ClientWithRollup> {
   idSchema.parse(id);
-  const all = await listWithRollups(userId, workspaceId);
+  const all = await listWithRollups(workspaceId);
   const found = all.find((row) => row.id === id);
   if (!found) throw new Error("Client not found or unauthorized");
   return found;
 }
 
 /** Create a new client. */
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   const valid = clientCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   const now = new Date();
 
   const [row] = await db
@@ -246,12 +243,12 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 }
 
 /** Partial update. Throws if not found / unauthorized. */
-export async function update(userId: string, id: string, input: UpdateInput) {
-  userIdSchema.parse(userId);
+export async function update(workspaceId: string, id: string, input: UpdateInput) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const valid = clientUpdateSchema.parse(input);
 
-  const existing = await getById(userId, id);
+  const existing = await getById(workspaceId, id);
   if (!existing) throw new Error("Client not found or unauthorized");
 
   const [row] = await db
@@ -263,7 +260,7 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       ...(valid.isActive !== undefined && { isActive: valid.isActive }),
       updatedAt: new Date(),
     })
-    .where(and(eq(clients.id, id), eq(clients.userId, userId)))
+    .where(and(eq(clients.id, id), eq(clients.workspaceId, workspaceId)))
     .returning();
   return row;
 }
@@ -277,11 +274,11 @@ export async function update(userId: string, id: string, input: UpdateInput) {
  * combination — so the modes are reset to `none` first, in the same
  * transaction. Deleting without this step fails on the check constraint.
  */
-export async function remove(userId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function remove(workspaceId: string, id: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
 
-  const existing = await getById(userId, id);
+  const existing = await getById(workspaceId, id);
   if (!existing) throw new Error("Client not found or unauthorized");
 
   await db.transaction(async (tx) => {
@@ -292,7 +289,7 @@ export async function remove(userId: string, id: string) {
       .set({ isActive: false, updatedAt: new Date() })
       .where(
         and(
-          eq(transactionRules.userId, userId),
+          eq(transactionRules.workspaceId, workspaceId),
           eq(transactionRules.clientId, id),
           sql`${transactionRules.category} is null`,
           sql`jsonb_array_length(${transactionRules.tags}) = 0`,
@@ -304,24 +301,24 @@ export async function remove(userId: string, id: string) {
       .update(recurringOutgoings)
       .set({ rebillMode: "none", rebillAmount: null, updatedAt: new Date() })
       .where(
-        and(eq(recurringOutgoings.userId, userId), eq(recurringOutgoings.clientId, id)),
+        and(eq(recurringOutgoings.workspaceId, workspaceId), eq(recurringOutgoings.clientId, id)),
       );
 
-    await tx.delete(clients).where(and(eq(clients.id, id), eq(clients.userId, userId)));
+    await tx.delete(clients).where(and(eq(clients.id, id), eq(clients.workspaceId, workspaceId)));
   });
 }
 
 /**
- * Confirm a client belongs to this user and workspace.
+ * Confirm a client belongs to this workspace.
  *
  * Used wherever a client id arrives from a request body, so a valid id from
  * another workspace cannot be attached to this one's money.
  */
 export async function assertInWorkspace(
-  userId: string,
   workspaceId: string,
   clientId: string,
 ): Promise<void> {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(clientId);
   const [row] = await db
     .select({ id: clients.id })
@@ -329,7 +326,6 @@ export async function assertInWorkspace(
     .where(
       and(
         eq(clients.id, clientId),
-        eq(clients.userId, userId),
         eq(clients.workspaceId, workspaceId),
       ),
     )

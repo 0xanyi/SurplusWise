@@ -2,13 +2,13 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import { investments, investmentEvents } from "@/db/schema";
 import {
-  userIdSchema,
   idSchema,
   investmentCreateSchema,
   investmentUpdateSchema,
   investmentEventCreateSchema,
   workspaceIdSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -51,13 +51,23 @@ function genId() {
   return crypto.randomUUID();
 }
 
+async function getOwnedInvestment(workspaceId: string, investmentId: string) {
+  const [investment] = await db
+    .select()
+    .from(investments)
+    .where(and(eq(investments.id, investmentId), eq(investments.workspaceId, workspaceId)))
+    .limit(1);
+
+  if (!investment) throw new Error("Investment not found or unauthorized");
+  return investment;
+}
+
 // ─── Investment Service ──────────────────────────────────────────────────────
 
-/** List all investments for a user, optionally only active ones. */
-export async function list(userId: string, workspaceId: string, isActive?: boolean) {
-  userIdSchema.parse(userId);
+/** List all investments for a workspace, optionally only active ones. */
+export async function list(workspaceId: string, isActive?: boolean) {
   workspaceIdSchema.parse(workspaceId);
-  const conditions = [eq(investments.userId, userId), eq(investments.workspaceId, workspaceId)];
+  const conditions = [eq(investments.workspaceId, workspaceId)];
   if (isActive !== undefined) conditions.push(eq(investments.isActive, isActive));
 
   return db
@@ -68,8 +78,7 @@ export async function list(userId: string, workspaceId: string, isActive?: boole
 }
 
 /** Get summary totals for active investments. */
-export async function getSummary(userId: string, workspaceId: string) {
-  userIdSchema.parse(userId);
+export async function getSummary(workspaceId: string) {
   workspaceIdSchema.parse(workspaceId);
 
   const [result] = await db
@@ -82,7 +91,6 @@ export async function getSummary(userId: string, workspaceId: string) {
     .from(investments)
     .where(
       and(
-        eq(investments.userId, userId),
         eq(investments.workspaceId, workspaceId),
         eq(investments.isActive, true),
       ),
@@ -97,10 +105,10 @@ export async function getSummary(userId: string, workspaceId: string) {
 }
 
 /** Create a new investment record. */
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   investmentCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   const id = genId();
   const now = new Date();
 
@@ -128,18 +136,12 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 }
 
 /** Partial update. Throws if not found / unauthorized. */
-export async function update(userId: string, id: string, input: UpdateInput) {
-  userIdSchema.parse(userId);
+export async function update(workspaceId: string, id: string, input: UpdateInput) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   investmentUpdateSchema.parse(input);
 
-  const [existing] = await db
-    .select()
-    .from(investments)
-    .where(and(eq(investments.id, id), eq(investments.userId, userId)))
-    .limit(1);
-
-  if (!existing) throw new Error("Investment not found or unauthorized");
+  await getOwnedInvestment(workspaceId, id);
 
   const [row] = await db
     .update(investments)
@@ -155,44 +157,31 @@ export async function update(userId: string, id: string, input: UpdateInput) {
       ...(input.isActive !== undefined && { isActive: input.isActive }),
       updatedAt: new Date(),
     })
-    .where(and(eq(investments.id, id), eq(investments.userId, userId)))
+    .where(and(eq(investments.id, id), eq(investments.workspaceId, workspaceId)))
     .returning();
   return row;
 }
 
 /** Delete an investment record (cascades to events). */
-export async function remove(userId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function remove(workspaceId: string, id: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
 
-  const [existing] = await db
-    .select({ id: investments.id })
-    .from(investments)
-    .where(and(eq(investments.id, id), eq(investments.userId, userId)))
-    .limit(1);
-
-  if (!existing) throw new Error("Investment not found or unauthorized");
+  await getOwnedInvestment(workspaceId, id);
 
   await db
     .delete(investments)
-    .where(and(eq(investments.id, id), eq(investments.userId, userId)));
+    .where(and(eq(investments.id, id), eq(investments.workspaceId, workspaceId)));
 }
 
 // ─── Investment Event Service ────────────────────────────────────────────────
 
 /** List events for an investment, newest first. */
-export async function listEvents(userId: string, investmentId: string) {
-  userIdSchema.parse(userId);
+export async function listEvents(workspaceId: string, investmentId: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(investmentId);
 
-  // Verify ownership
-  const [investment] = await db
-    .select({ id: investments.id })
-    .from(investments)
-    .where(and(eq(investments.id, investmentId), eq(investments.userId, userId)))
-    .limit(1);
-
-  if (!investment) throw new Error("Investment not found or unauthorized");
+  await getOwnedInvestment(workspaceId, investmentId);
 
   return db
     .select()
@@ -203,22 +192,16 @@ export async function listEvents(userId: string, investmentId: string) {
 
 /** Add an event and adjust the investment's currentValue accordingly. */
 export async function addEvent(
-  userId: string,
+  workspaceId: string,
   investmentId: string,
   input: EventInput,
 ) {
-  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(investmentId);
   investmentEventCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
 
-  // Verify ownership
-  const [investment] = await db
-    .select({ id: investments.id, currentValue: investments.currentValue })
-    .from(investments)
-    .where(and(eq(investments.id, investmentId), eq(investments.userId, userId)))
-    .limit(1);
-
-  if (!investment) throw new Error("Investment not found or unauthorized");
+  const investment = await getOwnedInvestment(workspaceId, investmentId);
 
   const eventId = genId();
   const now = new Date();
@@ -275,7 +258,7 @@ export async function addEvent(
     await tx
       .update(investments)
       .set(updateData)
-      .where(and(eq(investments.id, investmentId), eq(investments.userId, userId)));
+      .where(and(eq(investments.id, investmentId), eq(investments.workspaceId, workspaceId)));
 
     return inserted;
   });
@@ -285,13 +268,15 @@ export async function addEvent(
 
 /** Delete an event and recalculate the investment's currentValue. */
 export async function removeEvent(
-  userId: string,
+  workspaceId: string,
   investmentId: string,
   eventId: string,
 ) {
-  userIdSchema.parse(userId);
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(investmentId);
   idSchema.parse(eventId);
+
+  await getOwnedInvestment(workspaceId, investmentId);
 
   const [existing] = await db
     .select({ id: investmentEvents.id, investmentId: investmentEvents.investmentId })
@@ -300,7 +285,6 @@ export async function removeEvent(
       and(
         eq(investmentEvents.id, eventId),
         eq(investmentEvents.investmentId, investmentId),
-        eq(investmentEvents.userId, userId),
       ),
     )
     .limit(1);
@@ -315,7 +299,6 @@ export async function removeEvent(
         and(
           eq(investmentEvents.id, eventId),
           eq(investmentEvents.investmentId, investmentId),
-          eq(investmentEvents.userId, userId),
         ),
       );
 
@@ -323,7 +306,7 @@ export async function removeEvent(
     const [investment] = await tx
       .select({ costBasis: investments.costBasis })
       .from(investments)
-      .where(and(eq(investments.id, investmentId), eq(investments.userId, userId)))
+      .where(and(eq(investments.id, investmentId), eq(investments.workspaceId, workspaceId)))
       .limit(1);
 
     if (!investment) throw new Error("Investment not found or unauthorized");
@@ -378,6 +361,6 @@ export async function removeEvent(
         isActive: !hasActiveSale,
         updatedAt: new Date(),
       })
-      .where(and(eq(investments.id, investmentId), eq(investments.userId, userId)));
+      .where(and(eq(investments.id, investmentId), eq(investments.workspaceId, workspaceId)));
   });
 }

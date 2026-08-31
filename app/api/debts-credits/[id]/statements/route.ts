@@ -59,12 +59,12 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
     const [statements, draft] = await Promise.all([
-      statementsService.listStatements(userId, id),
-      statementsService.getStatementDraft(userId, id),
+      statementsService.listStatements(workspaceId, id),
+      statementsService.getStatementDraft(workspaceId, id),
     ]);
 
     return NextResponse.json({
@@ -86,11 +86,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
-    const statement = await statementsService.createStatement(userId, id, {
+    const statement = await statementsService.createStatement(workspaceId, id, {
       periodStart: body.periodStart ?? body.period_start,
       periodEnd: body.periodEnd ?? body.period_end,
       statementDate: body.statementDate ?? body.statement_date,

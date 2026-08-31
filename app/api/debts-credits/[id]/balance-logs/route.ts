@@ -19,10 +19,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
 
-    const logs = await debtsService.listBalanceLogs(userId, id);
+    const logs = await debtsService.listBalanceLogs(workspaceId, id);
 
     return NextResponse.json({ logs: logs.map(toLog) });
   } catch (error) {
@@ -48,11 +48,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
 
-    const log = await debtsService.addBalanceLog(userId, id, {
+    const log = await debtsService.addBalanceLog(workspaceId, id, {
       balance: body.balance,
       notes: body.notes,
       loggedAt: body.loggedAt ?? body.logged_at,

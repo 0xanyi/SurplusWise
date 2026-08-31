@@ -22,9 +22,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace("viewer");
+    const { workspaceId } = await requireAuthWithWorkspace("viewer");
     const { id } = await params;
-    const activities = await goalActivitiesService.list(userId, workspaceId, id);
+    const activities = await goalActivitiesService.list(workspaceId, id);
     return NextResponse.json({ activities: activities.map(toActivity) });
   } catch (error) {
     if (error instanceof Error && error.message === "Unauthorized") {
@@ -43,10 +43,10 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { userId, workspaceId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id } = await params;
     const body = await request.json();
-    const activity = await goalActivitiesService.create(userId, workspaceId, id, {
+    const activity = await goalActivitiesService.create(workspaceId, id, {
       type: body.type,
       amount: body.amount,
       occurredOn: body.occurredOn ?? body.occurred_on,

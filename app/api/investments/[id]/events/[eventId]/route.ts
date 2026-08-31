@@ -7,10 +7,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string; eventId: string }> },
 ) {
   try {
-    const { userId } = await requireAuthWithWorkspace();
+    const { workspaceId } = await requireAuthWithWorkspace();
     const { id, eventId } = await params;
 
-    await investmentsService.removeEvent(userId, id, eventId);
+    await investmentsService.removeEvent(workspaceId, id, eventId);
 
     return NextResponse.json({ success: true });
   } catch (error) {

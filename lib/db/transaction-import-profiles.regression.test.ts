@@ -49,7 +49,7 @@ async function createWorkspace(userId = crypto.randomUUID()) {
     currency: "GBP",
     isDefault: false,
   });
-  const account = await accountsService.create(userId, workspaceId, {
+  const account = await accountsService.create(workspaceId, {
     name: "Current account",
     accountClass: "asset",
     accountType: "checking",
@@ -68,23 +68,23 @@ describe(
       const owner = await createWorkspace();
       const other = await createWorkspace(owner.userId);
       try {
-        const saved = await profilesService.save(owner.userId, owner.workspaceId, {
+        const saved = await profilesService.save(owner.workspaceId, {
           name: "Bank export",
           accountId: owner.account.id,
           mapping: { date: "Date", amount: "Amount", payee: "Merchant" },
         });
 
         assert.deepEqual(
-          await profilesService.list(owner.userId, owner.workspaceId, owner.account.id),
+          await profilesService.list(owner.workspaceId, owner.account.id),
           [saved],
         );
         assert.deepEqual(
-          await profilesService.list(other.userId, other.workspaceId, other.account.id),
+          await profilesService.list(other.workspaceId, other.account.id),
           [],
         );
         await assert.rejects(
           () =>
-            profilesService.save(other.userId, other.workspaceId, {
+            profilesService.save(other.workspaceId, {
               name: "Stolen mapping",
               accountId: owner.account.id,
               mapping: { date: "Date", amount: "Amount" },
@@ -92,11 +92,11 @@ describe(
           /Financial account not found in this workspace/,
         );
         await assert.rejects(
-          () => profilesService.remove(other.userId, other.workspaceId, saved.id),
+          () => profilesService.remove(other.workspaceId, saved.id),
           /not found or unauthorized/,
         );
 
-        const updated = await profilesService.save(owner.userId, owner.workspaceId, {
+        const updated = await profilesService.save(owner.workspaceId, {
           name: "Bank export",
           accountId: owner.account.id,
           mapping: { date: "Posted", debit: "Out", credit: "In" },
@@ -104,12 +104,12 @@ describe(
         assert.equal(updated.id, saved.id);
         assert.deepEqual(updated.mapping, { date: "Posted", debit: "Out", credit: "In" });
 
-        await profilesService.remove(owner.userId, owner.workspaceId, saved.id);
+        await profilesService.remove(owner.workspaceId, saved.id);
         assert.deepEqual(
-          await profilesService.list(owner.userId, owner.workspaceId, owner.account.id),
+          await profilesService.list(owner.workspaceId, owner.account.id),
           [],
         );
-        await profilesService.save(owner.userId, owner.workspaceId, {
+        await profilesService.save(owner.workspaceId, {
           name: "Cascade mapping",
           accountId: owner.account.id,
           mapping: { date: "Date", amount: "Amount" },

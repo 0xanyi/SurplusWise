@@ -4,9 +4,9 @@ import { goalActivities, goals } from "@/db/schema";
 import {
   goalActivityCreateSchema,
   idSchema,
-  userIdSchema,
   workspaceIdSchema,
 } from "./validation";
+import { ownerUserId } from "./workspaces";
 
 export interface CreateInput {
   type: "contribution" | "spending";
@@ -16,11 +16,9 @@ export interface CreateInput {
 }
 
 export async function list(
-  userId: string,
   workspaceId: string,
   goalId: string,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(goalId);
 
@@ -30,7 +28,6 @@ export async function list(
     .where(
       and(
         eq(goals.id, goalId),
-        eq(goals.userId, userId),
         eq(goals.workspaceId, workspaceId),
       ),
     )
@@ -43,7 +40,6 @@ export async function list(
     .where(
       and(
         eq(goalActivities.goalId, goalId),
-        eq(goalActivities.userId, userId),
         eq(goalActivities.workspaceId, workspaceId),
       ),
     )
@@ -51,15 +47,14 @@ export async function list(
 }
 
 export async function create(
-  userId: string,
   workspaceId: string,
   goalId: string,
   input: CreateInput,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(goalId);
   const validInput = goalActivityCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
 
   return db.transaction(async (tx) => {
     const [goal] = await tx
@@ -68,7 +63,6 @@ export async function create(
       .where(
         and(
           eq(goals.id, goalId),
-          eq(goals.userId, userId),
           eq(goals.workspaceId, workspaceId),
         ),
       )
@@ -114,8 +108,7 @@ export async function create(
   });
 }
 
-export async function getSpentByGoal(userId: string, workspaceId: string) {
-  userIdSchema.parse(userId);
+export async function getSpentByGoal(workspaceId: string) {
   workspaceIdSchema.parse(workspaceId);
 
   const rows = await db
@@ -124,12 +117,7 @@ export async function getSpentByGoal(userId: string, workspaceId: string) {
       spent: sql<string>`coalesce(sum(case when ${goalActivities.type} = 'spending' then ${goalActivities.amount} else 0 end), 0)`,
     })
     .from(goalActivities)
-    .where(
-      and(
-        eq(goalActivities.userId, userId),
-        eq(goalActivities.workspaceId, workspaceId),
-      ),
-    )
+    .where(eq(goalActivities.workspaceId, workspaceId))
     .groupBy(goalActivities.goalId);
 
   return new Map(rows.map((row) => [row.goalId, Number(row.spent)]));

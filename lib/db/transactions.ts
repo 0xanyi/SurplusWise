@@ -15,8 +15,8 @@ import * as financialAccountsService from "./financial-accounts";
 import * as givingRecipientsService from "./giving-recipients";
 import * as recurringMoneyDraftsService from "./recurring-money-drafts";
 import * as transactionRulesService from "./transaction-rules";
+import { ownerUserId } from "./workspaces";
 import {
-  userIdSchema,
   idSchema,
   limitSchema,
   pageSchema,
@@ -36,7 +36,6 @@ type TransactionStatus = "pending" | "cleared" | "reconciled";
 export class GivingAttributionError extends Error {}
 
 async function assertGivingAttribution(
-  userId: string,
   workspaceId: string,
   type: TransactionType,
   clientId?: string | null,
@@ -52,10 +51,9 @@ async function assertGivingAttribution(
       "Giving attribution can only be assigned to giving transactions",
     );
   }
-  await givingRecipientsService.assertRecipientInWorkspace(userId, workspaceId, recipientId);
+  await givingRecipientsService.assertRecipientInWorkspace(workspaceId, recipientId);
   if (designationId) {
     await givingRecipientsService.assertDesignationInWorkspace(
-      userId,
       workspaceId,
       designationId,
       recipientId,
@@ -185,16 +183,13 @@ function prepareImportCandidates(accountId: string | null, rows: ImportInput[]) 
 }
 
 async function validateImport(
-  userId: string,
   workspaceId: string,
   accountId: string | null,
   rows: ImportInput[],
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   if (accountId) {
     const account = await financialAccountsService.assertInWorkspace(
-      userId,
       workspaceId,
       accountId,
     );
@@ -205,7 +200,6 @@ async function validateImport(
   for (const row of rows) {
     transactionCreateSchema.parse(row);
     await assertGivingAttribution(
-      userId,
       workspaceId,
       row.type,
       row.clientId,
@@ -214,7 +208,6 @@ async function validateImport(
     );
   }
   const classifiedRows = await transactionRulesService.applyToImportRows(
-    userId,
     workspaceId,
     rows,
   );
@@ -235,9 +228,8 @@ async function existingImportFingerprints(workspaceId: string, fingerprints: str
   return new Set(rows.flatMap((row) => (row.fingerprint ? [row.fingerprint] : [])));
 }
 
-function buildWhere(userId: string, workspaceId: string, filters: ListFilters) {
+function buildWhere(workspaceId: string, filters: ListFilters) {
   const conditions = [
-    eq(transactions.userId, userId),
     eq(transactions.workspaceId, workspaceId),
   ];
 
@@ -281,26 +273,24 @@ function buildWhere(userId: string, workspaceId: string, filters: ListFilters) {
 // ─── Service functions ───────────────────────────────────────────────────────
 
 /** Full list with optional filters, ordered newest-first. */
-export async function list(userId: string, workspaceId: string, filters: ListFilters = {}) {
-  userIdSchema.parse(userId);
+export async function list(workspaceId: string, filters: ListFilters = {}) {
   workspaceIdSchema.parse(workspaceId);
   const validFilters = transactionListFiltersSchema.parse(filters);
   return db
     .select()
     .from(transactions)
-    .where(buildWhere(userId, workspaceId, validFilters))
+    .where(buildWhere(workspaceId, validFilters))
     .orderBy(desc(transactions.date));
 }
 
 /** Newest N transactions for the dashboard widget. */
-export async function listRecent(userId: string, workspaceId: string, limit = 5) {
-  userIdSchema.parse(userId);
+export async function listRecent(workspaceId: string, limit = 5) {
   workspaceIdSchema.parse(workspaceId);
   limitSchema.parse(limit);
   return db
     .select()
     .from(transactions)
-    .where(and(eq(transactions.userId, userId), eq(transactions.workspaceId, workspaceId)))
+    .where(eq(transactions.workspaceId, workspaceId))
     .orderBy(desc(transactions.date))
     .limit(limit);
 }
@@ -310,13 +300,11 @@ export async function listRecent(userId: string, workspaceId: string, limit = 5)
  * Returns rows + whether there are more.
  */
 export async function listPaginated(
-  userId: string,
   workspaceId: string,
   filters: ListFilters = {},
   page = 0,
   pageSize = 25,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   const validFilters = transactionListFiltersSchema.parse(filters);
   pageSchema.parse(page);
@@ -324,7 +312,7 @@ export async function listPaginated(
   const rows = await db
     .select()
     .from(transactions)
-    .where(buildWhere(userId, workspaceId, validFilters))
+    .where(buildWhere(workspaceId, validFilters))
     .orderBy(desc(transactions.date))
     .limit(pageSize + 1) // fetch one extra to check hasMore
     .offset(page * pageSize);
@@ -335,39 +323,37 @@ export async function listPaginated(
   return { rows, hasMore, page, pageSize };
 }
 
-/** Fetch a single transaction (null if not found or wrong user). */
-export async function getById(userId: string, id: string) {
-  userIdSchema.parse(userId);
+/** Fetch a single transaction (null if not found or wrong workspace). */
+export async function getById(workspaceId: string, id: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   const [row] = await db
     .select()
     .from(transactions)
-    .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
+    .where(and(eq(transactions.id, id), eq(transactions.workspaceId, workspaceId)))
     .limit(1);
   return row ?? null;
 }
 
 /** Create and return the new row. */
-export async function create(userId: string, workspaceId: string, input: CreateInput) {
-  userIdSchema.parse(userId);
+export async function create(workspaceId: string, input: CreateInput) {
   workspaceIdSchema.parse(workspaceId);
   transactionCreateSchema.parse(input);
+  const userId = await ownerUserId(workspaceId);
   if (input.status === "reconciled") {
     throw new Error("Transactions can only be reconciled through account reconciliation");
   }
   if (input.accountId) {
     const account = await financialAccountsService.assertInWorkspace(
-      userId,
       workspaceId,
       input.accountId,
     );
     financialAccountsService.assertDateIsOpen(account, input.date);
   }
   if (input.clientId) {
-    await clientsService.assertInWorkspace(userId, workspaceId, input.clientId);
+    await clientsService.assertInWorkspace(workspaceId, input.clientId);
   }
   await assertGivingAttribution(
-    userId,
     workspaceId,
     input.type,
     input.clientId,
@@ -403,12 +389,11 @@ export async function create(userId: string, workspaceId: string, input: CreateI
 }
 
 export async function reviewImport(
-  userId: string,
   workspaceId: string,
   accountId: string | null,
   rows: ImportInput[],
 ) {
-  const candidates = await validateImport(userId, workspaceId, accountId, rows);
+  const candidates = await validateImport(workspaceId, accountId, rows);
   const existing = await existingImportFingerprints(
     workspaceId,
     candidates.map((row) => row.fingerprint),
@@ -423,7 +408,6 @@ export async function reviewImport(
     .filter((row) => !readyCandidates.includes(row))
     .map((row) => row.lineNumber);
   const matches = await recurringMoneyDraftsService.findImportMatches(
-    userId,
     workspaceId,
     readyCandidates.map((row) => ({
       key: row.fingerprint,
@@ -446,12 +430,12 @@ export async function reviewImport(
 }
 
 export async function importRows(
-  userId: string,
   workspaceId: string,
   accountId: string | null,
   rows: ImportInput[],
 ) {
-  const candidates = await validateImport(userId, workspaceId, accountId, rows);
+  const userId = await ownerUserId(workspaceId);
+  const candidates = await validateImport(workspaceId, accountId, rows);
   if (candidates.length === 0) {
     return { importedIds: [] as string[], duplicateLineNumbers: [] as number[] };
   }
@@ -485,7 +469,6 @@ export async function importRows(
   }
 
   const matches = await recurringMoneyDraftsService.findImportMatches(
-    userId,
     workspaceId,
     rowsToInsert.map((row) => ({
       key: row.fingerprint,
@@ -628,7 +611,6 @@ export async function importRows(
 }
 
 export async function bulkUpdateMetadata(
-  userId: string,
   workspaceId: string,
   input: {
     ids: string[];
@@ -639,7 +621,6 @@ export async function bulkUpdateMetadata(
   },
   actorUserId?: string,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   const validInput = transactionBulkUpdateSchema.parse(input);
   const ids = [...new Set(validInput.ids)];
@@ -660,7 +641,6 @@ export async function bulkUpdateMetadata(
       .from(transactions)
       .where(
         and(
-          eq(transactions.userId, userId),
           eq(transactions.workspaceId, workspaceId),
           inArray(transactions.id, ids),
         ),
@@ -726,17 +706,17 @@ export async function bulkUpdateMetadata(
 }
 
 /** Partial update. Throws if not found / unauthorized. */
-export async function update(userId: string, id: string, input: UpdateInput, actorUserId?: string) {
-  userIdSchema.parse(userId);
+export async function update(workspaceId: string, id: string, input: UpdateInput, actorUserId?: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
   transactionUpdateSchema.parse(input);
-  const existing = await getById(userId, id);
+  const existing = await getById(workspaceId, id);
   if (!existing) throw new Error("Transaction not found or unauthorized");
-  const actor = actorUserId && existing.workspaceId
-    ? await reviewParticipant(existing.workspaceId, actorUserId)
+  const actor = actorUserId
+    ? await reviewParticipant(workspaceId, actorUserId)
     : null;
-  const assignee = input.assignedToUserId && existing.workspaceId
-    ? await reviewParticipant(existing.workspaceId, input.assignedToUserId)
+  const assignee = input.assignedToUserId
+    ? await reviewParticipant(workspaceId, input.assignedToUserId)
     : null;
 
   if (
@@ -765,7 +745,6 @@ export async function update(userId: string, id: string, input: UpdateInput, act
     );
     for (const accountId of affectedAccountIds) {
       const account = await financialAccountsService.assertInWorkspace(
-        userId,
         existing.workspaceId,
         accountId,
       );
@@ -787,7 +766,7 @@ export async function update(userId: string, id: string, input: UpdateInput, act
     if (!existing.workspaceId) {
       throw new Error("This transaction has no workspace, so it cannot be attributed");
     }
-    await clientsService.assertInWorkspace(userId, existing.workspaceId, input.clientId);
+    await clientsService.assertInWorkspace(existing.workspaceId, input.clientId);
   }
 
   const effectiveType = input.type ?? existing.type;
@@ -811,7 +790,6 @@ export async function update(userId: string, id: string, input: UpdateInput, act
     input.givingDesignationId !== undefined
   ) {
     await assertGivingAttribution(
-      userId,
       existing.workspaceId,
       effectiveType,
       effectiveClientId,
@@ -842,7 +820,7 @@ export async function update(userId: string, id: string, input: UpdateInput, act
       await tx
         .select({ id: transactions.id })
         .from(transactions)
-        .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
+        .where(and(eq(transactions.id, id), eq(transactions.workspaceId, workspaceId)))
         .limit(1)
         .for("update");
       const [document] = await tx
@@ -887,9 +865,9 @@ export async function update(userId: string, id: string, input: UpdateInput, act
         ...(input.receiptStorageId !== undefined && { receiptStorageId: input.receiptStorageId }),
         updatedAt: new Date(),
       })
-      .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
+      .where(and(eq(transactions.id, id), eq(transactions.workspaceId, workspaceId)))
       .returning();
-    if (actor && existing.workspaceId) {
+    if (actor) {
       const events: Array<typeof transactionReviewEvents.$inferInsert> = [];
       if (
         input.assignedToUserId !== undefined &&
@@ -922,12 +900,11 @@ export async function update(userId: string, id: string, input: UpdateInput, act
   });
 }
 
-export async function listReviewHistory(userId: string, workspaceId: string, transactionId: string) {
-  userIdSchema.parse(userId);
+export async function listReviewHistory(workspaceId: string, transactionId: string) {
   workspaceIdSchema.parse(workspaceId);
   idSchema.parse(transactionId);
-  const transaction = await getById(userId, transactionId);
-  if (!transaction || transaction.workspaceId !== workspaceId) {
+  const transaction = await getById(workspaceId, transactionId);
+  if (!transaction) {
     throw new Error("Transaction not found or unauthorized");
   }
   return db
@@ -938,10 +915,10 @@ export async function listReviewHistory(userId: string, workspaceId: string, tra
 }
 
 /** Delete a transaction. Throws if not found / unauthorized. */
-export async function remove(userId: string, id: string) {
-  userIdSchema.parse(userId);
+export async function remove(workspaceId: string, id: string) {
+  workspaceIdSchema.parse(workspaceId);
   idSchema.parse(id);
-  const existing = await getById(userId, id);
+  const existing = await getById(workspaceId, id);
   if (!existing) throw new Error("Transaction not found or unauthorized");
   if (existing.status === "reconciled") {
     throw new Error("Reconciled transactions cannot be deleted");
@@ -949,7 +926,7 @@ export async function remove(userId: string, id: string) {
 
   await db
     .delete(transactions)
-    .where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
+    .where(and(eq(transactions.id, id), eq(transactions.workspaceId, workspaceId)));
 }
 
 /**
@@ -957,12 +934,10 @@ export async function remove(userId: string, id: string) {
  * Used internally by analytics and budget-spending.
  */
 export async function sumByTypeAndCategory(
-  userId: string,
   workspaceId: string,
   startDate: string,
   endDate: string,
 ) {
-  userIdSchema.parse(userId);
   workspaceIdSchema.parse(workspaceId);
   return db
     .select({
@@ -973,7 +948,6 @@ export async function sumByTypeAndCategory(
     .from(transactions)
     .where(
       and(
-        eq(transactions.userId, userId),
         eq(transactions.workspaceId, workspaceId),
         gte(transactions.date, startDate),
         lte(transactions.date, endDate),

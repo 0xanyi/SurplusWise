@@ -110,14 +110,13 @@ type ExportTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 async function readWorkspaceExport(
   tx: ExportTransaction,
-  userId: string,
   workspaceId: string,
   generatedAt: Date,
 ): Promise<WorkspaceExport> {
   const [workspace] = await tx
     .select()
     .from(workspaces)
-    .where(and(eq(workspaces.id, workspaceId), eq(workspaces.userId, userId)))
+    .where(eq(workspaces.id, workspaceId))
     .limit(1);
 
   if (!workspace) throw new Error("Workspace not found or unauthorized");
@@ -283,25 +282,23 @@ async function readWorkspaceExport(
 }
 
 export async function createWorkspaceExport(
-  userId: string,
   workspaceId: string,
   generatedAt = new Date(),
 ): Promise<WorkspaceExport> {
   return db.transaction(
-    (tx) => readWorkspaceExport(tx, userId, workspaceId, generatedAt),
+    (tx) => readWorkspaceExport(tx, workspaceId, generatedAt),
     { isolationLevel: "repeatable read", accessMode: "read only" },
   );
 }
 
 /** Return the public JSON payload and private storage references from one snapshot. */
 export async function createWorkspaceArchiveSource(
-  userId: string,
   workspaceId: string,
   generatedAt = new Date(),
 ): Promise<{ workspaceExport: WorkspaceExport; files: WorkspaceExportFile[] }> {
   return db.transaction(
     async (tx) => {
-      const workspaceExport = await readWorkspaceExport(tx, userId, workspaceId, generatedAt);
+      const workspaceExport = await readWorkspaceExport(tx, workspaceId, generatedAt);
       const documents = await tx
         .select({
           documentId: transactionDocuments.id,
