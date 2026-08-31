@@ -7,8 +7,8 @@ import { reportBackupSuccess } from "@/lib/backup-status";
 import * as notificationsService from "./notifications";
 import * as budgetsService from "./budgets";
 import * as recurringMoneyService from "./recurring-outgoings";
-import * as draftsService from "./recurring-money-drafts";
 import * as transactionsService from "./transactions";
+import * as recurringMoneyOccurrences from "@/lib/recurring-money-occurrences";
 
 describe(
   "current notifications regression",
@@ -115,7 +115,7 @@ describe(
         );
         assert.equal(notifications[0].readAt, null);
 
-        await recurringMoneyService.create(workspaceId, {
+        const monthBoundary = await recurringMoneyService.create(workspaceId, {
           name: "Month boundary bill",
           amount: 45,
           type: "expense",
@@ -127,7 +127,13 @@ describe(
           "2028-02-26",
         )).find((notification) => notification.date === "2028-03-02")!;
         await notificationsService.markRead(userId, workspaceId, projected.id, true);
-        await draftsService.generate(workspaceId, "2028-03-01");
+        await recurringMoneyOccurrences.revise(workspaceId, {
+          occurrenceId: recurringMoneyOccurrences.recurringMoneyOccurrenceId(
+            monthBoundary.id,
+            "2028-03-01",
+          ),
+          expectedAmount: 45,
+        });
         const materialized = (await notificationsService.listDue(
           workspaceId,
           userId,
@@ -136,7 +142,7 @@ describe(
         assert.equal(materialized.id, projected.id);
         assert.ok(
           materialized.readAt instanceof Date,
-          "read state must survive a future projection becoming a monthly draft",
+          "read state must survive a projected occurrence becoming recorded",
         );
       } finally {
         await db.delete(users).where(eq(users.id, userId));

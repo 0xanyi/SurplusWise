@@ -13,6 +13,7 @@ import { reportBackupSuccess } from "@/lib/backup-status";
 import * as notificationsService from "@/lib/db/notifications";
 
 import * as recurringMoneyService from "@/lib/db/recurring-outgoings";
+import * as recurringMoneyOccurrences from "@/lib/recurring-money-occurrences";
 import * as transactionsService from "@/lib/db/transactions";
 import { getCurrentUtcDate } from "@/lib/outgoings-date";
 import {
@@ -123,10 +124,13 @@ describe(
           type: "expense",
           dayOfMonth: dueDay,
         });
-        await recurringMoneyService.settle(workspaceId, settled.id, {
-          amount: 40,
+        await recurringMoneyOccurrences.settle(workspaceId, {
+          action: "mark-paid",
+          occurrenceId: recurringMoneyOccurrences.recurringMoneyOccurrenceId(
+            settled.id,
+            `${today.slice(0, 7)}-01`,
+          ),
           paidAt: today,
-          periodMonth: `${today.slice(0, 7)}-01`,
         });
 
         assert.deepEqual(await getEmailNotificationStatus(userId, workspaceId), {

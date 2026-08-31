@@ -481,8 +481,8 @@ export async function getCostOfBorrowing(
  *
  * Also reports how much has been paid towards that amount, because a due date
  * with no notion of settlement would leave every past-due statement reading as
- * overdue forever — recurring outgoings have `payment_status.paid` for exactly
- * this reason.
+ * overdue forever — Recurring money occurrences carry the same settlement
+ * state for exactly this reason.
  */
 export async function listUpcomingDebtPayments(
   workspaceId: string,

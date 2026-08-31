@@ -11,7 +11,7 @@ import {
 
 const workspaceExport: WorkspaceExport = {
   format: "sika-workspace-export",
-  version: 4,
+  version: 5,
   generatedAt: "2026-08-14T10:30:00.000Z",
   workspace: {
     id: "workspace-1",
@@ -47,8 +47,8 @@ const workspaceExport: WorkspaceExport = {
     categories: [],
     budgets: [],
     recurringOutgoings: [],
-    recurringMoneyDrafts: [],
-    recurringMoneyDraftSettlements: [],
+    recurringMoneyOccurrences: [],
+    recurringMoneySettlements: [],
     debtsCredits: [],
     debtBalanceLogs: [],
     debtPayments: [],

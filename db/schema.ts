@@ -1031,15 +1031,14 @@ export const recurringOutgoings = pgTable(
   ],
 );
 
-// ─── Recurring Money Drafts ──────────────────────────────────────────────────
+// ─── Recurring Money Occurrences ─────────────────────────────────────────────
 
 /**
- * One expected occurrence of a recurring-money record. These rows are drafts,
- * not ledger movements: they become matched only by linking a real transaction.
- * Snapshot fields keep an already-generated expectation stable if its schedule
- * is edited later.
+ * One recorded Recurring money occurrence. These are stable snapshots, not
+ * ledger movements; Transactions settle them through the relation below.
+ * The legacy database name stays internal to the Postgres implementation.
  */
-export const recurringMoneyDrafts = pgTable(
+export const recurringMoneyOccurrences = pgTable(
   "recurring_money_drafts",
   {
     id: text("id").primaryKey(),
@@ -1051,7 +1050,8 @@ export const recurringMoneyDrafts = pgTable(
       .references(() => workspaces.id, { onDelete: "cascade" }),
     recurringMoneyId: text("recurring_money_id")
       .notNull()
-      .references(() => recurringOutgoings.id, { onDelete: "cascade" }),
+      .references(() => recurringOutgoings.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
     periodMonth: date("period_month", { mode: "string" }).notNull(),
     dueDate: date("due_date", { mode: "string" }).notNull(),
     expectedAmount: decimal("expected_amount", { precision: 10, scale: 2 }).notNull(),
@@ -1066,6 +1066,8 @@ export const recurringMoneyDrafts = pgTable(
       onDelete: "restrict",
     }),
     notes: text("notes"),
+    rebillMode: rebillModeEnum("rebill_mode").notNull().default("none"),
+    rebillAmount: decimal("rebill_amount", { precision: 10, scale: 2 }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -1093,7 +1095,7 @@ export const recurringMoneyDrafts = pgTable(
 );
 
 /** Real ledger transactions allocated to an expected Recurring money occurrence. */
-export const recurringMoneyDraftSettlements = pgTable(
+export const recurringMoneySettlements = pgTable(
   "recurring_money_draft_settlements",
   {
     id: text("id").primaryKey(),
@@ -1103,17 +1105,22 @@ export const recurringMoneyDraftSettlements = pgTable(
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    draftId: text("draft_id")
+    occurrenceId: text("draft_id")
       .notNull()
-      .references(() => recurringMoneyDrafts.id, { onDelete: "cascade" }),
+      .references(() => recurringMoneyOccurrences.id, { onDelete: "cascade" }),
     transactionId: text("transaction_id")
       .notNull()
       .references(() => transactions.id, { onDelete: "cascade" }),
+    provenance: text("provenance").notNull().default("externally-created"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    index("idx_recurring_money_draft_settlements_draft").on(t.draftId),
+    index("idx_recurring_money_draft_settlements_draft").on(t.occurrenceId),
     uniqueIndex("idx_recurring_money_draft_settlements_transaction").on(t.transactionId),
+    check(
+      "chk_recurring_money_draft_settlements_provenance",
+      sql`${t.provenance} IN ('lifecycle-created', 'externally-created')`,
+    ),
   ],
 );
 

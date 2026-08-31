@@ -23,8 +23,8 @@ import {
   notificationStates,
   onboardingStatus,
   pushNotificationPreferences,
-  recurringMoneyDraftSettlements,
-  recurringMoneyDrafts,
+  recurringMoneySettlements,
+  recurringMoneyOccurrences,
   recurringOutgoings,
   transactionDocuments,
   transactionImportProfiles,
@@ -36,7 +36,7 @@ import {
 } from "@/db/schema";
 
 export const WORKSPACE_EXPORT_FORMAT = "sika-workspace-export";
-export const WORKSPACE_EXPORT_VERSION = 4;
+export const WORKSPACE_EXPORT_VERSION = 5;
 
 /**
  * User-owned, portable records included in a JSON workspace export.
@@ -66,8 +66,8 @@ export const WORKSPACE_EXPORT_DATASETS = [
   "categories",
   "budgets",
   "recurringOutgoings",
-  "recurringMoneyDrafts",
-  "recurringMoneyDraftSettlements",
+  "recurringMoneyOccurrences",
+  "recurringMoneySettlements",
   "debtsCredits",
   "debtBalanceLogs",
   "debtPayments",
@@ -141,7 +141,7 @@ async function readWorkspaceExport(
     categoryRows,
     budgetRows,
     recurringRows,
-    draftRows,
+    occurrenceRows,
     settlementRows,
     debtRows,
     debtBalanceRows,
@@ -211,8 +211,8 @@ async function readWorkspaceExport(
     await tx.select().from(categories).where(eq(categories.workspaceId, workspaceId)),
     await tx.select().from(budgets).where(eq(budgets.workspaceId, workspaceId)),
     await tx.select().from(recurringOutgoings).where(eq(recurringOutgoings.workspaceId, workspaceId)),
-    await tx.select().from(recurringMoneyDrafts).where(eq(recurringMoneyDrafts.workspaceId, workspaceId)),
-    await tx.select().from(recurringMoneyDraftSettlements).where(eq(recurringMoneyDraftSettlements.workspaceId, workspaceId)),
+    await tx.select().from(recurringMoneyOccurrences).where(eq(recurringMoneyOccurrences.workspaceId, workspaceId)),
+    await tx.select().from(recurringMoneySettlements).where(eq(recurringMoneySettlements.workspaceId, workspaceId)),
     await tx.select().from(debtsCredits).where(eq(debtsCredits.workspaceId, workspaceId)),
     await tx.select({ child: debtBalanceLogs }).from(debtBalanceLogs)
       .innerJoin(debtsCredits, eq(debtBalanceLogs.debtId, debtsCredits.id))
@@ -260,8 +260,8 @@ async function readWorkspaceExport(
       categories: categoryRows,
       budgets: budgetRows,
       recurringOutgoings: recurringRows,
-      recurringMoneyDrafts: draftRows,
-      recurringMoneyDraftSettlements: settlementRows,
+      recurringMoneyOccurrences: occurrenceRows,
+      recurringMoneySettlements: settlementRows,
       debtsCredits: debtRows,
       debtBalanceLogs: childRows(debtBalanceRows),
       debtPayments: childRows(debtPaymentRows),

@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import { errorResponse } from "@/lib/api-errors";
 import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
-import * as draftsService from "@/lib/db/recurring-money-drafts";
 import * as recurringMoneyService from "@/lib/db/recurring-outgoings";
+import * as recurringMoneyOccurrences from "@/lib/recurring-money-occurrences";
 
 function toRecurringMoney(row: Awaited<ReturnType<typeof recurringMoneyService.list>>[number]) {
   return {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       request.nextUrl.searchParams.get("periodMonth") ??
       getPeriodMonthFromDate(getCurrentUtcDate());
     const rows = await recurringMoneyService.list(workspaceId, undefined, type);
-    const occurrences = await draftsService.listOccurrences(workspaceId, periodMonth);
+    const { occurrences } = await recurringMoneyOccurrences.month(workspaceId, periodMonth);
     const occurrenceById = new Map(
       occurrences.map((occurrence) => [occurrence.recurringMoneyId, occurrence]),
     );
@@ -51,12 +51,18 @@ export async function GET(request: NextRequest) {
       const mapped = toRecurringMoney(row);
       return {
         ...mapped,
-        settlement: occurrence
+        occurrence: occurrence
           ? {
+              id: occurrence.id,
+              state: occurrence.state,
               status: occurrence.status,
               recorded_amount: occurrence.recordedAmount,
               outstanding_amount: occurrence.outstandingAmount,
-              transaction_id: occurrence.settlements[0]?.transactionId ?? null,
+              overpaid_amount: occurrence.overpaidAmount,
+              settlements: occurrence.settlements.map((settlement) => ({
+                transaction_id: settlement.transactionId,
+                provenance: settlement.provenance,
+              })),
             }
           : null,
       };

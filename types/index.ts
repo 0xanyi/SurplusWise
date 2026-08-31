@@ -384,7 +384,7 @@ export interface ApiRecurringOutgoing {
   day_of_month: number
   frequency: OutgoingFrequency
   category: string | null
-  vendor: string | null
+  payee: string | null
   client_id: string | null
   client_name: string | null
   giving_recipient_id: string | null
@@ -397,22 +397,6 @@ export interface ApiRecurringOutgoing {
   is_active: boolean
   created_at: string | null
   updated_at: string | null
-  payment_status: {
-    paid: boolean
-    payment_id?: string
-    amount_paid?: number
-    paid_at?: string
-  }
-}
-
-export interface ApiOutgoingPaymentLog {
-  id: string
-  outgoing_id: string
-  amount: number
-  paid_at: string
-  period_month: string
-  notes: string | null
-  created_at: string | null
 }
 
 // ─── Debts & Credits ─────────────────────────────────────────────────────────
