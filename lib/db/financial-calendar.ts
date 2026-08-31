@@ -6,12 +6,12 @@ import {
   debtStatements,
 } from "@/db/schema";
 import { forecastMinimumPayment, isRevolvingDebt } from "@/lib/debt-interest";
-import * as draftsService from "./recurring-money-drafts";
+import * as recurringMoneyOccurrences from "@/lib/recurring-money-occurrences";
 import { periodMonthSchema, workspaceIdSchema } from "./validation";
 
 export type CalendarEventType = "income" | "expense" | "giving" | "debt";
 export type CalendarEventStatus =
-  | "draft"
+  | "unsettled"
   | "partial"
   | "settled"
   | "overpaid"
@@ -239,16 +239,16 @@ export async function getMonth(workspaceId: string, periodMonth: string) {
   periodMonthSchema.parse(periodMonth);
 
   const [occurrences, debtEvents] = await Promise.all([
-    draftsService.listOccurrences(workspaceId, periodMonth),
+    recurringMoneyOccurrences.month(workspaceId, periodMonth),
     listDebtEvents(workspaceId, periodMonth),
   ]);
-  const recurringEvents: FinancialCalendarEvent[] = occurrences.map((occurrence) => ({
+  const recurringEvents: FinancialCalendarEvent[] = occurrences.occurrences.map((occurrence) => ({
     id: occurrence.id,
     sourceId: occurrence.recurringMoneyId,
     source: "recurring",
-    date: occurrence.date,
-    title: occurrence.title,
-    amount: occurrence.amount,
+    date: occurrence.dueDate,
+    title: occurrence.name,
+    amount: occurrence.expectedAmount,
     type: occurrence.type,
     status: occurrence.status,
     certainty: "expected",

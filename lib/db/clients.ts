@@ -2,8 +2,8 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
   clients,
-  recurringMoneyDraftSettlements,
-  recurringMoneyDrafts,
+  recurringMoneySettlements,
+  recurringMoneyOccurrences,
   recurringOutgoings,
   transactionRules,
   transactions,
@@ -107,26 +107,22 @@ export async function listWithRollups(
     // Costs actually paid on a client's behalf (Recurring money settled by Transactions).
     db
       .select({
-        clientId: recurringOutgoings.clientId,
+        clientId: recurringMoneyOccurrences.clientId,
         amountPaid: transactions.amount,
-        rebillMode: recurringOutgoings.rebillMode,
-        rebillAmount: recurringOutgoings.rebillAmount,
+        rebillMode: recurringMoneyOccurrences.rebillMode,
+        rebillAmount: recurringMoneyOccurrences.rebillAmount,
         transactionId: transactions.id,
       })
-      .from(recurringMoneyDraftSettlements)
+      .from(recurringMoneySettlements)
       .innerJoin(
-        recurringMoneyDrafts,
-        eq(recurringMoneyDraftSettlements.draftId, recurringMoneyDrafts.id),
+        recurringMoneyOccurrences,
+        eq(recurringMoneySettlements.occurrenceId, recurringMoneyOccurrences.id),
       )
-      .innerJoin(
-        recurringOutgoings,
-        eq(recurringMoneyDrafts.recurringMoneyId, recurringOutgoings.id),
-      )
-      .innerJoin(transactions, eq(recurringMoneyDraftSettlements.transactionId, transactions.id))
+      .innerJoin(transactions, eq(recurringMoneySettlements.transactionId, transactions.id))
       .where(
         and(
-          eq(recurringOutgoings.workspaceId, workspaceId),
-          inArray(recurringOutgoings.clientId, ids),
+          eq(recurringMoneyOccurrences.workspaceId, workspaceId),
+          inArray(recurringMoneyOccurrences.clientId, ids),
         ),
       ),
     // The standing commitment, for "what this client costs me per month".

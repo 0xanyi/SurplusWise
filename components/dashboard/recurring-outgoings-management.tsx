@@ -79,13 +79,18 @@ function getCurrentMonthLabel() {
   return new Date().toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 }
 
-interface RecurringMoneyItem extends Omit<ApiRecurringOutgoing, "payment_status"> {
-  payee?: string | null;
-  settlement: {
-    status: "draft" | "partial" | "settled" | "overpaid";
+interface RecurringMoneyItem extends ApiRecurringOutgoing {
+  occurrence: {
+    id: string;
+    state: "projected" | "recorded";
+    status: "unsettled" | "partial" | "settled" | "overpaid";
     recorded_amount: number;
     outstanding_amount: number;
-    transaction_id: string | null;
+    overpaid_amount: number;
+    settlements: Array<{
+      transaction_id: string;
+      provenance: "lifecycle-created" | "externally-created";
+    }>;
   } | null;
 }
 
@@ -101,9 +106,9 @@ interface OutgoingsResponse {
 
 function itemIsPaid(item: RecurringMoneyItem) {
   return Boolean(
-    item.settlement &&
-      item.settlement.recorded_amount > 0 &&
-      item.settlement.outstanding_amount === 0,
+    item.occurrence &&
+      item.occurrence.recorded_amount > 0 &&
+      item.occurrence.outstanding_amount === 0,
   );
 }
 
@@ -175,13 +180,15 @@ export function RecurringOutgoingsManagement() {
   const handleLogPayment = async (item: RecurringMoneyItem) => {
     setLoggingPayment(item.id);
     try {
-      await apiFetch(`/api/recurring-money/${item.id}/settle`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          paidAt: getCurrentUtcDate(),
-        }),
-      });
+      if (!item.occurrence) throw new Error("Recurring money occurrence is unavailable");
+      await apiFetch(
+        `/api/recurring-money/occurrences/${encodeURIComponent(item.occurrence.id)}/settle`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paidAt: getCurrentUtcDate() }),
+        },
+      );
       toast({
         title: "Payment recorded",
         description: `${item.name} marked as paid for ${getCurrentMonthLabel()}. This will count as an expense.`,
@@ -196,9 +203,15 @@ export function RecurringOutgoingsManagement() {
   };
 
   const handleUndoPayment = async (item: RecurringMoneyItem) => {
-    if (!itemIsPaid(item)) return;
+    const transactionId = item.occurrence?.settlements.find(
+      (settlement) => settlement.provenance === "lifecycle-created",
+    )?.transaction_id;
+    if (!itemIsPaid(item) || !item.occurrence || !transactionId) return;
     try {
-      await apiFetch(`/api/recurring-money/${item.id}/settle`, { method: "DELETE" });
+      await apiFetch(
+        `/api/recurring-money/occurrences/${encodeURIComponent(item.occurrence.id)}/settle?transactionId=${encodeURIComponent(transactionId)}`,
+        { method: "DELETE" },
+      );
       toast({
         title: "Payment undone",
         description: `${item.name} marked as unpaid for ${getCurrentMonthLabel()}.`,
@@ -315,7 +328,7 @@ export function RecurringOutgoingsManagement() {
       dayOfMonth: item.day_of_month.toString(),
       category: item.category ?? "",
       notes: item.notes ?? "",
-      vendor: item.vendor ?? "",
+      vendor: item.payee ?? "",
       clientId: item.client_id ?? NO_CLIENT,
       rebillMode: item.rebill_mode,
       rebillAmount: item.rebill_amount?.toString() ?? "",
@@ -558,6 +571,11 @@ export function RecurringOutgoingsManagement() {
           <ul>
             {schedule.map((item) => {
               const isPaid = itemIsPaid(item);
+              const canUndo = Boolean(
+                item.occurrence?.settlements.some(
+                  (settlement) => settlement.provenance === "lifecycle-created",
+                ),
+              );
               const due = getDueState(item.day_of_month, isPaid);
               const isOverdue = !isPaid && item.is_active && due.urgency === "overdue";
               const isToday = !isPaid && item.is_active && due.urgency === "today";
@@ -657,7 +675,7 @@ export function RecurringOutgoingsManagement() {
 
                   <span className="flex flex-none items-center gap-1">
                     {item.is_active &&
-                      (isPaid ? (
+                      (isPaid && canUndo ? (
                         <Button
                           size="sm"
                           variant="ghost"

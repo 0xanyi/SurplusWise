@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import { errorResponse } from "@/lib/api-errors";
 import * as recurringMoneyService from "@/lib/db/recurring-outgoings";
+import { RecurringMoneyConstraintError } from "@/lib/recurring-money-occurrences";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -69,6 +70,9 @@ export async function DELETE(_request: NextRequest, { params }: RouteParams) {
     await recurringMoneyService.remove(workspaceId, id);
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof RecurringMoneyConstraintError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     return errorResponse(error, "Failed to delete recurring money");
   }
 }

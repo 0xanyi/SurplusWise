@@ -1,6 +1,7 @@
 import { requireAuthWithWorkspace } from "@/lib/auth-server";
 import * as txService from "@/lib/db/transactions";
 import * as documentsService from "@/lib/db/transaction-documents";
+import { RecurringMoneyConstraintError } from "@/lib/recurring-money-occurrences";
 import { deleteStoredDocument, isStorageConfigured } from "@/lib/storage";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
@@ -120,10 +121,7 @@ export async function PATCH(
     if (error instanceof txService.GivingAttributionError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    if (
-      error instanceof Error &&
-      error.message === "Unmatch this transaction from recurring money before changing its type"
-    ) {
+    if (error instanceof RecurringMoneyConstraintError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     if (

@@ -2,8 +2,6 @@ import { createHash } from "node:crypto";
 import { and, desc, eq, gte, ilike, inArray, isNull, lte, ne, or, sql } from "drizzle-orm";
 import { db } from "@/db/client";
 import {
-  recurringMoneyDraftSettlements,
-  recurringMoneyDrafts,
   transactionDocuments,
   transactionReviewEvents,
   transactions,
@@ -13,7 +11,7 @@ import {
 import * as clientsService from "./clients";
 import * as financialAccountsService from "./financial-accounts";
 import * as givingRecipientsService from "./giving-recipients";
-import * as recurringMoneyDraftsService from "./recurring-money-drafts";
+import * as recurringMoneyOccurrences from "@/lib/recurring-money-occurrences";
 import * as transactionRulesService from "./transaction-rules";
 import { ownerUserId } from "./workspaces";
 import {
@@ -130,7 +128,9 @@ export interface ImportInput {
   needsReview?: boolean;
 }
 
-interface ImportCandidate extends ImportInput {
+interface ImportCandidate
+  extends ImportInput,
+    recurringMoneyOccurrences.ValidatedImportCandidate {
   fingerprint: string;
 }
 
@@ -212,20 +212,6 @@ async function validateImport(
     rows,
   );
   return prepareImportCandidates(accountId, classifiedRows);
-}
-
-async function existingImportFingerprints(workspaceId: string, fingerprints: string[]) {
-  if (fingerprints.length === 0) return new Set<string>();
-  const rows = await db
-    .select({ fingerprint: transactions.importFingerprint })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.workspaceId, workspaceId),
-        inArray(transactions.importFingerprint, fingerprints),
-      ),
-    );
-  return new Set(rows.flatMap((row) => (row.fingerprint ? [row.fingerprint] : [])));
 }
 
 function buildWhere(workspaceId: string, filters: ListFilters) {
@@ -394,37 +380,16 @@ export async function reviewImport(
   rows: ImportInput[],
 ) {
   const candidates = await validateImport(workspaceId, accountId, rows);
-  const existing = await existingImportFingerprints(
-    workspaceId,
-    candidates.map((row) => row.fingerprint),
-  );
-  const seen = new Set<string>();
-  const readyCandidates = candidates.filter((row) => {
-      const duplicate = existing.has(row.fingerprint) || seen.has(row.fingerprint);
-      seen.add(row.fingerprint);
-      return !duplicate;
-    });
-  const duplicateLineNumbers = candidates
-    .filter((row) => !readyCandidates.includes(row))
-    .map((row) => row.lineNumber);
-  const matches = await recurringMoneyDraftsService.findImportMatches(
-    workspaceId,
-    readyCandidates.map((row) => ({
-      key: row.fingerprint,
-      amount: row.amount,
-      date: row.date,
-      type: row.type,
-      payee: row.payee,
-    })),
-  );
-  const matchedKeys = new Set(matches.map((match) => match.key));
+  const result = await recurringMoneyOccurrences.importTransactions(workspaceId, {
+    mode: "preview",
+    accountId,
+    candidates,
+  });
   return {
-    ready: candidates.length - duplicateLineNumbers.length,
-    duplicateLineNumbers,
-    ...(matches.length > 0 && {
-      matchedLineNumbers: readyCandidates
-        .filter((row) => matchedKeys.has(row.fingerprint))
-        .map((row) => row.lineNumber),
+    ready: result.ready,
+    duplicateLineNumbers: result.duplicateLineNumbers,
+    ...(result.matchedLineNumbers.length > 0 && {
+      matchedLineNumbers: result.matchedLineNumbers,
     }),
   };
 }
@@ -434,178 +399,17 @@ export async function importRows(
   accountId: string | null,
   rows: ImportInput[],
 ) {
-  const userId = await ownerUserId(workspaceId);
   const candidates = await validateImport(workspaceId, accountId, rows);
-  if (candidates.length === 0) {
-    return { importedIds: [] as string[], duplicateLineNumbers: [] as number[] };
-  }
-
-  const seen = new Set<string>();
-  const duplicateLineNumbers: number[] = [];
-  const uniqueCandidates = candidates.filter((row) => {
-    if (seen.has(row.fingerprint)) {
-      duplicateLineNumbers.push(row.lineNumber);
-      return false;
-    }
-    seen.add(row.fingerprint);
-    return true;
+  const result = await recurringMoneyOccurrences.importTransactions(workspaceId, {
+    mode: "commit",
+    accountId,
+    candidates,
   });
-  const existing = await existingImportFingerprints(
-    workspaceId,
-    uniqueCandidates.map((row) => row.fingerprint),
-  );
-  const rowsToInsert = uniqueCandidates.filter((row) => {
-    if (existing.has(row.fingerprint)) {
-      duplicateLineNumbers.push(row.lineNumber);
-      return false;
-    }
-    return true;
-  });
-  if (rowsToInsert.length === 0) {
-    return {
-      importedIds: [] as string[],
-      duplicateLineNumbers: duplicateLineNumbers.sort((a, b) => a - b),
-    };
-  }
-
-  const matches = await recurringMoneyDraftsService.findImportMatches(
-    workspaceId,
-    rowsToInsert.map((row) => ({
-      key: row.fingerprint,
-      amount: row.amount,
-      date: row.date,
-      type: row.type,
-      payee: row.payee,
-    })),
-  );
-  const { inserted, linkedKeys } = await db.transaction(async (tx) => {
-    // Lock candidate drafts before deciding which import rows inherit recurring
-    // metadata. Concurrent imports can then never both claim or auto-review the
-    // same expectation.
-    const lockedDrafts = matches.length > 0
-      ? await tx
-          .select({
-            id: recurringMoneyDrafts.id,
-            expectedAmount: recurringMoneyDrafts.expectedAmount,
-          })
-          .from(recurringMoneyDrafts)
-          .where(inArray(recurringMoneyDrafts.id, matches.map((match) => match.draftId)))
-          .orderBy(recurringMoneyDrafts.id)
-          .for("update")
-      : [];
-    const recordedRows = lockedDrafts.length > 0
-      ? await tx
-          .select({
-            draftId: recurringMoneyDraftSettlements.draftId,
-            total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
-          })
-          .from(recurringMoneyDraftSettlements)
-          .innerJoin(
-            transactions,
-            eq(recurringMoneyDraftSettlements.transactionId, transactions.id),
-          )
-          .where(
-            inArray(
-              recurringMoneyDraftSettlements.draftId,
-              lockedDrafts.map((draft) => draft.id),
-            ),
-          )
-          .groupBy(recurringMoneyDraftSettlements.draftId)
-      : [];
-    const expectedByDraft = new Map(
-      lockedDrafts.map((draft) => [draft.id, Number(draft.expectedAmount)]),
-    );
-    const allocatedByDraft = new Map(
-      recordedRows.map((row) => [row.draftId, Number(row.total)]),
-    );
-    const availableMatches = matches.filter((match) => {
-      const expected = expectedByDraft.get(match.draftId);
-      if (expected === undefined) return false;
-      const allocated = allocatedByDraft.get(match.draftId) ?? 0;
-      if (Math.round((allocated + match.amount) * 100) > Math.round(expected * 100)) {
-        return false;
-      }
-      allocatedByDraft.set(match.draftId, allocated + match.amount);
-      return true;
-    });
-    const matchesByFingerprint = new Map(
-      availableMatches.map((match) => [match.key, match]),
-    );
-    const inserted = await tx
-      .insert(transactions)
-      .values(
-        rowsToInsert.map((row) => {
-          const match = matchesByFingerprint.get(row.fingerprint);
-          return {
-            id: genId(),
-            userId,
-            workspaceId,
-            accountId,
-            amount: String(row.amount),
-            date: row.date,
-            type: row.type,
-            status: "cleared" as const,
-            needsReview: match ? false : (row.needsReview ?? true),
-            category: match?.category ?? row.category,
-            payee: row.payee,
-            clientId: match ? match.clientId : (row.clientId ?? null),
-            givingRecipientId: match
-              ? match.givingRecipientId
-              : (row.givingRecipientId ?? null),
-            givingDesignationId: match
-              ? match.givingDesignationId
-              : (row.givingDesignationId ?? null),
-            notes: row.notes,
-            tags: row.tags,
-            receiptStorageId: null,
-            importFingerprint: row.fingerprint,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-        }),
-      )
-      .onConflictDoNothing({
-        target: [transactions.workspaceId, transactions.importFingerprint],
-      })
-      .returning({ id: transactions.id, fingerprint: transactions.importFingerprint });
-
-    const insertedByFingerprint = new Map(
-      inserted.flatMap((row) => (row.fingerprint ? [[row.fingerprint, row.id] as const] : [])),
-    );
-    const linkedKeys = new Set<string>();
-    for (const match of availableMatches) {
-      const transactionId = insertedByFingerprint.get(match.key);
-      if (!transactionId) continue;
-      const [linked] = await tx
-        .insert(recurringMoneyDraftSettlements)
-        .values({
-          id: genId(),
-          userId,
-          workspaceId,
-          draftId: match.draftId,
-          transactionId,
-        })
-        .returning({ id: recurringMoneyDraftSettlements.id });
-      if (linked) linkedKeys.add(match.key);
-    }
-    return { inserted, linkedKeys };
-  });
-
-  const insertedFingerprints = new Set(
-    inserted.flatMap((row) => (row.fingerprint ? [row.fingerprint] : [])),
-  );
-  duplicateLineNumbers.push(
-    ...rowsToInsert
-      .filter((row) => !insertedFingerprints.has(row.fingerprint))
-      .map((row) => row.lineNumber),
-  );
   return {
-    importedIds: inserted.map((row) => row.id),
-    duplicateLineNumbers: duplicateLineNumbers.sort((a, b) => a - b),
-    ...(linkedKeys.size > 0 && {
-      matchedLineNumbers: rowsToInsert
-        .filter((row) => linkedKeys.has(row.fingerprint))
-        .map((row) => row.lineNumber),
+    importedIds: result.importedIds,
+    duplicateLineNumbers: result.duplicateLineNumbers,
+    ...(result.matchedLineNumbers.length > 0 && {
+      matchedLineNumbers: result.matchedLineNumbers,
     }),
   };
 }
@@ -800,20 +604,17 @@ export async function update(workspaceId: string, id: string, input: UpdateInput
 
   return db.transaction(async (tx) => {
     if (input.type !== undefined && input.type !== existing.type) {
-      const [settlement] = await tx
-        .select({ draftType: recurringMoneyDrafts.type })
-        .from(recurringMoneyDraftSettlements)
-        .innerJoin(
-          recurringMoneyDrafts,
-          eq(recurringMoneyDraftSettlements.draftId, recurringMoneyDrafts.id),
-        )
-        .where(eq(recurringMoneyDraftSettlements.transactionId, id))
-        .limit(1);
-      if (settlement && settlement.draftType !== input.type) {
-        throw new Error(
-          "Unmatch this transaction from recurring money before changing its type",
-        );
-      }
+      await tx
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(and(eq(transactions.id, id), eq(transactions.workspaceId, workspaceId)))
+        .limit(1)
+        .for("update");
+      await recurringMoneyOccurrences.assertChange(workspaceId, {
+        kind: "transaction-type",
+        transactionId: id,
+        nextType: input.type,
+      });
     }
 
     if (existing.type === "giving" && effectiveType !== "giving") {

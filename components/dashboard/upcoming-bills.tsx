@@ -17,7 +17,7 @@ type RecurringMoneyItem = {
   amount: number
   is_active: boolean
   day_of_month: number
-  settlement: { recorded_amount: number; outstanding_amount: number } | null
+  occurrence: { recorded_amount: number; outstanding_amount: number } | null
 }
 
 interface OutgoingsResponse {
@@ -27,9 +27,9 @@ interface OutgoingsResponse {
 
 function itemIsPaid(item: RecurringMoneyItem) {
   return Boolean(
-    item.settlement &&
-      item.settlement.recorded_amount > 0 &&
-      item.settlement.outstanding_amount === 0,
+    item.occurrence &&
+      item.occurrence.recorded_amount > 0 &&
+      item.occurrence.outstanding_amount === 0,
   );
 }
 

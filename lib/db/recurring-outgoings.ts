@@ -4,24 +4,18 @@ import {
   clients,
   givingDesignations,
   givingRecipients,
-  recurringMoneyDraftSettlements,
-  recurringMoneyDrafts,
   recurringOutgoings,
-  transactions,
 } from "@/db/schema";
 import {
   assertRebillShape,
   normaliseRebillAmount,
   type RebillMode,
 } from "@/lib/rebill";
-import { getPeriodMonthFromDate } from "@/lib/outgoings-date";
+import { assertChange } from "@/lib/recurring-money-occurrences";
 import * as clientsService from "./clients";
 import * as givingRecipientsService from "./giving-recipients";
-import * as draftsService from "./recurring-money-drafts";
 import {
-  boundedDateSchema,
   idSchema,
-  periodMonthSchema,
   recurringOutgoingCreateSchema,
   recurringOutgoingUpdateSchema,
   workspaceIdSchema,
@@ -270,8 +264,8 @@ export async function update(
   if (expectedType) ownership.push(eq(recurringOutgoings.type, expectedType));
 
   return db.transaction(async (tx) => {
-    // Payment logging takes the same row lock, so a payment cannot race a type
-    // change and leave a non-expense with an outgoing settlement.
+    // Occurrence materialisation takes the same row lock, so a schedule edit
+    // cannot race the snapshot that deliberate settlement records.
     const [existing] = await tx
       .select()
       .from(recurringOutgoings)
@@ -280,23 +274,6 @@ export async function update(
       .for("update");
 
     if (!existing) throw new Error("Recurring outgoing not found or unauthorized");
-    if (input.type !== undefined && input.type !== existing.type) {
-      const [settlement] = await tx
-        .select({ id: recurringMoneyDraftSettlements.id })
-        .from(recurringMoneyDraftSettlements)
-        .innerJoin(
-          recurringMoneyDrafts,
-          eq(recurringMoneyDraftSettlements.draftId, recurringMoneyDrafts.id),
-        )
-        .where(eq(recurringMoneyDrafts.recurringMoneyId, id))
-        .limit(1);
-      if (settlement) {
-        throw new RecurringMoneyShapeError(
-          "Unmatch this Recurring money from its Transactions before changing its type",
-        );
-      }
-    }
-
     // The interdependent fields are validated as the row will end up rather
     // than independently as the patch arrived.
     const rebillMode = input.rebillMode ?? (existing.rebillMode as RebillMode);
@@ -376,181 +353,20 @@ export async function remove(
     eq(recurringOutgoings.workspaceId, workspaceId),
   ];
   if (expectedType) ownership.push(eq(recurringOutgoings.type, expectedType));
-  const [existing] = await db
-    .select({ id: recurringOutgoings.id })
-    .from(recurringOutgoings)
-    .where(and(...ownership))
-    .limit(1);
-
-  if (!existing) throw new Error("Recurring outgoing not found or unauthorized");
-
-  await db
-    .delete(recurringOutgoings)
-    .where(and(...ownership));
-}
-
-export class RecurringMoneySettlementError extends Error {}
-
-const SETTLEMENT_TAG = "recurring-settlement";
-
-function moneyInPence(value: number | string) {
-  return Math.round(Number(value) * 100);
-}
-
-export async function settle(
-  workspaceId: string,
-  id: string,
-  input: { paidAt: string; amount?: number; periodMonth?: string },
-) {
-  workspaceIdSchema.parse(workspaceId);
-  idSchema.parse(id);
-  boundedDateSchema.parse(input.paidAt);
-  const periodMonth = input.periodMonth ?? getPeriodMonthFromDate(input.paidAt);
-  periodMonthSchema.parse(periodMonth);
-
-  const [schedule] = await db
-    .select()
-    .from(recurringOutgoings)
-    .where(and(eq(recurringOutgoings.id, id), eq(recurringOutgoings.workspaceId, workspaceId)))
-    .limit(1);
-  if (!schedule) throw new Error("Recurring money not found or unauthorized");
-
-  await draftsService.generate(workspaceId, periodMonth);
-  const userId = await ownerUserId(workspaceId);
-
-  return db.transaction(async (tx) => {
-    const [draft] = await tx
-      .select()
-      .from(recurringMoneyDrafts)
-      .where(
-        and(
-          eq(recurringMoneyDrafts.recurringMoneyId, id),
-          eq(recurringMoneyDrafts.workspaceId, workspaceId),
-          eq(recurringMoneyDrafts.periodMonth, periodMonth),
-        ),
-      )
+  await db.transaction(async (tx) => {
+    const [existing] = await tx
+      .select({ id: recurringOutgoings.id })
+      .from(recurringOutgoings)
+      .where(and(...ownership))
       .limit(1)
       .for("update");
-    if (!draft) throw new Error("Recurring money draft not found or unauthorized");
 
-    const [recorded] = await tx
-      .select({
-        total: sql<string>`coalesce(sum(${transactions.amount}), 0)`,
-      })
-      .from(recurringMoneyDraftSettlements)
-      .innerJoin(transactions, eq(recurringMoneyDraftSettlements.transactionId, transactions.id))
-      .where(eq(recurringMoneyDraftSettlements.draftId, draft.id));
+    if (!existing) throw new Error("Recurring outgoing not found or unauthorized");
 
-    const remainingPence = moneyInPence(draft.expectedAmount) - moneyInPence(recorded?.total ?? 0);
-    if (remainingPence <= 0) {
-      throw new RecurringMoneySettlementError("This month is already settled");
-    }
-    const requestedPence =
-      input.amount === undefined ? remainingPence : moneyInPence(input.amount);
-    if (!(requestedPence > 0)) {
-      throw new RecurringMoneySettlementError("amount must be positive");
-    }
-    const amount = Math.min(requestedPence, remainingPence) / 100;
-
-    const [transaction] = await tx
-      .insert(transactions)
-      .values({
-        id: crypto.randomUUID(),
-        userId,
-        workspaceId,
-        amount: String(amount),
-        date: input.paidAt,
-        type: draft.type,
-        status: "cleared",
-        category: schedule.category ?? "Uncategorized",
-        payee: schedule.vendor,
-        clientId: schedule.clientId,
-        givingRecipientId: schedule.givingRecipientId,
-        givingDesignationId: schedule.givingDesignationId,
-        notes: schedule.notes,
-        tags: [SETTLEMENT_TAG],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .returning();
-
-    await tx.insert(recurringMoneyDraftSettlements).values({
-      id: crypto.randomUUID(),
-      userId,
-      workspaceId,
-      draftId: draft.id,
-      transactionId: transaction.id,
+    await assertChange(workspaceId, {
+      kind: "schedule-deletion",
+      recurringMoneyId: id,
     });
-
-    return { transaction, draftId: draft.id };
-  });
-}
-
-export async function unsettle(
-  workspaceId: string,
-  id: string,
-  periodMonth: string,
-) {
-  workspaceIdSchema.parse(workspaceId);
-  idSchema.parse(id);
-  periodMonthSchema.parse(periodMonth);
-
-  return db.transaction(async (tx) => {
-    const [draft] = await tx
-      .select({ id: recurringMoneyDrafts.id })
-      .from(recurringMoneyDrafts)
-      .where(
-        and(
-          eq(recurringMoneyDrafts.recurringMoneyId, id),
-          eq(recurringMoneyDrafts.workspaceId, workspaceId),
-          eq(recurringMoneyDrafts.periodMonth, periodMonth),
-        ),
-      )
-      .limit(1)
-      .for("update");
-    if (!draft) throw new Error("Recurring money draft not found or unauthorized");
-
-    const settlements = await tx
-      .select({
-        transactionId: recurringMoneyDraftSettlements.transactionId,
-      })
-      .from(recurringMoneyDraftSettlements)
-      .where(eq(recurringMoneyDraftSettlements.draftId, draft.id));
-    if (settlements.length === 0) {
-      throw new RecurringMoneySettlementError("This month is not settled");
-    }
-
-    for (const settlement of settlements) {
-      const [transaction] = await tx
-        .select({
-          id: transactions.id,
-          status: transactions.status,
-          tags: transactions.tags,
-        })
-        .from(transactions)
-        .where(
-          and(eq(transactions.id, settlement.transactionId), eq(transactions.workspaceId, workspaceId)),
-        )
-        .limit(1);
-      const tags = Array.isArray(transaction?.tags) ? transaction.tags : [];
-      if (transaction && tags.includes(SETTLEMENT_TAG)) {
-        if (transaction.status === "reconciled") {
-          throw new Error("Reconciled transactions cannot be deleted");
-        }
-        await tx
-          .delete(transactions)
-          .where(and(eq(transactions.id, transaction.id), eq(transactions.workspaceId, workspaceId)));
-      } else {
-        await tx
-          .delete(recurringMoneyDraftSettlements)
-          .where(
-            and(
-              eq(recurringMoneyDraftSettlements.draftId, draft.id),
-              eq(recurringMoneyDraftSettlements.transactionId, settlement.transactionId),
-              eq(recurringMoneyDraftSettlements.workspaceId, workspaceId),
-            ),
-          );
-      }
-    }
+    await tx.delete(recurringOutgoings).where(and(...ownership));
   });
 }

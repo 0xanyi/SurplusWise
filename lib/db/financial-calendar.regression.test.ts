@@ -7,9 +7,8 @@ import * as calendarService from "./financial-calendar";
 import * as debtsService from "./debts-credits";
 import * as statementsService from "./debt-statements";
 import * as recurringMoneyService from "./recurring-outgoings";
-import * as draftsService from "./recurring-money-drafts";
 import * as transactionsService from "./transactions";
-
+import * as recurringMoneyOccurrences from "@/lib/recurring-money-occurrences";
 import { getCurrentUtcDate, getPeriodMonthFromDate } from "@/lib/outgoings-date";
 
 describe(
@@ -120,32 +119,26 @@ describe(
           "calendar projections must not create transactions",
         );
         assert.equal(
-          (await draftsService.list(workspaceId, "2028-02-01")).length,
-          0,
-          "viewing a future month must not freeze its expectations as drafts",
-        );
-        assert.equal(
           (await calendarService.getMonth(otherWorkspaceId, "2028-02-01")).events.length,
           1,
           "calendar events must remain workspace-scoped",
         );
 
-        await draftsService.generate(workspaceId, "2028-02-01");
-        const utilityDraft = (await draftsService.list(
-          workspaceId,
+        const utilityOccurrenceId = recurringMoneyOccurrences.recurringMoneyOccurrenceId(
+          utility.id,
           "2028-02-01",
-        )).find((draft) => draft.recurringMoneyId === utility.id)!;
+        );
         const payment = await transactionsService.create(workspaceId, {
           amount: 40,
           date: "2028-02-10",
           type: "expense",
           category: "Utilities",
         });
-        await draftsService.matchTransaction(
-          workspaceId,
-          utilityDraft.id,
-          payment.id,
-        );
+        await recurringMoneyOccurrences.settle(workspaceId, {
+          action: "match",
+          occurrenceId: utilityOccurrenceId,
+          transactionId: payment.id,
+        });
         calendar = await calendarService.getMonth(workspaceId, "2028-02-01");
         const utilityEvent = calendar.events.find((event) => event.title === "Electricity");
         assert.equal(utilityEvent?.status, "partial");
@@ -156,19 +149,17 @@ describe(
         const currentMonth = getPeriodMonthFromDate(getCurrentUtcDate());
         await calendarService.getMonth(workspaceId, currentMonth);
         assert.equal(
-          (await draftsService.list(workspaceId, currentMonth)).length,
-          2,
-          "the current month should materialize drafts for import matching",
-        );
-        assert.equal(
           (await transactionsService.list(workspaceId)).length,
           1,
-          "materialized expectations must remain outside the ledger",
+          "calendar reads must remain outside the ledger",
         );
-        await recurringMoneyService.settle(workspaceId, utility.id, {
-          amount: 100,
+        await recurringMoneyOccurrences.settle(workspaceId, {
+          action: "mark-paid",
+          occurrenceId: recurringMoneyOccurrences.recurringMoneyOccurrenceId(
+            utility.id,
+            currentMonth,
+          ),
           paidAt: getCurrentUtcDate(),
-          periodMonth: currentMonth,
         });
         const currentCalendar = await calendarService.getMonth(
           workspaceId,
