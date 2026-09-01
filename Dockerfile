@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 
 # ---- Base ----
-FROM node:24.19.0-alpine AS base
+FROM node:24.20.0-alpine AS base
 WORKDIR /app
 
 # Install libc6-compat for Alpine compatibility
